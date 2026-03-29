@@ -162,6 +162,18 @@
   background: #005ea6;
 }
 
+.button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.errorMessage {
+  margin-top: 0.15rem;
+  margin-bottom: 0.85rem;
+  color: #bb1a1a;
+  font-size: clamp(0.72rem, 0.75vw, 0.78rem);
+}
+
 .separator {
   margin-top: 1.45rem;
   border-top: 1px solid #dfdfdf;

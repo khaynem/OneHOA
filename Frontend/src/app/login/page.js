@@ -3,11 +3,48 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
+import { apiClient, ApiError } from '@/lib/apiClient'
 import styles from './login.module.css'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    if (!username.trim() || !password) {
+      setErrorMessage('Username and password are required.')
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMessage('')
+
+    try {
+      await apiClient.post('/auth/login', {
+        username: username.trim(),
+        password,
+      })
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage('Unable to login right now. Please try again.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <main className={styles.container}>
@@ -16,10 +53,17 @@ export default function LoginPage() {
           <h1 className={styles.title}>Login</h1>
           <p className={styles.lead}>Login your account to continue</p>
 
-          <form className={styles.form}>
+          <form className={styles.form} onSubmit={handleSubmit}>
             <label className={styles.field}>
               <span className={styles.labelText}>Username</span>
-              <input type="text" name="username" className={styles.input} />
+              <input
+                type="text"
+                name="username"
+                className={styles.input}
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+              />
             </label>
 
             <label className={styles.field}>
@@ -29,6 +73,9 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   className={styles.input}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -46,6 +93,12 @@ export default function LoginPage() {
               </div>
             </label>
 
+            {errorMessage ? (
+              <p className={styles.errorMessage} role="alert" aria-live="polite">
+                {errorMessage}
+              </p>
+            ) : null}
+
             <div className={styles.rowOptions}>
               <label className={styles.remember}>
                 <input type="checkbox" />
@@ -56,7 +109,9 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <button type="submit" className={styles.button}>Login</button>
+            <button type="submit" className={styles.button} disabled={isLoading}>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
           </form>
 
           <div className={styles.separator} />

@@ -7,6 +7,8 @@ const app = require("./app");
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const MONGO_MAX_RETRIES = Number(process.env.MONGO_MAX_RETRIES || 8);
+const MONGO_RETRY_DELAY_MS = Number(process.env.MONGO_RETRY_DELAY_MS || 3000);
 
 async function connectToMongoDB() {
 	if (!MONGODB_URI) {
@@ -19,9 +21,32 @@ async function connectToMongoDB() {
 	console.log("MongoDB connected successfully.");
 }
 
+async function connectToMongoDBWithRetry() {
+	for (let attempt = 1; attempt <= MONGO_MAX_RETRIES; attempt += 1) {
+		try {
+			await connectToMongoDB();
+			return;
+		} catch (error) {
+			const isLastAttempt = attempt === MONGO_MAX_RETRIES;
+			console.error(
+				`MongoDB connection attempt ${attempt}/${MONGO_MAX_RETRIES} failed: ${error.message}`
+			);
+
+			if (isLastAttempt) {
+				console.error(
+					"Final MongoDB connection attempt failed. Check Atlas IP allowlist, credentials, and internet connection."
+				);
+				throw error;
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, MONGO_RETRY_DELAY_MS));
+		}
+	}
+}
+
 async function startServer() {
 	try {
-		await connectToMongoDB();
+		await connectToMongoDBWithRetry();
 
 		const server = app.listen(PORT, () => {
 			console.log(`Server is running on http://localhost:${PORT}`);

@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 import { apiClient, ApiError } from '@/lib/apiClient'
+import { notify } from '@/lib/notify'
 import styles from './login.module.css'
 
 export default function LoginPage() {
@@ -14,18 +15,16 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
     if (!username.trim() || !password) {
-      setErrorMessage('Username and password are required.')
+      notify.error('Username and password are required.')
       return
     }
 
     setIsLoading(true)
-    setErrorMessage('')
 
     try {
       await apiClient.post('/auth/login', {
@@ -33,13 +32,14 @@ export default function LoginPage() {
         password,
       })
 
+      notify.success('Login successful. Redirecting to dashboard...')
       router.push('/dashboard')
       router.refresh()
     } catch (error) {
       if (error instanceof ApiError) {
-        setErrorMessage(error.message)
+        notify.error(error.message)
       } else {
-        setErrorMessage('Unable to login right now. Please try again.')
+        notify.error('Unable to login right now. Please try again.')
       }
     } finally {
       setIsLoading(false)
@@ -92,12 +92,6 @@ export default function LoginPage() {
                 </button>
               </div>
             </label>
-
-            {errorMessage ? (
-              <p className={styles.errorMessage} role="alert" aria-live="polite">
-                {errorMessage}
-              </p>
-            ) : null}
 
             <div className={styles.rowOptions}>
               <label className={styles.remember}>

@@ -1,4 +1,5 @@
 "use client"
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import styles from './landing.module.css'
@@ -29,7 +30,14 @@ export default function LandingPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.brand}>
-          <img src="/images/HOA Logo.png" alt="OneHOA Logo" className={styles.logo} />
+          <Image
+            src="/images/HOA Logo.png"
+            alt="OneHOA Logo"
+            width={44}
+            height={44}
+            className={styles.logo}
+            priority
+          />
           <span className={styles.brandText}>OneHOA</span>
         </div>
 
@@ -47,7 +55,7 @@ export default function LandingPage() {
       <section id="home" className={styles.hero}>
         <div className={styles.heroInner}>
           <h1 className={styles.heroTitle}>Welcome to OneHOA</h1>
-          <p className={styles.heroSubtitle}>FC Hanjin Village's comprehensive Homeowners Association Management System</p>
+          <p className={styles.heroSubtitle}>FC Hanjin Village&apos;s comprehensive Homeowners Association Management System</p>
           <p className={styles.heroLead}>Stay informed, stay connected, and keep your community organized.</p>
           <div className={styles.cta}>
             <Link href="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
@@ -69,7 +77,12 @@ export default function LandingPage() {
           </div>
 
           <div className={styles.aboutLogo}>
-            <img src="/images/HOA Logo.png" alt="HOA Logo" />
+            <Image
+              src="/images/HOA Logo.png"
+              alt="HOA Logo"
+              width={200}
+              height={200}
+            />
           </div>
         </div>
       </section>
@@ -112,10 +125,15 @@ export default function LandingPage() {
           </div>
 
           <div className={styles.footerBrand}>
-            <img src="/images/HOA Logo.png" alt="OneHOA Logo" />
+            <Image
+              src="/images/HOA Logo.png"
+              alt="OneHOA Logo"
+              width={72}
+              height={72}
+            />
             <div className={styles.footerBrandText}>
               <div className={styles.footerTitle}>OneHOA</div>
-              <div className={styles.footerDesc}>FC Hanjin Village's comprehensive Homeowners Association Management System</div>
+              <div className={styles.footerDesc}>FC Hanjin Village&apos;s comprehensive Homeowners Association Management System</div>
             </div>
           </div>
         </div>

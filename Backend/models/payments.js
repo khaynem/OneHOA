@@ -36,7 +36,6 @@ const paymentsSchema = new mongoose.Schema(
     }
 );
 
-paymentsSchema.index({ receipt_no: 1 }, { unique: true });
 paymentsSchema.index({ 'records._id': 1 });
 
 module.exports = mongoose.model('Payment', paymentsSchema);

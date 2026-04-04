@@ -15,6 +15,19 @@
   font-size: 1.03rem;
 }
 
+.stateText {
+  margin: 0 0 16px;
+  color: #4f4f4f;
+  font-size: 0.95rem;
+}
+
+.errorText {
+  margin: 0 0 16px;
+  color: #b42318;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(210px, 1fr));
@@ -106,6 +119,12 @@
   max-height: 320px;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.emptyText {
+  color: #666;
+  font-size: 0.95rem;
+  padding: 2px 0;
 }
 
 .listRow,

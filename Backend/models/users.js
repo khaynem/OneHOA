@@ -3,19 +3,29 @@ const bcrypt = require('bcryptjs');
 
 const usersSchema = new mongoose.Schema(
     {
-        username: {
+        email: {
             type: String,
             required: true,
             unique: true,
             trim: true,
-            minLength: 3,
-            maxLength: 30,
+            lowercase: true,
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Invalid email format'],
         },
         
         password: {
             type: String,
             required: true,
             minLength: 8,
+        },
+
+        password_reset_code_hash: {
+            type: String,
+            default: null,
+        },
+
+        password_reset_code_expires_at: {
+            type: Date,
+            default: null,
         },
 
         role: {

@@ -21,14 +21,14 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = jwt.verify(token, secret);
 
-    const user = await User.findById(decoded.userId).select("_id username role");
+    const user = await User.findById(decoded.userId).select("_id email role");
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     req.user = {
       id: user._id.toString(),
-      username: user.username,
+      email: user.email,
       role: user.role,
     };
 

@@ -12,15 +12,15 @@ import styles from './login.module.css'
 export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
 
-    if (!username.trim() || !password) {
-      notify.error('Username and password are required.')
+    if (!email.trim() || !password) {
+      notify.error('Email and password are required.')
       return
     }
 
@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     try {
       await apiClient.post('/auth/login', {
-        username: username.trim(),
+        email: email.trim().toLowerCase(),
         password,
       })
 
@@ -55,14 +55,14 @@ export default function LoginPage() {
 
           <form className={styles.form} onSubmit={handleSubmit}>
             <label className={styles.field}>
-              <span className={styles.labelText}>Username</span>
+              <span className={styles.labelText}>Email</span>
               <input
-                type="text"
-                name="username"
+                type="email"
+                name="email"
                 className={styles.input}
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoComplete="username"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
               />
             </label>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 <input type="checkbox" />
                 <span>Remember me</span>
               </label>
-              <Link href="#" className={styles.forgot}>
+              <Link href="/forgot-password" className={styles.forgot}>
                 Forgot Password?
               </Link>
             </div>

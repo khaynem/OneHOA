@@ -2,6 +2,9 @@ const Record = require("../models/records");
 const Payment = require("../models/payments");
 const Activity = require("../models/activities");
 
+const PENDING_START_YEAR = 2026;
+const PENDING_START_MONTH = 1;
+
 function formatPaymentAmount(amount) {
 	const value = Number(amount) || 0;
 	return `P${value.toLocaleString("en-PH", {
@@ -19,18 +22,21 @@ function dateToPeriod(dateInput) {
 	return (dateValue.getFullYear() * 100) + (dateValue.getMonth() + 1);
 }
 
-function normalizePaymentPeriod(payment) {
-	if (Number(payment.billing_period)) {
-		return Number(payment.billing_period);
-	}
+function getCoveredPeriodsFromPayment(payment, startPeriod, endPeriod) {
+	const coveredPeriods = Array.isArray(payment.payment_for_periods) && payment.payment_for_periods.length > 0
+		? payment.payment_for_periods
+		: [
+			Number(payment.billing_period)
+			|| ((Number(payment.billing_year) >= 2000 && Number(payment.billing_month) >= 1)
+				? (Number(payment.billing_year) * 100) + Number(payment.billing_month)
+				: null)
+			|| dateToPeriod(payment.date)
+			|| dateToPeriod(payment.createdAt),
+		];
 
-	const month = Number(payment.billing_month);
-	const year = Number(payment.billing_year);
-	if (month >= 1 && month <= 12 && year >= 2000 && year <= 3000) {
-		return (year * 100) + month;
-	}
-
-	return dateToPeriod(payment.createdAt);
+	return coveredPeriods
+		.map((period) => Number(period))
+		.filter((period) => Number.isInteger(period) && period >= startPeriod && period <= endPeriod);
 }
 
 function isPaymentMarkedPaid(payment) {
@@ -58,9 +64,6 @@ function nextPeriod(period) {
 
 const getDashboardAnalytics = async (req, res) => {
 	try {
-		const requestedMonths = Number(req.query.months) || 12;
-		const monthsToTrack = Math.min(Math.max(requestedMonths, 1), 36);
-
 		const monthStart = new Date();
 		monthStart.setDate(1);
 		monthStart.setHours(0, 0, 0, 0);
@@ -72,9 +75,9 @@ const getDashboardAnalytics = async (req, res) => {
 		const currentYear = monthStart.getFullYear();
 		const currentPeriod = (currentYear * 100) + currentMonth;
 
-		const trackerStartDate = new Date(monthStart);
-		trackerStartDate.setMonth(trackerStartDate.getMonth() - (monthsToTrack - 1));
-		const trackerStartPeriod = (trackerStartDate.getFullYear() * 100) + (trackerStartDate.getMonth() + 1);
+		const pendingStartDate = new Date(PENDING_START_YEAR, PENDING_START_MONTH - 1, 1);
+		const pendingStartPeriod = (PENDING_START_YEAR * 100) + PENDING_START_MONTH;
+		const trackedMonths = ((currentYear - PENDING_START_YEAR) * 12) + (currentMonth - PENDING_START_MONTH) + 1;
 
 		const [
 			homeowners,
@@ -83,17 +86,18 @@ const getDashboardAnalytics = async (req, res) => {
 			previousActivitiesRaw,
 		] = await Promise.all([
 			Record.find()
-				.select("_id entry_date")
+				.select("_id")
 				.lean(),
 			Payment.find({
 				$or: [
-					{ billing_period: { $gte: trackerStartPeriod, $lte: currentPeriod } },
+					{ payment_for_periods: { $elemMatch: { $gte: pendingStartPeriod, $lte: currentPeriod } } },
+					{ billing_period: { $gte: pendingStartPeriod, $lte: currentPeriod } },
 					{
-						billing_year: { $gte: Math.floor(trackerStartPeriod / 100), $lte: currentYear },
+						billing_year: { $gte: PENDING_START_YEAR, $lte: currentYear },
 						billing_month: { $gte: 1, $lte: 12 },
 					},
 					{
-						createdAt: { $gte: trackerStartDate, $lt: nextMonthStart },
+						createdAt: { $gte: pendingStartDate, $lt: nextMonthStart },
 						$or: [
 							{ billing_period: { $exists: false } },
 							{ billing_year: { $exists: false } },
@@ -103,7 +107,7 @@ const getDashboardAnalytics = async (req, res) => {
 				],
 				"records._id": { $exists: true, $ne: null },
 			})
-				.select("records._id billing_period billing_year billing_month payment_status payment_details payment_method createdAt")
+				.select("records._id payment_for_periods billing_period billing_year billing_month payment_status payment_details payment_method date createdAt")
 				.lean(),
 			Payment.find()
 				.populate("records._id", "first_name last_name household_no")
@@ -122,8 +126,8 @@ const getDashboardAnalytics = async (req, res) => {
 				continue;
 			}
 
-			const period = normalizePaymentPeriod(payment);
-			if (!period || period < trackerStartPeriod || period > currentPeriod) {
+			const coveredPeriods = getCoveredPeriodsFromPayment(payment, pendingStartPeriod, currentPeriod);
+			if (coveredPeriods.length === 0) {
 				continue;
 			}
 
@@ -131,7 +135,9 @@ const getDashboardAnalytics = async (req, res) => {
 				paidPeriodsByHomeowner.set(homeownerId, new Set());
 			}
 
-			paidPeriodsByHomeowner.get(homeownerId).add(period);
+			for (const period of coveredPeriods) {
+				paidPeriodsByHomeowner.get(homeownerId).add(period);
+			}
 		}
 
 		let upcomingPayments = 0;
@@ -139,8 +145,7 @@ const getDashboardAnalytics = async (req, res) => {
 
 		for (const homeowner of homeowners) {
 			const homeownerId = String(homeowner._id);
-			const entryPeriod = dateToPeriod(homeowner.entry_date);
-			const activeStartPeriod = entryPeriod ? Math.max(entryPeriod, trackerStartPeriod) : trackerStartPeriod;
+			const activeStartPeriod = pendingStartPeriod;
 
 			if (activeStartPeriod > currentPeriod) {
 				continue;
@@ -152,18 +157,12 @@ const getDashboardAnalytics = async (req, res) => {
 				upcomingPayments += 1;
 			}
 
-			let hasPastDue = false;
 			let periodCursor = activeStartPeriod;
 			while (periodCursor < currentPeriod) {
 				if (!paidSet.has(periodCursor)) {
-					hasPastDue = true;
-					break;
+					pendingPayments += 1;
 				}
 				periodCursor = nextPeriod(periodCursor);
-			}
-
-			if (hasPastDue) {
-				pendingPayments += 1;
 			}
 		}
 
@@ -197,7 +196,7 @@ const getDashboardAnalytics = async (req, res) => {
 		return res.status(200).json({
 			success: true,
 			data: {
-				trackedMonths: monthsToTrack,
+				trackedMonths,
 				stats: {
 					totalHomeowners,
 					pendingPayments,

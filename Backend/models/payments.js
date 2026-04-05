@@ -33,6 +33,26 @@ const paymentsSchema = new mongoose.Schema(
             min: 200001,
             max: 300012,
         },
+        payment_for_periods: {
+            type: [Number],
+            required: true,
+            default: [],
+            validate: {
+                validator: (periods) => Array.isArray(periods)
+                    && periods.length > 0
+                    && periods.every((period) => {
+                        const numericPeriod = Number(period);
+                        if (!Number.isInteger(numericPeriod)) {
+                            return false;
+                        }
+
+                        const year = Math.floor(numericPeriod / 100);
+                        const month = numericPeriod % 100;
+                        return year >= 2000 && year <= 3000 && month >= 1 && month <= 12;
+                    }),
+                message: 'payment_for_periods must contain one or more valid YYYYMM periods.',
+            },
+        },
         payment_status: {
             type: String,
             required: true,
@@ -66,5 +86,6 @@ paymentsSchema.index({ 'records._id': 1, billing_year: 1, billing_month: 1 });
 paymentsSchema.index({ payment_status: 1, billing_year: 1, billing_month: 1 });
 paymentsSchema.index({ 'records._id': 1, billing_period: 1 });
 paymentsSchema.index({ payment_status: 1, billing_period: 1 });
+paymentsSchema.index({ 'records._id': 1, payment_for_periods: 1 });
 
 module.exports = mongoose.model('Payment', paymentsSchema);

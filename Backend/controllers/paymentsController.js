@@ -37,6 +37,93 @@ function getBillingMonthAndYear(dateInput, billingMonthInput, billingYearInput) 
     };
 }
 
+function toPeriod(year, month) {
+    const normalizedYear = Number(year);
+    const normalizedMonth = Number(month);
+
+    if (!Number.isInteger(normalizedYear) || normalizedYear < 2000 || normalizedYear > 3000) {
+        return null;
+    }
+
+    if (!Number.isInteger(normalizedMonth) || normalizedMonth < 1 || normalizedMonth > 12) {
+        return null;
+    }
+
+    return (normalizedYear * 100) + normalizedMonth;
+}
+
+function parsePaymentForEntry(entry) {
+    if (typeof entry === 'number') {
+        const period = Number(entry);
+        const year = Math.floor(period / 100);
+        const month = period % 100;
+        return toPeriod(year, month);
+    }
+
+    if (typeof entry === 'string') {
+        const value = entry.trim();
+
+        if (/^\d{6}$/.test(value)) {
+            const period = Number(value);
+            const year = Math.floor(period / 100);
+            const month = period % 100;
+            return toPeriod(year, month);
+        }
+
+        const match = value.match(/^(\d{4})-(\d{1,2})$/);
+        if (match) {
+            return toPeriod(Number(match[1]), Number(match[2]));
+        }
+
+        return null;
+    }
+
+    if (entry && typeof entry === 'object') {
+        const year = entry.year ?? entry.billing_year;
+        const month = entry.month ?? entry.billing_month;
+        return toPeriod(year, month);
+    }
+
+    return null;
+}
+
+function normalizePaymentForPeriods(paymentForInput, fallbackPeriod) {
+    if (paymentForInput === undefined || paymentForInput === null || paymentForInput === '') {
+        return [fallbackPeriod];
+    }
+
+    const inputArray = Array.isArray(paymentForInput) ? paymentForInput : [paymentForInput];
+    const parsedPeriods = [];
+
+    for (const entry of inputArray) {
+        const parsedPeriod = parsePaymentForEntry(entry);
+        if (!parsedPeriod) {
+            return null;
+        }
+        parsedPeriods.push(parsedPeriod);
+    }
+
+    if (parsedPeriods.length === 0) {
+        return [fallbackPeriod];
+    }
+
+    return Array.from(new Set(parsedPeriods)).sort((a, b) => a - b);
+}
+
+function getCoveredPeriodsFromPayment(payment, startPeriod, endPeriod) {
+    const coveredPeriods = Array.isArray(payment.payment_for_periods) && payment.payment_for_periods.length > 0
+        ? payment.payment_for_periods
+        : [
+            Number(payment.billing_period)
+            || toPeriod(payment.billing_year, payment.billing_month)
+            || toPeriod(new Date(payment.date).getFullYear(), new Date(payment.date).getMonth() + 1),
+        ];
+
+    return coveredPeriods
+        .map((period) => Number(period))
+        .filter((period) => Number.isInteger(period) && period >= startPeriod && period <= endPeriod);
+}
+
 const createPayment = async (req, res) => {
     try {
         const {
@@ -50,6 +137,8 @@ const createPayment = async (req, res) => {
             payment_status,
             billing_month,
             billing_year,
+            payment_for,
+            payment_for_periods,
         } = req.body;
 
         const selectedRecordId = record_id || recordId;
@@ -71,6 +160,17 @@ const createPayment = async (req, res) => {
             });
         }
 
+        const coveredPeriods = normalizePaymentForPeriods(
+            payment_for_periods ?? payment_for,
+            billingInfo.billingPeriod
+        );
+
+        if (!coveredPeriods) {
+            return res.status(400).json({
+                message: 'Invalid payment_for format. Use YYYYMM, YYYY-MM, or { year, month } values.',
+            });
+        }
+
         const record = await Record.findById(selectedRecordId).select('_id');
         if (!record) {
             return res.status(404).json({ message: 'Record not found.' });
@@ -83,6 +183,7 @@ const createPayment = async (req, res) => {
             billing_month: billingInfo.billingMonth,
             billing_year: billingInfo.billingYear,
             billing_period: billingInfo.billingPeriod,
+            payment_for_periods: coveredPeriods,
             payment_status: inferPaymentStatus(payment_status, payment_details, payment_method),
             payment_method,
             payment_details,
@@ -105,7 +206,7 @@ const createPayment = async (req, res) => {
 
 const getPayments = async (req, res) => {
     try {
-        const { record_id, billing_month, billing_year, payment_status } = req.query;
+        const { record_id, billing_month, billing_year, payment_status, payment_for_period } = req.query;
         const filter = {};
 
         if (record_id) {
@@ -127,8 +228,16 @@ const getPayments = async (req, res) => {
             filter.payment_status = String(payment_status).toLowerCase();
         }
 
+        if (payment_for_period) {
+            const period = parsePaymentForEntry(payment_for_period);
+            if (!period) {
+                return res.status(400).json({ message: 'Invalid payment_for_period format.' });
+            }
+            filter.payment_for_periods = period;
+        }
+
         const payments = await Payment.find(filter)
-            .populate('records._id', 'first_name last_name household_no')
+            .populate('records._id', 'first_name last_name')
             .sort({ billing_year: -1, billing_month: -1, date: -1, createdAt: -1 })
             .lean();
 
@@ -182,6 +291,7 @@ const getPaymentTracker = async (req, res) => {
 
         const payments = await Payment.find({
             $or: [
+                { payment_for_periods: { $elemMatch: { $gte: startPeriod, $lte: endPeriod } } },
                 { billing_period: { $gte: startPeriod, $lte: endPeriod } },
                 {
                     date: { $gte: startDate, $lt: endExclusive },
@@ -194,7 +304,7 @@ const getPaymentTracker = async (req, res) => {
             ],
             'records._id': { $exists: true, $ne: null },
         })
-            .select('records._id date billing_month billing_year payment_status payment_details payment_method')
+            .select('records._id date billing_month billing_year billing_period payment_for_periods payment_status payment_details payment_method')
             .lean();
 
         const homeownerMonthStatus = new Map();
@@ -205,25 +315,24 @@ const getPaymentTracker = async (req, res) => {
                 continue;
             }
 
-            const paymentDate = payment.date ? new Date(payment.date) : null;
-            if (!paymentDate || Number.isNaN(paymentDate.getTime())) {
-                continue;
-            }
-
-            const month = Number(payment.billing_month) || paymentDate.getMonth() + 1;
-            const year = Number(payment.billing_year) || paymentDate.getFullYear();
-            const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-
-            if (!monthKeySet.has(monthKey)) {
-                continue;
-            }
-
             const status = inferPaymentStatus(payment.payment_status, payment.payment_details, payment.payment_method);
-            const compositeKey = `${homeownerId}:${monthKey}`;
-            const current = homeownerMonthStatus.get(compositeKey);
+            const coveredPeriods = getCoveredPeriodsFromPayment(payment, startPeriod, endPeriod);
 
-            if (current !== 'paid') {
-                homeownerMonthStatus.set(compositeKey, status);
+            for (const period of coveredPeriods) {
+                const year = Math.floor(period / 100);
+                const month = period % 100;
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+                if (!monthKeySet.has(monthKey)) {
+                    continue;
+                }
+
+                const compositeKey = `${homeownerId}:${monthKey}`;
+                const current = homeownerMonthStatus.get(compositeKey);
+
+                if (current !== 'paid') {
+                    homeownerMonthStatus.set(compositeKey, status);
+                }
             }
         }
 

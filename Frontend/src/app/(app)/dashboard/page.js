@@ -85,8 +85,8 @@ export default function DashboardPage() {
               <li className={styles.emptyText}>No recent payments yet.</li>
             )}
 
-            {recentPayments.map((item) => (
-              <li key={`${item.homeowner}-${item.details}`} className={styles.listRow}>
+            {recentPayments.map((item, index) => (
+              <li key={item.id || `${item.homeowner}-${item.details}-${index}`} className={styles.listRow}>
                 <div>
                   <p className={styles.rowTitle}>{item.homeowner}</p>
                   <p className={styles.rowSubtitle}>{item.details}</p>
@@ -109,8 +109,8 @@ export default function DashboardPage() {
               <li className={styles.emptyText}>No previous activities yet.</li>
             )}
 
-            {previousActivities.map((item) => (
-              <li key={`${item.title}-${item.date}`} className={styles.activityRow}>
+            {previousActivities.map((item, index) => (
+              <li key={item.id || `${item.title}-${item.date}-${index}`} className={styles.activityRow}>
                 <span className={styles.dot} aria-hidden="true" />
 
                 <div>

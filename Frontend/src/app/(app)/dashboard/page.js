@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
     return [
       { label: 'Total Homeowners', value: stats.totalHomeowners || 0, Icon: HomeownerIcon },
-      { label: 'Pending Payments', value: stats.pendingPayments || 0, Icon: PaymentIcon },
+      { label: 'Pending Payments (Since Jan, 2026)', value: stats.pendingPayments || 0, Icon: PaymentIcon },
       { label: 'Upcoming Payments', value: stats.upcomingPayments || 0, Icon: ActivityIcon },
     ]
   }, [dashboardData])

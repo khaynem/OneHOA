@@ -451,7 +451,7 @@ export default function PaymentMonitoringPage() {
         </article>
 
         <article className={styles.statCard}>
-          <p className={styles.statLabel}>Pending Payments</p>
+          <p className={styles.statLabel}>Pending Payments (Current Month)</p>
           <p className={styles.statValue}>{stats.pendingPayments}</p>
           <p className={styles.statSubtext}>Outstanding balances</p>
         </article>

@@ -141,9 +141,11 @@ const createPayment = async (req, res) => {
             payment_for_periods,
         } = req.body;
 
+        const normalizedPaymentMethod = String(payment_method || 'Cash').trim();
+
         const selectedRecordId = record_id || recordId;
 
-        if (!receipt_no || !amount || !date || !payment_method || !selectedRecordId) {
+        if (!receipt_no || !amount || !date || !selectedRecordId) {
             return res.status(400).json({
                 message: 'Missing required fields.',
             });
@@ -176,6 +178,30 @@ const createPayment = async (req, res) => {
             return res.status(404).json({ message: 'Record not found.' });
         }
 
+        const existingPaidForSamePeriods = await Payment.findOne({
+            'records._id': record._id,
+            payment_status: 'paid',
+            $or: [
+                { payment_for_periods: { $in: coveredPeriods } },
+                { billing_period: { $in: coveredPeriods } },
+            ],
+        })
+            .select('payment_for_periods billing_period')
+            .lean();
+
+        if (existingPaidForSamePeriods) {
+            const existingCoveredPeriods = Array.isArray(existingPaidForSamePeriods.payment_for_periods)
+                && existingPaidForSamePeriods.payment_for_periods.length > 0
+                ? existingPaidForSamePeriods.payment_for_periods.map(Number)
+                : [Number(existingPaidForSamePeriods.billing_period)].filter((value) => Number.isInteger(value));
+
+            const duplicatePeriods = coveredPeriods.filter((period) => existingCoveredPeriods.includes(period));
+
+            return res.status(409).json({
+                message: `The homeowner has already made a payment for the period(s): ${duplicatePeriods.join(', ')}.`,
+            });
+        }
+
         const newPayment = new Payment({
             receipt_no,
             amount,
@@ -184,8 +210,8 @@ const createPayment = async (req, res) => {
             billing_year: billingInfo.billingYear,
             billing_period: billingInfo.billingPeriod,
             payment_for_periods: coveredPeriods,
-            payment_status: inferPaymentStatus(payment_status, payment_details, payment_method),
-            payment_method,
+            payment_status: inferPaymentStatus(payment_status, payment_details, normalizedPaymentMethod),
+            payment_method: normalizedPaymentMethod,
             payment_details,
             'records._id': record._id,
         });

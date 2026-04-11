@@ -20,7 +20,9 @@ const EMPTY_FORM = {
   householdCount: '',
   loanAvailed: '',
   residentId: '',
-  imageName: ''
+  imageName: '',
+  pictureId: '',
+  imageUrl: ''
 }
 
 const VALID_PHASES = ['1', '2', '3']
@@ -52,8 +54,28 @@ const getAddressFields = (record = {}) => {
 
 const digitsOnly = (value) => String(value || '').replace(/\D/g, '')
 
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file.'))
+    reader.readAsDataURL(file)
+  })
+
+const getPictureFields = (record = {}) => {
+  const fromNested = record.pictures?._id
+  const fromDotNotation = record['pictures._id']
+  const picture = fromNested && typeof fromNested === 'object' ? fromNested : fromDotNotation
+
+  return {
+    pictureId: picture?._id ? String(picture._id) : '',
+    photoUrl: String(picture?.path || '')
+  }
+}
+
 const mapRecordToHomeowner = (record = {}) => {
   const address = getAddressFields(record)
+  const picture = getPictureFields(record)
   const firstName = String(record.first_name || '').trim()
   const lastName = String(record.last_name || '').trim()
 
@@ -75,6 +97,8 @@ const mapRecordToHomeowner = (record = {}) => {
     workAddress: String(record.work_address || '-'),
     workStatus: String(record.work_status || '-'),
     jobDescription: String(record.job_description || '-'),
+    pictureId: picture.pictureId,
+    photoUrl: picture.photoUrl,
     paymentHistory: [],
     upcomingPayment: { month: '-' },
     createdAt: record.createdAt || record.updatedAt || null
@@ -105,6 +129,60 @@ const formatPhone = (value) => {
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`
 }
 
+const periodToLabel = (period) => {
+  const numeric = Number(period)
+  if (!Number.isInteger(numeric)) {
+    return '-'
+  }
+
+  const year = Math.floor(numeric / 100)
+  const month = numeric % 100
+  const date = new Date(year, month - 1, 1)
+
+  if (Number.isNaN(date.getTime()) || month < 1 || month > 12) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'long',
+    year: 'numeric'
+  }).format(date)
+}
+
+const getCoveredPeriods = (payment = {}) => {
+  if (Array.isArray(payment.payment_for_periods) && payment.payment_for_periods.length > 0) {
+    return payment.payment_for_periods.map(Number).filter((value) => Number.isInteger(value))
+  }
+
+  if (Number.isInteger(Number(payment.billing_period))) {
+    return [Number(payment.billing_period)]
+  }
+
+  const paidDate = new Date(payment.date)
+  if (!Number.isNaN(paidDate.getTime())) {
+    return [paidDate.getFullYear() * 100 + (paidDate.getMonth() + 1)]
+  }
+
+  return []
+}
+
+const getUpcomingPeriodLabel = (payments = []) => {
+  const allPeriods = payments.flatMap((payment) => getCoveredPeriods(payment))
+  if (allPeriods.length === 0) {
+    return '-'
+  }
+
+  const latest = Math.max(...allPeriods)
+  const latestYear = Math.floor(latest / 100)
+  const latestMonth = latest % 100
+  const nextDate = new Date(latestYear, latestMonth, 1)
+
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'long',
+    year: 'numeric'
+  }).format(nextDate)
+}
+
 export default function HomeownerManagementPage() {
   const [searchText, setSearchText] = useState('')
   const [tableFilter, setTableFilter] = useState('recent')
@@ -114,11 +192,14 @@ export default function HomeownerManagementPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [addStep, setAddStep] = useState(1)
   const [addForm, setAddForm] = useState(EMPTY_FORM)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
 
   const [selectedHomeowner, setSelectedHomeowner] = useState(null)
   const [activeViewTab, setActiveViewTab] = useState('info')
   const [isEditingHomeowner, setIsEditingHomeowner] = useState(false)
   const [editForm, setEditForm] = useState(null)
+  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
+  const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
 
   const fetchHomeowners = async () => {
     try {
@@ -253,6 +334,10 @@ export default function HomeownerManagementPage() {
         status: 'Active'
       }
 
+      if (addForm.pictureId) {
+        payload['pictures._id'] = addForm.pictureId
+      }
+
       const response = await apiClient.post('/records', payload)
       const created = mapRecordToHomeowner(response?.data)
       setHomeowners((prev) => [created, ...prev])
@@ -266,6 +351,52 @@ export default function HomeownerManagementPage() {
         title: 'Registration Failed',
         description: error.message || 'Unable to register homeowner.'
       })
+    }
+  }
+
+  const handlePhotoUpload = async (file) => {
+    if (!file) {
+      handleFormChange('imageName', '')
+      handleFormChange('pictureId', '')
+      handleFormChange('imageUrl', '')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      notify.error({
+        title: 'Invalid File Type',
+        description: 'Please upload an image file only.'
+      })
+      return
+    }
+
+    setIsUploadingPhoto(true)
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const response = await apiClient.post('/records/upload-photo', {
+        imageDataUrl: dataUrl,
+        fileName: file.name,
+        mimeType: file.type
+      })
+
+      const uploaded = response?.data
+
+      handleFormChange('imageName', String(uploaded?.filename || file.name || 'Uploaded image'))
+      handleFormChange('pictureId', String(uploaded?._id || ''))
+      handleFormChange('imageUrl', String(uploaded?.path || ''))
+
+      notify.success({
+        title: 'Photo Uploaded',
+        description: 'Homeowner photo uploaded successfully.'
+      })
+    } catch (error) {
+      notify.error({
+        title: 'Photo Upload Failed',
+        description: error.message || 'Unable to upload homeowner photo.'
+      })
+    } finally {
+      setIsUploadingPhoto(false)
     }
   }
 
@@ -285,8 +416,13 @@ export default function HomeownerManagementPage() {
       residentId: homeowner.residentId,
       jobDescription: homeowner.jobDescription,
       workAddress: homeowner.workAddress,
-      workStatus: homeowner.workStatus
+      workStatus: homeowner.workStatus,
+      pictureId: homeowner.pictureId,
+      photoUrl: homeowner.photoUrl,
+      imageName: ''
     })
+
+    fetchHomeownerPayments(homeowner.id)
   }
 
   const closeViewModal = () => {
@@ -322,6 +458,103 @@ export default function HomeownerManagementPage() {
     setEditForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  const fetchHomeownerPayments = async (homeownerId) => {
+    if (!homeownerId) {
+      return
+    }
+
+    setIsLoadingHomeownerPayments(true)
+
+    try {
+      const response = await apiClient.get('/payments', {
+        query: {
+          record_id: homeownerId
+        }
+      })
+
+      const payments = Array.isArray(response?.data) ? response.data : []
+      const paymentHistory = payments
+        .map((payment) => ({
+          id: String(payment._id || `${payment.receipt_no || ''}-${payment.date || ''}`),
+          month: getCoveredPeriods(payment).map(periodToLabel).join(', ') || '-',
+          paidOn: payment.date ? toInputDate(payment.date) : '-',
+          amountPaid: Number(payment.amount) || 0,
+          status: String(payment.payment_status || payment.payment_details || 'Recorded')
+        }))
+        .sort((a, b) => new Date(b.paidOn || 0).getTime() - new Date(a.paidOn || 0).getTime())
+
+      setSelectedHomeowner((prev) => {
+        if (!prev || prev.id !== homeownerId) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          paymentHistory,
+          upcomingPayment: { month: getUpcomingPeriodLabel(payments) }
+        }
+      })
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Load Payments',
+        description: error.message || 'Unable to fetch payments for this homeowner.'
+      })
+    } finally {
+      setIsLoadingHomeownerPayments(false)
+    }
+  }
+
+  const handleEditPhotoSelect = async (file) => {
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      notify.error({
+        title: 'Invalid File Type',
+        description: 'Please upload an image file only.'
+      })
+      return
+    }
+
+    setIsUpdatingPhoto(true)
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const response = await apiClient.post('/records/upload-photo', {
+        imageDataUrl: dataUrl,
+        fileName: file.name,
+        mimeType: file.type
+      })
+      const uploaded = response?.data
+
+      setEditForm((prev) => {
+        if (!prev) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          pictureId: String(uploaded?._id || ''),
+          photoUrl: String(uploaded?.path || ''),
+          imageName: String(uploaded?.filename || file.name || 'Uploaded image')
+        }
+      })
+
+      notify.success({
+        title: 'Photo Ready',
+        description: 'Photo will be applied when you click Save Changes.'
+      })
+    } catch (error) {
+      notify.error({
+        title: 'Photo Update Failed',
+        description: error.message || 'Unable to update homeowner photo.'
+      })
+    } finally {
+      setIsUpdatingPhoto(false)
+    }
+  }
+
   const saveHomeownerEdits = async () => {
     if (!selectedHomeowner || !editForm) {
       return
@@ -354,6 +587,10 @@ export default function HomeownerManagementPage() {
           block: Number(normalizedBlock),
           lot: Number(normalizedLot)
         }
+      }
+
+      if (editForm.pictureId) {
+        payload['pictures._id'] = editForm.pictureId
       }
 
       const response = await apiClient.put(`/records/${selectedHomeowner.id}`, payload)
@@ -449,7 +686,20 @@ export default function HomeownerManagementPage() {
               ) : (
                 filteredHomeowners.map((homeowner) => (
                   <tr key={homeowner.id}>
-                    <td>{`${homeowner.firstName} ${homeowner.lastName}`}</td>
+                    <td>
+                      <div className={styles.nameCell}>
+                        {homeowner.photoUrl ? (
+                          <img
+                            src={homeowner.photoUrl}
+                            alt={`${homeowner.firstName} ${homeowner.lastName}`}
+                            className={styles.rowAvatar}
+                          />
+                        ) : (
+                          <span className={styles.rowAvatarPlaceholder}>No Photo</span>
+                        )}
+                        <span>{`${homeowner.firstName} ${homeowner.lastName}`}</span>
+                      </div>
+                    </td>
                     <td>{homeowner.unitNumber}</td>
                     <td>{formatPhone(homeowner.phone)}</td>
                     <td>
@@ -491,13 +741,20 @@ export default function HomeownerManagementPage() {
                       className={styles.hiddenInput}
                       type="file"
                       accept="image/*"
-                      onChange={(event) => {
-                        const fileName = event.target.files?.[0]?.name || ''
-                        handleFormChange('imageName', fileName)
-                      }}
+                      onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
                     />
-                    <span className={styles.photoPlus}>+</span>
-                    <span>{addForm.imageName ? 'Image Selected' : 'Insert Photo'}</span>
+                    {addForm.imageUrl ? (
+                      <img src={addForm.imageUrl} alt="Homeowner preview" className={styles.photoPreview} />
+                    ) : (
+                      <span className={styles.photoPlus}>+</span>
+                    )}
+                    <span>
+                      {isUploadingPhoto
+                        ? 'Uploading...'
+                        : addForm.imageName
+                          ? 'Photo Selected'
+                          : 'Capture or Upload Photo'}
+                    </span>
                     {addForm.imageName ? <small className={styles.fileName}>{addForm.imageName}</small> : null}
                   </label>
 
@@ -576,7 +833,7 @@ export default function HomeownerManagementPage() {
                     type="button"
                     className={styles.primaryButton}
                     onClick={() => setAddStep(2)}
-                    disabled={!isStepOneValid}
+                    disabled={!isStepOneValid || isUploadingPhoto}
                   >
                     Next
                   </button>
@@ -713,10 +970,60 @@ export default function HomeownerManagementPage() {
         <div className={styles.modalOverlay}>
           <div className={`${styles.modal} ${styles.viewModal}`}>
             <div className={styles.modalHeader}>
-              <div>
-                <h2 className={styles.modalTitle}>{`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}</h2>
-                <p className={styles.modalLead}>Homeowner details</p>
+              <div className={styles.viewHeaderContent}>
+                {(isEditingHomeowner ? editForm?.photoUrl : selectedHomeowner.photoUrl) ? (
+                  <button
+                    type="button"
+                    className={`${styles.avatarButton} ${isEditingHomeowner ? styles.avatarEditable : ''}`}
+                    disabled={!isEditingHomeowner || isUpdatingPhoto}
+                    onClick={() => {
+                      const input = document.getElementById('edit-homeowner-photo-input')
+                      if (input) {
+                        input.click()
+                      }
+                    }}
+                    aria-label={isEditingHomeowner ? 'Update homeowner photo' : 'Homeowner photo'}
+                  >
+                    <img
+                      src={isEditingHomeowner ? editForm?.photoUrl : selectedHomeowner.photoUrl}
+                      alt={`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}
+                      className={styles.modalAvatar}
+                    />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={`${styles.avatarButton} ${isEditingHomeowner ? styles.avatarEditable : ''}`}
+                    disabled={!isEditingHomeowner || isUpdatingPhoto}
+                    onClick={() => {
+                      const input = document.getElementById('edit-homeowner-photo-input')
+                      if (input) {
+                        input.click()
+                      }
+                    }}
+                    aria-label={isEditingHomeowner ? 'Upload homeowner photo' : 'Homeowner photo'}
+                  >
+                    <div className={styles.modalAvatarPlaceholder}>No Photo</div>
+                  </button>
+                )}
+                <div>
+                  <h2 className={styles.modalTitle}>{`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}</h2>
+                  <p className={styles.modalLead}>Homeowner details</p>
+                  {isEditingHomeowner ? <small className={styles.photoHint}>{isUpdatingPhoto ? 'Uploading photo...' : 'Click photo to change'}</small> : null}
+                </div>
               </div>
+
+              <input
+                id="edit-homeowner-photo-input"
+                className={styles.hiddenInput}
+                type="file"
+                accept="image/*"
+                disabled={!isEditingHomeowner || isUpdatingPhoto}
+                onChange={(event) => {
+                  handleEditPhotoSelect(event.target.files?.[0])
+                  event.target.value = ''
+                }}
+              />
 
               <button type="button" className={styles.closeIconButton} onClick={closeViewModal} aria-label="Close">
                 x
@@ -901,8 +1208,22 @@ export default function HomeownerManagementPage() {
                       <span>Amount Paid</span>
                       <span>Remarks</span>
                     </li>
-                    {selectedHomeowner.paymentHistory.map((payment) => (
-                      <li key={`${payment.month}-${payment.status}`} className={styles.paymentRow}>
+                    {isLoadingHomeownerPayments ? (
+                      <li className={styles.paymentRow}>
+                        <span>Loading...</span>
+                        <span>-</span>
+                        <span>-</span>
+                        <span>-</span>
+                      </li>
+                    ) : selectedHomeowner.paymentHistory.length === 0 ? (
+                      <li className={styles.paymentRow}>
+                        <span>No recorded payments</span>
+                        <span>-</span>
+                        <span>-</span>
+                        <span>-</span>
+                      </li>
+                    ) : selectedHomeowner.paymentHistory.map((payment) => (
+                      <li key={payment.id} className={styles.paymentRow}>
                         <span>{payment.month}</span>
                         <span>{payment.paidOn}</span>
                         <span>{payment.amountPaid > 0 ? toPeso(payment.amountPaid) : '-'}</span>
@@ -932,6 +1253,7 @@ export default function HomeownerManagementPage() {
               <button
                 type="button"
                 className={styles.primaryButton}
+                disabled={isUpdatingPhoto}
                 onClick={() => {
                   if (isEditingHomeowner) {
                     saveHomeownerEdits()

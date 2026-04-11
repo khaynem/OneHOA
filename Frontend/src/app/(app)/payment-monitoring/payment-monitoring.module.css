@@ -258,6 +258,51 @@
   font-family: poppins, sans-serif;
 }
 
+.autocompleteWrap {
+  position: relative;
+}
+
+.suggestionList {
+  position: absolute;
+  top: calc(100% - 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid #d5dae0;
+  border-radius: 8px;
+  background: #fff;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+.suggestionItem {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  color: #1f2937;
+  font-size: 0.92rem;
+}
+
+.suggestionItem:hover {
+  background: #eef5fc;
+}
+
+.suggestionItem small {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
 .input:focus,
 .textarea:focus {
   border-color: #8cb6da;
@@ -273,6 +318,62 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.periodPickerRow {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.addPeriodButton {
+  border: 0;
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #0a68b2;
+  color: #fff;
+  cursor: pointer;
+}
+
+.addPeriodButton:hover {
+  background: #095b9b;
+}
+
+.periodHint {
+  margin: -4px 0 8px;
+  color: #607081;
+  font-size: 0.82rem;
+}
+
+.periodTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.periodTag {
+  border: 1px solid #cfe0ee;
+  background: #f3f9ff;
+  color: #175f98;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.periodTag:hover {
+  background: #e8f4ff;
+}
+
+.periodEmpty {
+  color: #7a8594;
+  font-size: 0.82rem;
 }
 
 .primaryButton,
@@ -370,6 +471,10 @@
 
   .modalActions {
     flex-direction: column;
+  }
+
+  .periodPickerRow {
+    grid-template-columns: 1fr;
   }
 
   .primaryButton,

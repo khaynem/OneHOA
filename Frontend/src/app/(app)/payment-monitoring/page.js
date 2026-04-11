@@ -1,31 +1,80 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { HiOutlineCircleStack as PaymentIcon } from 'react-icons/hi2'
+import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './payment-monitoring.module.css'
 
-const HOMEOWNER_DIRECTORY = [
-  { id: 'R-1001', name: 'Juan Dela Cruz', unitNumber: 'Unit 101' },
-  { id: 'R-1002', name: 'Maria Luisa Reyes', unitNumber: 'Unit 102' },
-  { id: 'R-1003', name: 'Carlo Miguel Lim', unitNumber: 'Unit 203' },
-  { id: 'R-1004', name: 'Angela Navarro', unitNumber: 'Unit 305' }
-]
-
-const SAMPLE_PAYMENT_RECORDS = [
-  { id: 1, homeownerName: 'Juan Dela Cruz', unitNumber: 'Unit 101', amount: 150, datePaid: '2026-03-02', receiptNo: 'RCPT-1001', details: 'March maintenance fee' },
-  { id: 2, homeownerName: 'Maria Luisa Reyes', unitNumber: 'Unit 102', amount: 150, datePaid: '2026-03-01', receiptNo: 'RCPT-1002', details: 'March maintenance fee' },
-  { id: 3, homeownerName: 'Carlo Miguel Lim', unitNumber: 'Unit 203', amount: 150, datePaid: '2026-03-07', receiptNo: 'RCPT-1003', details: 'March maintenance fee' },
-  { id: 4, homeownerName: 'Angela Navarro', unitNumber: 'Unit 305', amount: 150, datePaid: '2026-03-10', receiptNo: 'RCPT-1004', details: 'March maintenance fee' },
-  { id: 5, homeownerName: 'Juan Dela Cruz', unitNumber: 'Unit 101', amount: 150, datePaid: '2026-03-15', receiptNo: 'RCPT-1005', details: 'March maintenance fee' }
-]
-
 const EMPTY_FORM = {
-  homeowner: '',
-  amountPaid: '',
-  paymentDate: '',
+  recordId: '',
+  homeownerSearch: '',
+  amount: '',
+  date: '',
   receiptNo: '',
+  paymentPeriods: [],
+  periodYear: String(new Date().getFullYear()),
+  periodMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
   paymentDetails: ''
+}
+
+const MONTH_OPTIONS = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' }
+]
+
+const toUnitNumberFromAddress = (address) => {
+  const phase = address?.phase
+  const block = address?.block
+  const lot = address?.lot
+
+  if (phase === undefined || block === undefined || lot === undefined) {
+    return '-'
+  }
+
+  return `${phase}-${block}-${lot}`
+}
+
+const getHomeownerName = (record = {}) => `${record.first_name || ''} ${record.last_name || ''}`.trim()
+
+const parseCoveredPeriods = (record) => {
+  if (Array.isArray(record.payment_for_periods) && record.payment_for_periods.length > 0) {
+    return record.payment_for_periods.map(Number).filter((value) => Number.isInteger(value))
+  }
+
+  if (Number.isInteger(Number(record.billing_period))) {
+    return [Number(record.billing_period)]
+  }
+
+  const paidDate = new Date(record.date)
+  if (!Number.isNaN(paidDate.getTime())) {
+    return [paidDate.getFullYear() * 100 + (paidDate.getMonth() + 1)]
+  }
+
+  return []
+}
+
+const getCurrentPeriod = () => {
+  const now = new Date()
+  return now.getFullYear() * 100 + (now.getMonth() + 1)
+}
+
+const paymentPeriodToLabel = (period) => {
+  const numeric = Number(period)
+  const year = Math.floor(numeric / 100)
+  const month = numeric % 100
+  const monthLabel = MONTH_OPTIONS.find((entry) => Number(entry.value) === month)?.label || `M${month}`
+  return `${monthLabel} ${year}`
 }
 
 const toPeso = (amount) =>
@@ -56,12 +105,22 @@ const parseLocalDate = (dateValue) => {
     return null
   }
 
-  const [year, month, day] = String(dateValue).split('-').map(Number)
-  if (!year || !month || !day) {
+  const raw = String(dateValue)
+  const ymdMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1])
+    const month = Number(ymdMatch[2])
+    const day = Number(ymdMatch[3])
+    return new Date(year, month - 1, day)
+  }
+
+  const parsed = new Date(dateValue)
+  if (Number.isNaN(parsed.getTime())) {
     return null
   }
 
-  return new Date(year, month - 1, day)
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
 }
 
 const isToday = (date, now) =>
@@ -90,9 +149,86 @@ const isThisWeek = (date, now) => {
 export default function PaymentMonitoringPage() {
   const [searchText, setSearchText] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
-  const [records, setRecords] = useState(SAMPLE_PAYMENT_RECORDS)
+  const [records, setRecords] = useState([])
+  const [homeowners, setHomeowners] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [isHomeownerSuggestOpen, setIsHomeownerSuggestOpen] = useState(false)
+
+  const homeownerDirectory = useMemo(
+    () =>
+      homeowners.map((homeowner) => {
+        const address = homeowner.address?._id || homeowner['address._id'] || null
+        const name = getHomeownerName(homeowner)
+
+        return {
+          id: String(homeowner._id),
+          name,
+          unitNumber: toUnitNumberFromAddress(address)
+        }
+      }),
+    [homeowners]
+  )
+
+  const loadPaymentMonitoringData = async () => {
+    try {
+      setIsLoading(true)
+
+      const [paymentsResponse, recordsResponse] = await Promise.all([
+        apiClient.get('/payments'),
+        apiClient.get('/records', {
+          query: {
+            page: 1,
+            limit: 500
+          }
+        })
+      ])
+
+      const rawHomeowners = Array.isArray(recordsResponse?.data) ? recordsResponse.data : []
+      const homeownersById = new Map(rawHomeowners.map((entry) => [String(entry._id), entry]))
+
+      const paymentRows = (Array.isArray(paymentsResponse?.data) ? paymentsResponse.data : []).map((payment) => {
+        const linkedRecord = payment.records?._id
+        const linkedRecordId = linkedRecord?._id ? String(linkedRecord._id) : String(payment.records?._id || '')
+        const homeownerFromRecords = homeownersById.get(linkedRecordId)
+        const address = homeownerFromRecords?.address?._id || homeownerFromRecords?.['address._id'] || null
+
+        const homeownerName = linkedRecord
+          ? `${linkedRecord.first_name || ''} ${linkedRecord.last_name || ''}`.trim() || 'Unlinked Homeowner'
+          : 'Unlinked Homeowner'
+
+        return {
+          id: String(payment._id),
+          recordId: linkedRecordId,
+          homeownerName,
+          unitNumber: toUnitNumberFromAddress(address),
+          amount: Number(payment.amount) || 0,
+          datePaid: payment.date,
+          receiptNo: String(payment.receipt_no || '-'),
+          details: String(payment.payment_details || payment.payment_method || '-'),
+          paymentStatus: String(payment.payment_status || '').toLowerCase(),
+          coveredPeriods: parseCoveredPeriods(payment)
+        }
+      })
+
+      setHomeowners(rawHomeowners)
+      setRecords(paymentRows)
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Load Payments',
+        description: error.message || 'Unable to fetch payment monitoring data.'
+      })
+      setHomeowners([])
+      setRecords([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadPaymentMonitoringData()
+  }, [])
 
   const filteredRecords = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -151,39 +287,146 @@ export default function PaymentMonitoringPage() {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const savePaymentRecord = () => {
-    const homeownerInput = form.homeowner.trim()
-    const amountPaid = Number(form.amountPaid)
+  const homeownerSuggestions = useMemo(() => {
+    const query = form.homeownerSearch.trim().toLowerCase()
 
-    if (!homeownerInput || !form.paymentDate || !form.receiptNo.trim() || !amountPaid) {
+    if (!query) {
+      return homeownerDirectory.slice(0, 8)
+    }
+
+    return homeownerDirectory
+      .filter((homeowner) => {
+        const searchable = `${homeowner.name} ${homeowner.unitNumber}`.toLowerCase()
+        return searchable.includes(query)
+      })
+      .slice(0, 8)
+  }, [form.homeownerSearch, homeownerDirectory])
+
+  const handleHomeownerSearchChange = (value) => {
+    handleFormChange('homeownerSearch', value)
+    handleFormChange('recordId', '')
+    setIsHomeownerSuggestOpen(true)
+  }
+
+  const selectHomeowner = (homeowner) => {
+    handleFormChange('recordId', homeowner.id)
+    handleFormChange('homeownerSearch', `${homeowner.name} (${homeowner.unitNumber})`)
+    setIsHomeownerSuggestOpen(false)
+  }
+
+  const savePaymentRecord = async () => {
+    const amountPaid = Number(form.amount)
+    const numericReceiptNo = Number(String(form.receiptNo).replace(/\D/g, ''))
+    const paymentForPeriods = Array.isArray(form.paymentPeriods) ? form.paymentPeriods : []
+
+    if (!form.recordId || !form.date || !form.receiptNo.trim() || !amountPaid || !numericReceiptNo) {
       notify.error({
         title: 'Missing Required Details',
-        description: 'Please complete homeowner, amount, payment date, and receipt number.'
+        description: 'Please complete homeowner, amount, date, and numeric receipt number.'
       })
       return
     }
 
-    const matchedHomeowner = HOMEOWNER_DIRECTORY.find((entry) => {
-      const normalized = `${entry.id} ${entry.name}`.toLowerCase()
-      return normalized.includes(homeownerInput.toLowerCase()) || entry.name.toLowerCase() === homeownerInput.toLowerCase()
-    })
-
-    const newRecord = {
-      id: Date.now(),
-      homeownerName: matchedHomeowner?.name || homeownerInput,
-      unitNumber: matchedHomeowner?.unitNumber || '-',
-      amount: amountPaid,
-      datePaid: form.paymentDate,
-      receiptNo: form.receiptNo.trim(),
-      details: form.paymentDetails.trim() || 'Maintenance fee payment'
+    if (paymentForPeriods.length === 0) {
+      notify.error({
+        title: 'Missing Payment Periods',
+        description: 'Add at least one payment period to compute amount.'
+      })
+      return
     }
 
-    setRecords((prev) => [newRecord, ...prev])
-    notify.success({
-      title: 'Payment Recorded',
-      description: `${newRecord.homeownerName}'s payment has been added.`
+    const matchedHomeowner = homeownerDirectory.find((entry) => entry.id === form.recordId)
+
+    if (!matchedHomeowner) {
+      notify.error({
+        title: 'Homeowner Not Found',
+        description: 'Please select a valid homeowner.'
+      })
+      return
+    }
+
+    try {
+      await apiClient.post('/payments', {
+        receipt_no: numericReceiptNo,
+        amount: amountPaid,
+        date: form.date,
+        payment_details: form.paymentDetails.trim() || 'Maintenance fee payment',
+        record_id: form.recordId,
+        payment_for_periods: paymentForPeriods.length > 0 ? paymentForPeriods : undefined
+      })
+      notify.success({
+        title: 'Payment Recorded',
+        description: `${matchedHomeowner.name}'s payment has been added.`
+      })
+      closeRecordModal()
+      await loadPaymentMonitoringData()
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Record Payment',
+        description: error.message || 'Unable to save payment record.'
+      })
+    }
+  }
+
+  const stats = useMemo(() => {
+    const currentPeriod = getCurrentPeriod()
+    const now = new Date()
+
+    const currentMonthPaidByDate = records.filter((record) => {
+      if (record.paymentStatus !== 'paid') {
+        return false
+      }
+
+      const paidDate = parseLocalDate(record.datePaid)
+      return Boolean(paidDate) && isThisMonth(paidDate, now)
     })
-    closeRecordModal()
+
+    const currentMonthPaidRecords = records.filter(
+      (record) => record.paymentStatus === 'paid' && record.coveredPeriods.includes(currentPeriod)
+    )
+
+    const totalCollectedCurrentMonth = currentMonthPaidByDate.reduce((sum, record) => sum + (Number(record.amount) || 0), 0)
+
+    const paidHomeownerIds = new Set(currentMonthPaidRecords.map((record) => record.recordId).filter(Boolean))
+    const totalHomeowners = homeowners.length
+    const pendingPayments = Math.max(totalHomeowners - paidHomeownerIds.size, 0)
+    const collectionRate = totalHomeowners > 0 ? Math.round((paidHomeownerIds.size / totalHomeowners) * 100) : 0
+
+    return {
+      totalCollectedCurrentMonth,
+      pendingPayments,
+      collectionRate
+    }
+  }, [homeowners.length, records])
+
+  const addPaymentPeriod = () => {
+    const year = Number(form.periodYear)
+    const month = Number(form.periodMonth)
+
+    if (!Number.isInteger(year) || year < 2000 || year > 3000 || !Number.isInteger(month) || month < 1 || month > 12) {
+      notify.error({
+        title: 'Invalid Period',
+        description: 'Please pick a valid year and month.'
+      })
+      return
+    }
+
+    const period = year * 100 + month
+    const nextPeriods = Array.from(new Set([...(form.paymentPeriods || []), period])).sort((a, b) => a - b)
+    setForm((prev) => ({
+      ...prev,
+      paymentPeriods: nextPeriods,
+      amount: String(nextPeriods.length * 100)
+    }))
+  }
+
+  const removePaymentPeriod = (periodToRemove) => {
+    const nextPeriods = (form.paymentPeriods || []).filter((period) => period !== periodToRemove)
+    setForm((prev) => ({
+      ...prev,
+      paymentPeriods: nextPeriods,
+      amount: nextPeriods.length > 0 ? String(nextPeriods.length * 100) : ''
+    }))
   }
 
   return (
@@ -203,19 +446,19 @@ export default function PaymentMonitoringPage() {
       <section className={styles.cardGrid} aria-label="Payment monitoring stats">
         <article className={styles.statCard}>
           <p className={styles.statLabel}>Total Collected (Current Month)</p>
-          <p className={styles.statValue}>{toPeso(0)}</p>
+          <p className={styles.statValue}>{toPeso(stats.totalCollectedCurrentMonth)}</p>
           <p className={styles.statSubtext}>From recorded payments</p>
         </article>
 
         <article className={styles.statCard}>
           <p className={styles.statLabel}>Pending Payments</p>
-          <p className={styles.statValue}>0</p>
+          <p className={styles.statValue}>{stats.pendingPayments}</p>
           <p className={styles.statSubtext}>Outstanding balances</p>
         </article>
 
         <article className={styles.statCard}>
           <p className={styles.statLabel}>Collection Rate</p>
-          <p className={styles.statValue}>0%</p>
+          <p className={styles.statValue}>{`${stats.collectionRate}%`}</p>
           <p className={styles.statSubtext}>Current month</p>
         </article>
       </section>
@@ -253,14 +496,21 @@ export default function PaymentMonitoringPage() {
               <tr>
                 <th>Homeowner</th>
                 <th>Unit Number</th>
+                <th>Receipt No.</th>
                 <th>Amount</th>
                 <th>Date Paid</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRecords.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan={4} className={styles.emptyRow}>
+                  <td colSpan={5} className={styles.emptyRow}>
+                    Loading payment records...
+                  </td>
+                </tr>
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className={styles.emptyRow}>
                     No payment records found.
                   </td>
                 </tr>
@@ -269,6 +519,7 @@ export default function PaymentMonitoringPage() {
                   <tr key={record.id}>
                     <td>{record.homeownerName}</td>
                     <td>{record.unitNumber}</td>
+                    <td>{record.receiptNo}</td>
                     <td>{toPeso(record.amount)}</td>
                     <td>{formatDate(record.datePaid)}</td>
                   </tr>
@@ -287,22 +538,38 @@ export default function PaymentMonitoringPage() {
 
             <div className={styles.formGrid}>
               <div>
-                <label className={styles.fieldLabel}>Homeowner ID/Name</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={form.homeowner}
-                  onChange={(event) => handleFormChange('homeowner', event.target.value)}
-                  placeholder="e.g. R-1001 Juan Dela Cruz"
-                  list="homeowner-suggestions"
-                />
-                <datalist id="homeowner-suggestions">
-                  {HOMEOWNER_DIRECTORY.map((homeowner) => (
-                    <option key={homeowner.id} value={`${homeowner.id} ${homeowner.name}`}>
-                      {homeowner.unitNumber}
-                    </option>
-                  ))}
-                </datalist>
+                <label className={styles.fieldLabel}>Homeowner</label>
+                <div className={styles.autocompleteWrap}>
+                  <input
+                    type="search"
+                    className={styles.input}
+                    value={form.homeownerSearch}
+                    onChange={(event) => handleHomeownerSearchChange(event.target.value)}
+                    onFocus={() => setIsHomeownerSuggestOpen(true)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setIsHomeownerSuggestOpen(false)
+                      }, 120)
+                    }}
+                    placeholder="Search homeowner name or unit number"
+                  />
+                  {isHomeownerSuggestOpen && homeownerSuggestions.length > 0 ? (
+                    <ul className={styles.suggestionList}>
+                      {homeownerSuggestions.map((homeowner) => (
+                        <li key={homeowner.id}>
+                          <button
+                            type="button"
+                            className={styles.suggestionItem}
+                            onClick={() => selectHomeowner(homeowner)}
+                          >
+                            <span>{homeowner.name}</span>
+                            <small>{homeowner.unitNumber}</small>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               </div>
 
               <div>
@@ -312,19 +579,20 @@ export default function PaymentMonitoringPage() {
                   min="0"
                   step="0.01"
                   className={styles.input}
-                  value={form.amountPaid}
-                  onChange={(event) => handleFormChange('amountPaid', event.target.value)}
-                  placeholder="0.00"
+                  value={form.amount}
+                  disabled
+                  readOnly
+                  placeholder="Add payment periods to compute"
                 />
               </div>
 
               <div>
-                <label className={styles.fieldLabel}>Payment Date</label>
+                <label className={styles.fieldLabel}>Date</label>
                 <input
                   type="date"
                   className={styles.input}
-                  value={form.paymentDate}
-                  onChange={(event) => handleFormChange('paymentDate', event.target.value)}
+                  value={form.date}
+                  onChange={(event) => handleFormChange('date', event.target.value)}
                 />
               </div>
 
@@ -332,11 +600,59 @@ export default function PaymentMonitoringPage() {
                 <label className={styles.fieldLabel}>Receipt No.</label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   className={styles.input}
                   value={form.receiptNo}
-                  onChange={(event) => handleFormChange('receiptNo', event.target.value)}
-                  placeholder="e.g. RCPT-1201"
+                  onChange={(event) => handleFormChange('receiptNo', event.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g. 1201"
                 />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Payment For Periods (YYYYMM)</label>
+                <div className={styles.periodPickerRow}>
+                  <select
+                    className={styles.input}
+                    value={form.periodMonth}
+                    onChange={(event) => handleFormChange('periodMonth', event.target.value)}
+                  >
+                    {MONTH_OPTIONS.map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    className={styles.input}
+                    value={form.periodYear}
+                    min="2000"
+                    max="3000"
+                    onChange={(event) => handleFormChange('periodYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="Year"
+                  />
+                  <button type="button" className={styles.addPeriodButton} onClick={addPaymentPeriod}>
+                    Add
+                  </button>
+                </div>
+                <p className={styles.periodHint}>Optional. Add one or more covered months for this payment.</p>
+                <div className={styles.periodTags}>
+                  {(form.paymentPeriods || []).length === 0 ? (
+                    <span className={styles.periodEmpty}>No periods added yet</span>
+                  ) : (
+                    form.paymentPeriods.map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        className={styles.periodTag}
+                        onClick={() => removePaymentPeriod(period)}
+                        title="Remove period"
+                      >
+                        {paymentPeriodToLabel(period)} x
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
 

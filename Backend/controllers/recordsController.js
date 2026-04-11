@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 const Record = require("../models/records");
 const Address = require("../models/address");
+const Picture = require("../models/pictures");
+const { uploadImageDataUrl } = require("../services/cloudinaryService");
 
 const ALLOWED_FIELDS = [
     "last_name",
@@ -89,6 +91,84 @@ async function resolveAddressIdFromPayload(body, existingAddressId = null) {
     return createdAddress._id;
 }
 
+const uploadRecordPhoto = async (req, res) => {
+    try {
+        const { imageDataUrl, fileName, mimeType } = req.body || {};
+
+        if (!imageDataUrl || typeof imageDataUrl !== "string") {
+            return res.status(400).json({ success: false, message: "imageDataUrl is required." });
+        }
+
+        if (!imageDataUrl.startsWith("data:image/")) {
+            return res.status(400).json({ success: false, message: "Only image uploads are allowed." });
+        }
+
+        const uploadResult = await uploadImageDataUrl(imageDataUrl);
+
+        const picture = await Picture.create({
+            filename: String(fileName || uploadResult.original_filename || uploadResult.public_id || "homeowner-photo"),
+            path: uploadResult.secure_url,
+            mime_type: String(mimeType || uploadResult.resource_type || "image"),
+            uploaded_at: new Date(),
+        });
+
+        return res.status(201).json({ success: true, data: picture });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to upload homeowner photo.",
+        });
+    }
+};
+
+const updateRecordPhoto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { imageDataUrl, fileName, mimeType } = req.body || {};
+
+        if (!isValidObjectId(id)) {
+            return res.status(400).json({ success: false, message: "Invalid record ID." });
+        }
+
+        if (!imageDataUrl || typeof imageDataUrl !== "string") {
+            return res.status(400).json({ success: false, message: "imageDataUrl is required." });
+        }
+
+        if (!imageDataUrl.startsWith("data:image/")) {
+            return res.status(400).json({ success: false, message: "Only image uploads are allowed." });
+        }
+
+        const existingRecord = await Record.findById(id);
+
+        if (!existingRecord) {
+            return res.status(404).json({ success: false, message: "Record not found." });
+        }
+
+        const uploadResult = await uploadImageDataUrl(imageDataUrl);
+
+        const picture = await Picture.create({
+            filename: String(fileName || uploadResult.original_filename || uploadResult.public_id || "homeowner-photo"),
+            path: uploadResult.secure_url,
+            mime_type: String(mimeType || uploadResult.resource_type || "image"),
+            uploaded_at: new Date(),
+        });
+
+        const updatedRecord = await Record.findByIdAndUpdate(
+            id,
+            { "pictures._id": picture._id },
+            { new: true, runValidators: true }
+        ).populate("address._id").populate("pictures._id");
+
+        return res.status(200).json({ success: true, data: updatedRecord });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to update homeowner photo.",
+        });
+    }
+};
 const getRecords = async (req, res) => {
     try {
         const page = Math.max(Number(req.query.page) || 1, 1);
@@ -108,6 +188,7 @@ const getRecords = async (req, res) => {
         const [items, total] = await Promise.all([
             Record.find(filter)
                 .populate("address._id")
+                .populate("pictures._id")
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit),
@@ -136,7 +217,7 @@ const getRecordById = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid record ID." });
         }
 
-        const record = await Record.findById(id).populate("address._id");
+        const record = await Record.findById(id).populate("address._id").populate("pictures._id");
 
         if (!record) {
             return res.status(404).json({ success: false, message: "Record not found." });
@@ -166,7 +247,7 @@ const createRecord = async (req, res) => {
         }
 
         const newRecord = await Record.create(payload);
-        const populatedRecord = await Record.findById(newRecord._id).populate("address._id");
+        const populatedRecord = await Record.findById(newRecord._id).populate("address._id").populate("pictures._id");
         return res.status(201).json({ success: true, data: populatedRecord });
     } catch (error) {
         console.error(error);
@@ -202,7 +283,7 @@ const updateRecord = async (req, res) => {
         const updatedRecord = await Record.findByIdAndUpdate(id, payload, {
             new: true,
             runValidators: true,
-        }).populate("address._id");
+        }).populate("address._id").populate("pictures._id");
 
         return res.status(200).json({ success: true, data: updatedRecord });
     } catch (error) {
@@ -244,4 +325,6 @@ module.exports = {
     createRecord,
     updateRecord,
     deleteRecord,
+    uploadRecordPhoto,
+    updateRecordPhoto,
 };

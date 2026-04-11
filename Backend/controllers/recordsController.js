@@ -43,10 +43,22 @@ function extractAddressPayload(payload = {}) {
         throw new Error("Address phase, block, and lot are required when address is provided.");
     }
 
+    const normalizedPhase = Number(phase);
+    const normalizedBlock = Number(block);
+    const normalizedLot = Number(lot);
+
+    if (
+        ![1, 2, 3].includes(normalizedPhase) ||
+        Number.isNaN(normalizedBlock) ||
+        Number.isNaN(normalizedLot)
+    ) {
+        throw new Error("Invalid address values. Phase must be 1, 2, or 3 and block/lot must be numbers.");
+    }
+
     return {
-        phase: Number(phase),
-        block: Number(block),
-        lot: Number(lot),
+        phase: normalizedPhase,
+        block: normalizedBlock,
+        lot: normalizedLot,
     };
 }
 
@@ -180,9 +192,7 @@ const updateRecord = async (req, res) => {
             return res.status(404).json({ success: false, message: "Record not found." });
         }
 
-        const existingAddressId = existingRecord.address && existingRecord.address._id
-            ? existingRecord.address._id
-            : null;
+        const existingAddressId = existingRecord["address._id"] || null;
 
         const resolvedAddressId = await resolveAddressIdFromPayload(req.body, existingAddressId);
         if (resolvedAddressId) {

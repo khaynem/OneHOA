@@ -1,113 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './homeowner-management.module.css'
-
-const HOMEOWNERS = [
-  {
-    id: 1,
-    firstName: 'Juan Dela Cruz',
-    lastName: 'Santos',
-    unitNumber: 'Unit 101',
-    phone: '09176111222',
-    status: 'active',
-    phase: 'Phase 1',
-    block: 'B1',
-    lot: 'L12',
-    entryDate: '2024-01-10',
-    occupantStatus: 'Owner',
-    householdCount: '4',
-    loanAvailed: 'None',
-    residentId: 'R-1001',
-    workAddress: 'Makati City',
-    workStatus: 'Employed',
-    jobDescription: 'Operations Manager',
-    paymentHistory: [
-      { month: 'January 2026', paidOn: '2026-01-14', amountPaid: 2500, status: 'Paid' },
-      { month: 'February 2026', paidOn: '2026-02-13', amountPaid: 2500, status: 'Paid' },
-      { month: 'March 2026', paidOn: '-', amountPaid: 0, status: 'Missed' }
-    ],
-    upcomingPayment: { month: 'April 2026' }
-  },
-  {
-    id: 2,
-    firstName: 'Maria Luisa',
-    lastName: 'Reyes',
-    unitNumber: 'Unit 102',
-    phone: '09282233445',
-    status: 'active',
-    phase: 'Phase 1',
-    block: 'B1',
-    lot: 'L14',
-    entryDate: '2023-11-08',
-    occupantStatus: 'Owner',
-    householdCount: '3',
-    loanAvailed: 'Home Improvement',
-    residentId: 'R-1002',
-    workAddress: 'Taguig City',
-    workStatus: 'Employed',
-    jobDescription: 'Accountant',
-    paymentHistory: [
-      { month: 'January 2026', paidOn: '2026-01-15', amountPaid: 2500, status: 'Paid' },
-      { month: 'February 2026', paidOn: '2026-02-14', amountPaid: 2500, status: 'Paid' },
-      { month: 'March 2026', paidOn: '-', amountPaid: 0, status: 'Missed' }
-    ],
-    upcomingPayment: { month: 'April 2026' }
-  },
-  {
-    id: 3,
-    firstName: 'Carlo Miguel',
-    lastName: 'Lim',
-    unitNumber: 'Unit 203',
-    phone: '09456678901',
-    status: 'inactive',
-    phase: 'Phase 2',
-    block: 'B3',
-    lot: 'L05',
-    entryDate: '2022-06-16',
-    occupantStatus: 'Tenant',
-    householdCount: '2',
-    loanAvailed: 'None',
-    residentId: 'R-1003',
-    workAddress: 'Pasig City',
-    workStatus: 'Self-employed',
-    jobDescription: 'Online Seller',
-    paymentHistory: [
-      { month: 'January 2026', paidOn: '2026-01-17', amountPaid: 2500, status: 'Paid' },
-      { month: 'February 2026', paidOn: '2026-03-02', amountPaid: 2500, status: 'Late Paid' },
-      { month: 'March 2026', paidOn: '-', amountPaid: 0, status: 'Missed' },
-      { month: 'April 2026', paidOn: '-', amountPaid: 0, status: 'Missed' },
-      { month: 'May 2026', paidOn: '-', amountPaid: 0, status: 'Missed' }
-    ],
-    upcomingPayment: { month: 'June 2026' }
-  },
-  {
-    id: 4,
-    firstName: 'Angela',
-    lastName: 'Navarro',
-    unitNumber: 'Unit 305',
-    phone: '09331010101',
-    status: 'active',
-    phase: 'Phase 3',
-    block: 'B5',
-    lot: 'L09',
-    entryDate: '2025-02-01',
-    occupantStatus: 'Owner',
-    householdCount: '5',
-    loanAvailed: 'None',
-    residentId: 'R-1004',
-    workAddress: 'Quezon City',
-    workStatus: 'Employed',
-    jobDescription: 'Teacher',
-    paymentHistory: [
-      { month: 'January 2026', paidOn: '2026-01-11', amountPaid: 2500, status: 'Paid' },
-      { month: 'February 2026', paidOn: '2026-02-15', amountPaid: 2500, status: 'Paid' },
-      { month: 'March 2026', paidOn: '-', amountPaid: 0, status: 'Missed' }
-    ],
-    upcomingPayment: { month: 'April 2026' }
-  }
-]
 
 const EMPTY_FORM = {
   firstName: '',
@@ -125,6 +21,64 @@ const EMPTY_FORM = {
   loanAvailed: '',
   residentId: '',
   imageName: ''
+}
+
+const VALID_PHASES = ['1', '2', '3']
+
+const toInputDate = (dateValue) => {
+  if (!dateValue) {
+    return ''
+  }
+
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return date.toISOString().slice(0, 10)
+}
+
+const getAddressFields = (record = {}) => {
+  const fromNested = record.address?._id
+  const fromDotNotation = record['address._id']
+  const address = fromNested && typeof fromNested === 'object' ? fromNested : fromDotNotation
+
+  return {
+    phase: address?.phase !== undefined ? String(address.phase) : '',
+    block: address?.block !== undefined ? String(address.block) : '',
+    lot: address?.lot !== undefined ? String(address.lot) : ''
+  }
+}
+
+const digitsOnly = (value) => String(value || '').replace(/\D/g, '')
+
+const mapRecordToHomeowner = (record = {}) => {
+  const address = getAddressFields(record)
+  const firstName = String(record.first_name || '').trim()
+  const lastName = String(record.last_name || '').trim()
+
+  return {
+    id: String(record._id || ''),
+    firstName,
+    lastName,
+    unitNumber: `${address.phase}-${address.block}-${address.lot}`,
+    phone: String(record.phone_number || ''),
+    status: String(record.status || 'Active').toLowerCase() === 'inactive' ? 'inactive' : 'active',
+    phase: address.phase,
+    block: address.block,
+    lot: address.lot,
+    entryDate: toInputDate(record.entry_date),
+    occupantStatus: String(record.occupant_status || '-'),
+    householdCount: record.household_no !== undefined && record.household_no !== null ? String(record.household_no) : '0',
+    loanAvailed: String(record.loan_availed || '-'),
+    residentId: firstName || lastName ? `${firstName} ${lastName}`.trim() : String(record._id || '-'),
+    workAddress: String(record.work_address || '-'),
+    workStatus: String(record.work_status || '-'),
+    jobDescription: String(record.job_description || '-'),
+    paymentHistory: [],
+    upcomingPayment: { month: '-' },
+    createdAt: record.createdAt || record.updatedAt || null
+  }
 }
 
 const toPeso = (amount) =>
@@ -154,7 +108,8 @@ const formatPhone = (value) => {
 export default function HomeownerManagementPage() {
   const [searchText, setSearchText] = useState('')
   const [tableFilter, setTableFilter] = useState('recent')
-  const [homeowners, setHomeowners] = useState(HOMEOWNERS)
+  const [homeowners, setHomeowners] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [addStep, setAddStep] = useState(1)
@@ -165,6 +120,33 @@ export default function HomeownerManagementPage() {
   const [isEditingHomeowner, setIsEditingHomeowner] = useState(false)
   const [editForm, setEditForm] = useState(null)
 
+  const fetchHomeowners = async () => {
+    try {
+      setIsLoading(true)
+      const response = await apiClient.get('/records', {
+        query: {
+          page: 1,
+          limit: 200
+        }
+      })
+
+      const records = Array.isArray(response?.data) ? response.data : []
+      setHomeowners(records.map(mapRecordToHomeowner))
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Load Homeowners',
+        description: error.message || 'Unable to fetch homeowner records from the server.'
+      })
+      setHomeowners([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchHomeowners()
+  }, [])
+
   const isStepOneValid =
     addForm.firstName.trim() &&
     addForm.lastName.trim() &&
@@ -172,14 +154,13 @@ export default function HomeownerManagementPage() {
     addForm.jobDescription.trim()
 
   const isStepTwoValid =
-    addForm.phase.trim() &&
-    addForm.block.trim() &&
-    addForm.lot.trim() &&
+    VALID_PHASES.includes(addForm.phase.trim()) &&
+    /^\d+$/.test(addForm.block.trim()) &&
+    /^\d+$/.test(addForm.lot.trim()) &&
     addForm.entryDate.trim() &&
     addForm.occupantStatus.trim() &&
-    addForm.householdCount.trim() &&
-    addForm.loanAvailed.trim() &&
-    addForm.residentId.trim()
+    /^\d+$/.test(addForm.householdCount.trim()) &&
+    addForm.loanAvailed.trim()
 
   const filteredHomeowners = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -202,10 +183,10 @@ export default function HomeownerManagementPage() {
     }
 
     if (tableFilter === 'oldest') {
-      return [...results].sort((a, b) => a.id - b.id)
+      return [...results].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
     }
 
-    return [...results].sort((a, b) => b.id - a.id)
+    return [...results].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
   }, [homeowners, searchText, tableFilter])
 
   const closeAddModal = () => {
@@ -225,60 +206,67 @@ export default function HomeownerManagementPage() {
   }
 
   const handlePhoneChange = (value) => {
-    const digitsOnly = value.replace(/\D/g, '').slice(0, 11)
-    handleFormChange('phone', digitsOnly)
+    const normalized = digitsOnly(value).slice(0, 11)
+    handleFormChange('phone', normalized)
+  }
+
+  const handlePhaseChange = (value) => {
+    if (!value || VALID_PHASES.includes(value)) {
+      handleFormChange('phase', value)
+    }
+  }
+
+  const handleBlockLotChange = (field, value) => {
+    handleFormChange(field, digitsOnly(value))
   }
 
   const handleHouseholdCountChange = (value) => {
-    if (!value) {
-      handleFormChange('householdCount', '')
-      return
-    }
-
-    const number = Number(value)
-    if (Number.isNaN(number) || number < 0) {
-      return
-    }
-
-    handleFormChange('householdCount', String(number))
+    handleFormChange('householdCount', digitsOnly(value))
   }
 
-  const registerHomeowner = () => {
+  const registerHomeowner = async () => {
     if (!isStepTwoValid) {
+      notify.error({
+        title: 'Invalid Address Details',
+        description: 'Phase must be 1-3 and block, lot, and household count must be numeric.'
+      })
       return
     }
 
-    const newHomeowner = {
-      id: Date.now(),
-      firstName: addForm.firstName.trim(),
-      lastName: addForm.lastName.trim(),
-      unitNumber: `${addForm.phase.trim()}-${addForm.block.trim()}-${addForm.lot.trim()}`,
-      phone: addForm.phone.trim(),
-      status: 'active',
-      phase: addForm.phase.trim(),
-      block: addForm.block.trim(),
-      lot: addForm.lot.trim(),
-      entryDate: addForm.entryDate,
-      occupantStatus: addForm.occupantStatus.trim(),
-      householdCount: addForm.householdCount.trim(),
-      loanAvailed: addForm.loanAvailed.trim(),
-      residentId: addForm.residentId.trim(),
-      workAddress: addForm.workAddress.trim() || '-',
-      workStatus: addForm.workStatus.trim() || '-',
-      jobDescription: addForm.jobDescription.trim(),
-      paymentHistory: [
-        { month: 'January 2026', paidOn: '2026-01-20', amountPaid: 2500, status: 'Paid' },
-        { month: 'February 2026', paidOn: '-', amountPaid: 0, status: 'Missed' }
-      ],
-      upcomingPayment: { month: 'March 2026' }
-    }
+    try {
+      const payload = {
+        first_name: addForm.firstName.trim(),
+        last_name: addForm.lastName.trim(),
+        phone_number: addForm.phone.trim(),
+        job_description: addForm.jobDescription.trim(),
+        work_address: addForm.workAddress.trim(),
+        work_status: addForm.workStatus.trim(),
+        entry_date: addForm.entryDate,
+        occupant_status: addForm.occupantStatus.trim(),
+        household_no: Number(addForm.householdCount),
+        loan_availed: addForm.loanAvailed.trim(),
+        address: {
+          phase: Number(addForm.phase),
+          block: Number(addForm.block),
+          lot: Number(addForm.lot)
+        },
+        status: 'Active'
+      }
 
-    setHomeowners((prev) => [newHomeowner, ...prev])
-    notify.success({
-      title: 'Homeowner Registered',
-      description: `${newHomeowner.firstName} ${newHomeowner.lastName} has been added successfully.`
-    })
-    closeAddModal()
+      const response = await apiClient.post('/records', payload)
+      const created = mapRecordToHomeowner(response?.data)
+      setHomeowners((prev) => [created, ...prev])
+      notify.success({
+        title: 'Homeowner Registered',
+        description: `${created.firstName} ${created.lastName} has been added successfully.`
+      })
+      closeAddModal()
+    } catch (error) {
+      notify.error({
+        title: 'Registration Failed',
+        description: error.message || 'Unable to register homeowner.'
+      })
+    }
   }
 
   const openViewModal = (homeowner) => {
@@ -308,63 +296,91 @@ export default function HomeownerManagementPage() {
     setEditForm(null)
   }
 
-  const toggleStatus = (homeownerId) => {
-    setHomeowners((prev) =>
-      prev.map((homeowner) => {
-        if (homeowner.id !== homeownerId) {
-          return homeowner
-        }
+  const toggleStatus = async (homeownerId) => {
+    const target = homeowners.find((homeowner) => homeowner.id === homeownerId)
+    if (!target) {
+      return
+    }
 
-        return {
-          ...homeowner,
-          status: homeowner.status === 'active' ? 'inactive' : 'active'
-        }
+    try {
+      const response = await apiClient.put(`/records/${homeownerId}`, {
+        status: target.status === 'active' ? 'Inactive' : 'Active'
       })
-    )
-    setSelectedHomeowner((prev) => {
-      if (!prev || prev.id !== homeownerId) {
-        return prev
-      }
+      const updated = mapRecordToHomeowner(response?.data)
 
-      return {
-        ...prev,
-        status: prev.status === 'active' ? 'inactive' : 'active'
-      }
-    })
+      setHomeowners((prev) => prev.map((homeowner) => (homeowner.id === homeownerId ? updated : homeowner)))
+      setSelectedHomeowner((prev) => (prev && prev.id === homeownerId ? updated : prev))
+    } catch (error) {
+      notify.error({
+        title: 'Status Update Failed',
+        description: error.message || 'Unable to update homeowner status.'
+      })
+    }
   }
 
   const handleEditChange = (field, value) => {
     setEditForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const saveHomeownerEdits = () => {
+  const saveHomeownerEdits = async () => {
     if (!selectedHomeowner || !editForm) {
       return
     }
 
-    const updatedHomeowner = {
-      ...selectedHomeowner,
-      ...editForm,
-      phone: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
-      householdCount: String(Math.max(0, Number(editForm.householdCount || 0)))
+    const normalizedPhase = String(editForm.phase || '').trim()
+    const normalizedBlock = digitsOnly(editForm.block)
+    const normalizedLot = digitsOnly(editForm.lot)
+    const normalizedHousehold = digitsOnly(editForm.householdCount)
+
+    if (!VALID_PHASES.includes(normalizedPhase) || !normalizedBlock || !normalizedLot || !normalizedHousehold) {
+      notify.error({
+        title: 'Invalid Edit Values',
+        description: 'Phase must be 1-3 and block, lot, and household count must be numeric.'
+      })
+      return
     }
 
-    setHomeowners((prev) =>
-      prev.map((homeowner) => {
-        if (homeowner.id !== selectedHomeowner.id) {
-          return homeowner
+    try {
+      const payload = {
+        phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
+        entry_date: editForm.entryDate,
+        occupant_status: editForm.occupantStatus,
+        household_no: Number(normalizedHousehold),
+        job_description: editForm.jobDescription,
+        work_address: editForm.workAddress,
+        work_status: editForm.workStatus,
+        address: {
+          phase: Number(normalizedPhase),
+          block: Number(normalizedBlock),
+          lot: Number(normalizedLot)
         }
+      }
 
-        return updatedHomeowner
+      const response = await apiClient.put(`/records/${selectedHomeowner.id}`, payload)
+      const updatedHomeowner = mapRecordToHomeowner(response?.data)
+
+      setHomeowners((prev) =>
+        prev.map((homeowner) => {
+          if (homeowner.id !== selectedHomeowner.id) {
+            return homeowner
+          }
+
+          return updatedHomeowner
+        })
+      )
+
+      setSelectedHomeowner(updatedHomeowner)
+      setIsEditingHomeowner(false)
+      notify.success({
+        title: 'Homeowner Updated',
+        description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been updated.`
       })
-    )
-
-    setSelectedHomeowner(updatedHomeowner)
-    setIsEditingHomeowner(false)
-    notify.success({
-      title: 'Homeowner Updated',
-      description: `${selectedHomeowner.firstName} ${selectedHomeowner.lastName} has been updated.`
-    })
+    } catch (error) {
+      notify.error({
+        title: 'Update Failed',
+        description: error.message || 'Unable to save homeowner changes.'
+      })
+    }
   }
 
   return (
@@ -418,7 +434,13 @@ export default function HomeownerManagementPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredHomeowners.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className={styles.emptyRow}>
+                    Loading homeowners...
+                  </td>
+                </tr>
+              ) : filteredHomeowners.length === 0 ? (
                 <tr>
                   <td colSpan={5} className={styles.emptyRow}>
                     No homeowners found for your search.
@@ -569,12 +591,16 @@ export default function HomeownerManagementPage() {
                     <label className={styles.fieldLabel}>
                       Phase <span className={styles.requiredMark}>*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
                       className={styles.input}
                       value={addForm.phase}
-                      onChange={(event) => handleFormChange('phase', event.target.value)}
-                    />
+                      onChange={(event) => handlePhaseChange(event.target.value)}
+                    >
+                      <option value="">Select Phase</option>
+                      <option value="1">Phase 1</option>
+                      <option value="2">Phase 2</option>
+                      <option value="3">Phase 3</option>
+                    </select>
                   </div>
                   <div>
                     <label className={styles.fieldLabel}>
@@ -582,9 +608,10 @@ export default function HomeownerManagementPage() {
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       className={styles.input}
                       value={addForm.block}
-                      onChange={(event) => handleFormChange('block', event.target.value)}
+                      onChange={(event) => handleBlockLotChange('block', event.target.value)}
                     />
                   </div>
                   <div>
@@ -593,9 +620,10 @@ export default function HomeownerManagementPage() {
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       className={styles.input}
                       value={addForm.lot}
-                      onChange={(event) => handleFormChange('lot', event.target.value)}
+                      onChange={(event) => handleBlockLotChange('lot', event.target.value)}
                     />
                   </div>
                 </div>
@@ -652,14 +680,13 @@ export default function HomeownerManagementPage() {
                 </div>
 
                 <div>
-                  <label className={styles.fieldLabel}>
-                    Resident ID # <span className={styles.requiredMark}>*</span>
-                  </label>
+                  <label className={styles.fieldLabel}>Resident ID #</label>
                   <input
                     type="text"
                     className={styles.input}
                     value={addForm.residentId}
                     onChange={(event) => handleFormChange('residentId', event.target.value)}
+                    placeholder="Optional"
                   />
                 </div>
 
@@ -718,12 +745,7 @@ export default function HomeownerManagementPage() {
                 <div>
                   <p className={styles.detailLabel}>Unit Number</p>
                   {isEditingHomeowner ? (
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={editForm?.unitNumber || ''}
-                      onChange={(event) => handleEditChange('unitNumber', event.target.value)}
-                    />
+                    <p className={styles.detailValue}>{`${editForm?.phase || '-'}-${editForm?.block || '-'}-${editForm?.lot || '-'}`}</p>
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.unitNumber}</p>
                   )}
@@ -746,23 +768,29 @@ export default function HomeownerManagementPage() {
                   <p className={styles.detailLabel}>Phase / Block / Lot</p>
                   {isEditingHomeowner ? (
                     <div className={styles.compactGridThree}>
-                      <input
-                        type="text"
+                      <select
                         className={styles.input}
                         value={editForm?.phase || ''}
                         onChange={(event) => handleEditChange('phase', event.target.value)}
-                      />
+                      >
+                        <option value="">Phase</option>
+                        <option value="1">Phase 1</option>
+                        <option value="2">Phase 2</option>
+                        <option value="3">Phase 3</option>
+                      </select>
                       <input
                         type="text"
+                        inputMode="numeric"
                         className={styles.input}
                         value={editForm?.block || ''}
-                        onChange={(event) => handleEditChange('block', event.target.value)}
+                        onChange={(event) => handleEditChange('block', digitsOnly(event.target.value))}
                       />
                       <input
                         type="text"
+                        inputMode="numeric"
                         className={styles.input}
                         value={editForm?.lot || ''}
-                        onChange={(event) => handleEditChange('lot', event.target.value)}
+                        onChange={(event) => handleEditChange('lot', digitsOnly(event.target.value))}
                       />
                     </div>
                   ) : (
@@ -803,7 +831,7 @@ export default function HomeownerManagementPage() {
                       min="0"
                       className={styles.input}
                       value={editForm?.householdCount || ''}
-                      onChange={(event) => handleEditChange('householdCount', event.target.value)}
+                      onChange={(event) => handleEditChange('householdCount', digitsOnly(event.target.value))}
                     />
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.householdCount}</p>

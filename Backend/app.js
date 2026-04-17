@@ -5,6 +5,7 @@ const authRoutes = require("./routes/authRoutes");
 const recordsRoutes = require("./routes/recordsRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const paymentsRoutes = require("./routes/paymentsRoutes");
+const activitiesRoutes = require("./routes/activitiesRoutes");
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/records", recordsRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/payments", paymentsRoutes);
+app.use("/api/activities", activitiesRoutes);
 
 app.get("/api/health", (req, res) => {
 	res.status(200).json({

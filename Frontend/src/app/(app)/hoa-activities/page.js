@@ -1,58 +1,18 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { HiOutlineCalendarDays as ActivityIcon, HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
+import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './hoa-activities.module.css'
-
-const INITIAL_ACTIVITIES = [
-  {
-    id: 101,
-    title: 'Water Leak - Unit 101',
-    reporter: 'Juan Dela Cruz',
-    location: 'Unit 101 Bathroom',
-    details: 'Reported a persistent water leak under the sink. Technician inspection requested.',
-    postedDate: '2026-04-08',
-    eventDate: '2026-04-08',
-    images: []
-  },
-  {
-    id: 102,
-    title: 'Noise Complaint - Unit 203',
-    reporter: 'Maria Reyes',
-    location: 'Unit 203 Living Room',
-    details: 'Loud music reported after 11pm. Requested reminder to follow quiet hours.',
-    postedDate: '2026-04-07',
-    eventDate: '2026-04-07',
-    images: []
-  },
-  {
-    id: 103,
-    title: 'Broken Streetlight - Block B2',
-    reporter: 'Security Patrol',
-    location: 'B2 Road - near Lot 8',
-    details: 'Streetlight not working; reported to maintenance for replacement.',
-    postedDate: '2026-04-06',
-    eventDate: '2026-04-06',
-    images: []
-  },
-  {
-    id: 104,
-    title: 'Lost Pet - Unit 112',
-    reporter: 'Anna Lopez',
-    location: 'Near Clubhouse',
-    details: 'Small brown dog lost. Last seen near the playground. Owner contacted security.',
-    postedDate: '2026-04-05',
-    eventDate: '2026-04-05',
-    images: []
-  },
-]
 
 const EMPTY_FORM = {
   title: '',
   details: '',
   eventDate: '',
-  imageNames: []
+  imageNames: [],
+  pictureId: '',
+  imageUrl: ''
 }
 
 const formatDate = (value) => {
@@ -72,19 +32,62 @@ const formatDate = (value) => {
   }).format(parsed)
 }
 
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Failed to read image file.'))
+    reader.readAsDataURL(file)
+  })
+
+const mapActivity = (activity = {}) => ({
+  id: String(activity._id || ''),
+  title: String(activity.title || '-'),
+  details: String(activity.content || ''),
+  reporter: activity.users?._id?.email || '',
+  location: '',
+  postedDate: activity.createdAt || activity.date || null,
+  eventDate: activity.date || null,
+  images: activity.pictures?._id?.path ? [String(activity.pictures._id.path)] : [],
+  pictureId: activity.pictures?._id?._id ? String(activity.pictures._id._id) : ''
+})
+
 export default function HOAActivitiesPage() {
-  const [activities, setActivities] = useState(INITIAL_ACTIVITIES)
+  const [activities, setActivities] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [isEditingActivity, setIsEditingActivity] = useState(false)
 
   const [form, setForm] = useState(EMPTY_FORM)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const sortedActivities = useMemo(
-    () => [...activities].sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime()),
+    () => [...activities].sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
     [activities]
   )
+
+  const loadActivities = async () => {
+    try {
+      setIsLoading(true)
+      const response = await apiClient.get('/activities')
+      const raw = Array.isArray(response?.data) ? response.data : []
+      setActivities(raw.map(mapActivity))
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Load Activities',
+        description: error.message || 'Unable to fetch HOA activities.'
+      })
+      setActivities([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadActivities()
+  }, [])
 
   const openCreateModal = () => {
     setForm(EMPTY_FORM)
@@ -101,8 +104,10 @@ export default function HOAActivitiesPage() {
     setEditForm({
       title: activity.title,
       details: activity.details,
-      eventDate: activity.eventDate,
-      imageNames: activity.images || []
+      eventDate: activity.eventDate ? String(activity.eventDate).slice(0, 10) : '',
+      imageNames: [],
+      pictureId: activity.pictureId || '',
+      imageUrl: activity.images?.[0] || ''
     })
     setIsEditingActivity(false)
   }
@@ -121,7 +126,57 @@ export default function HOAActivitiesPage() {
     setEditForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const createActivity = () => {
+  const uploadActivityImage = async (file, target = 'create') => {
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      notify.error({
+        title: 'Invalid File Type',
+        description: 'Please upload an image file only.'
+      })
+      return
+    }
+
+    setIsUploadingImage(true)
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      const response = await apiClient.post('/activities/upload-photo', {
+        imageDataUrl: dataUrl,
+        fileName: file.name,
+        mimeType: file.type
+      })
+
+      const uploaded = response?.data
+      const nextValues = {
+        imageNames: [String(uploaded?.filename || file.name || 'Uploaded image')],
+        pictureId: String(uploaded?._id || ''),
+        imageUrl: String(uploaded?.path || '')
+      }
+
+      if (target === 'create') {
+        setForm((prev) => ({ ...prev, ...nextValues }))
+      } else {
+        setEditForm((prev) => ({ ...prev, ...nextValues }))
+      }
+
+      notify.success({
+        title: 'Image Uploaded',
+        description: 'Activity image uploaded successfully.'
+      })
+    } catch (error) {
+      notify.error({
+        title: 'Image Upload Failed',
+        description: error.message || 'Unable to upload activity image.'
+      })
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const createActivity = async () => {
     if (!form.title.trim() || !form.details.trim()) {
       notify.error({
         title: 'Missing Required Details',
@@ -130,24 +185,35 @@ export default function HOAActivitiesPage() {
       return
     }
 
-    const newActivity = {
-      id: Date.now(),
-      title: form.title.trim(),
-      details: form.details.trim(),
-      postedDate: new Date().toISOString(),
-      eventDate: form.eventDate,
-      images: form.imageNames
-    }
+    try {
+      const payload = {
+        title: form.title.trim(),
+        content: form.details.trim(),
+        date: form.eventDate || undefined
+      }
 
-    setActivities((prev) => [newActivity, ...prev])
-    notify.success({
-      title: 'Activity Posted',
-      description: 'The new HOA activity has been added successfully.'
-    })
-    closeCreateModal()
+      if (form.pictureId) {
+        payload['pictures._id'] = form.pictureId
+      }
+
+      const response = await apiClient.post('/activities', payload)
+      const created = mapActivity(response?.data)
+      setActivities((prev) => [created, ...prev])
+
+      notify.success({
+        title: 'Activity Posted',
+        description: 'The new HOA activity has been added successfully.'
+      })
+      closeCreateModal()
+    } catch (error) {
+      notify.error({
+        title: 'Post Failed',
+        description: error.message || 'Unable to post activity.'
+      })
+    }
   }
 
-  const saveActivityEdits = () => {
+  const saveActivityEdits = async () => {
     if (!selectedActivity || !editForm.title.trim() || !editForm.details.trim()) {
       notify.error({
         title: 'Missing Required Details',
@@ -156,21 +222,31 @@ export default function HOAActivitiesPage() {
       return
     }
 
-    const updated = {
-      ...selectedActivity,
-      title: editForm.title.trim(),
-      details: editForm.details.trim(),
-      eventDate: editForm.eventDate,
-      images: selectedActivity.images
-    }
+    try {
+      const payload = {
+        title: editForm.title.trim(),
+        content: editForm.details.trim(),
+        date: editForm.eventDate || null,
+        'pictures._id': editForm.pictureId || null
+      }
 
-    setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
-    setSelectedActivity(updated)
-    setIsEditingActivity(false)
-    notify.success({
-      title: 'Activity Updated',
-      description: 'Activity details were saved successfully.'
-    })
+      const response = await apiClient.put(`/activities/${selectedActivity.id}`, payload)
+      const updated = mapActivity(response?.data)
+
+      setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
+      setSelectedActivity(updated)
+      setIsEditingActivity(false)
+
+      notify.success({
+        title: 'Activity Updated',
+        description: 'Activity details were saved successfully.'
+      })
+    } catch (error) {
+      notify.error({
+        title: 'Update Failed',
+        description: error.message || 'Unable to save activity changes.'
+      })
+    }
   }
 
   return (
@@ -194,7 +270,9 @@ export default function HOAActivitiesPage() {
         </div>
 
         <div className={styles.activityList}>
-          {sortedActivities.length === 0 ? (
+          {isLoading ? (
+            <div className={styles.emptyState}>Loading activities...</div>
+          ) : sortedActivities.length === 0 ? (
             <div className={styles.emptyState}>No activities posted yet.</div>
           ) : (
             sortedActivities.map((activity) => (
@@ -205,19 +283,19 @@ export default function HOAActivitiesPage() {
                 onClick={() => openActivityModal(activity)}
               >
                 <div className={styles.activityTopRow}>
-                    <h3 className={styles.activityTitle}>{activity.title}</h3>
-                    </div>
+                  <h3 className={styles.activityTitle}>{activity.title}</h3>
+                </div>
 
-                    {activity.reporter || activity.location ? (
-                      <p className={styles.activityMeta}>
-                        {activity.reporter ? `${activity.reporter}` : ''}
-                        {activity.reporter && activity.location ? ' • ' : ''}
-                        {activity.location ? `${activity.location}` : ''}
-                      </p>
-                    ) : null}
+                {activity.reporter || activity.location ? (
+                  <p className={styles.activityMeta}>
+                    {activity.reporter ? `${activity.reporter}` : ''}
+                    {activity.reporter && activity.location ? ' • ' : ''}
+                    {activity.location ? `${activity.location}` : ''}
+                  </p>
+                ) : null}
 
-                    <p className={styles.activityDetails}>{activity.details}</p>
-                    <p className={styles.postedDate}>Posted: {formatDate(activity.postedDate)}</p>
+                <p className={styles.activityDetails}>{activity.details}</p>
+                <p className={styles.postedDate}>Posted: {formatDate(activity.postedDate)}</p>
               </button>
             ))
           )}
@@ -264,17 +342,13 @@ export default function HOAActivitiesPage() {
               <input
                 type="file"
                 className={styles.hiddenInput}
-                multiple
-                onChange={(event) => {
-                  const files = Array.from(event.target.files || []).map((file) => file.name)
-                  handleFormChange('imageNames', files)
-                }}
+                onChange={(event) => uploadActivityImage(event.target.files?.[0], 'create')}
                 accept="image/*"
               />
               <span className={styles.uploadPlus}>+</span>
-              <span>Add Photos</span>
+              <span>{isUploadingImage ? 'Uploading...' : 'Add Photo'}</span>
               {form.imageNames.length > 0 && (
-                <span className={styles.fileName}>{`${form.imageNames.length} image(s) selected`}</span>
+                <span className={styles.fileName}>{`${form.imageNames[0]}`}</span>
               )}
             </label>
 
@@ -333,6 +407,19 @@ export default function HOAActivitiesPage() {
                   </div>
                 </div>
 
+                <label className={styles.fieldLabel}>Update Image</label>
+                <label className={styles.uploadBox}>
+                  <input
+                    type="file"
+                    className={styles.hiddenInput}
+                    onChange={(event) => uploadActivityImage(event.target.files?.[0], 'edit')}
+                    accept="image/*"
+                  />
+                  <span className={styles.uploadPlus}>+</span>
+                  <span>{isUploadingImage ? 'Uploading...' : 'Change Photo'}</span>
+                  {editForm.imageNames.length > 0 && <span className={styles.fileName}>{editForm.imageNames[0]}</span>}
+                </label>
+
                 <div className={styles.modalActions}>
                   <button type="button" className={styles.secondaryButton} onClick={() => setIsEditingActivity(false)}>
                     Cancel
@@ -347,6 +434,9 @@ export default function HOAActivitiesPage() {
                 <div className={styles.detailsCard}>
                   <p className={styles.detailsText}>{selectedActivity.details}</p>
                   <p className={styles.metaText}>Event Date: {formatDate(selectedActivity.eventDate)}</p>
+                  {selectedActivity.images.length > 0 ? (
+                    <img src={selectedActivity.images[0]} alt={selectedActivity.title} className={styles.previewImage} />
+                  ) : null}
                 </div>
 
                 <div className={styles.modalActions}>

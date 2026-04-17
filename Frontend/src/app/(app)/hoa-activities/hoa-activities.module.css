@@ -280,6 +280,17 @@
   font-size: 0.93rem;
 }
 
+.previewImage {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+  margin-top: 12px;
+  border-radius: 10px;
+  border: 1px solid #d9e0e8;
+  background: #f1f5f9;
+}
+
 .modalActions {
   display: flex;
   justify-content: flex-end;

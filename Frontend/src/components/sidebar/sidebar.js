@@ -10,14 +10,15 @@ import {
 } from 'react-icons/hi2'
 import styles from './sidebar.module.css'
 
-export default function Sidebar({ isCollapsed = false }) {
+const DEFAULT_LINKS = [
+	{ href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
+	{ href: '/homeowner-management', label: 'Homeowner Management', Icon: HiOutlineUsers },
+	{ href: '/payment-monitoring', label: 'Payment Monitoring', Icon: HiOutlineCreditCard },
+	{ href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
+]
+
+export default function Sidebar({ isCollapsed = false, links = DEFAULT_LINKS }) {
 	const pathname = usePathname()
-	const links = [
-		{ href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
-		{ href: '/homeowner-management', label: 'Homeowner Management', Icon: HiOutlineUsers },
-		{ href: '/payment-monitoring', label: 'Payment Monitoring', Icon: HiOutlineCreditCard },
-		{ href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
-	]
 
 	return (
 		<aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
@@ -35,7 +36,7 @@ export default function Sidebar({ isCollapsed = false }) {
 
 			<nav>
 				<ul className={styles.navList}>
-					{links.map(({ href, label, Icon }) => {
+					{links.map(({ href, label, Icon = HiOutlineUsers }) => {
 						const isActive = pathname === href
 
 						return (

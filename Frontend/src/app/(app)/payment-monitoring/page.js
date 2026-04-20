@@ -1,7 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from 'react'
-import { HiOutlineCircleStack as PaymentIcon } from 'react-icons/hi2'
+import {
+  HiOutlineBanknotes as CollectedIcon,
+  HiOutlineChartBar as RateIcon,
+  HiOutlineCircleStack as PaymentIcon,
+  HiOutlineClock as PendingIcon
+} from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './payment-monitoring.module.css'
@@ -153,6 +158,7 @@ export default function PaymentMonitoringPage() {
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false)
+  const [selectedPaymentRecord, setSelectedPaymentRecord] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [isHomeownerSuggestOpen, setIsHomeownerSuggestOpen] = useState(false)
 
@@ -193,6 +199,7 @@ export default function PaymentMonitoringPage() {
         const linkedRecordId = linkedRecord?._id ? String(linkedRecord._id) : String(payment.records?._id || '')
         const homeownerFromRecords = homeownersById.get(linkedRecordId)
         const address = homeownerFromRecords?.address?._id || homeownerFromRecords?.['address._id'] || null
+        const coveredPeriods = parseCoveredPeriods(payment)
 
         const homeownerName = linkedRecord
           ? `${linkedRecord.first_name || ''} ${linkedRecord.last_name || ''}`.trim() || 'Unlinked Homeowner'
@@ -207,8 +214,12 @@ export default function PaymentMonitoringPage() {
           datePaid: payment.date,
           receiptNo: String(payment.receipt_no || '-'),
           details: String(payment.payment_details || payment.payment_method || '-'),
+          paymentMethod: String(payment.payment_method || '-'),
+          paymentStatusRaw: String(payment.payment_status || '-'),
           paymentStatus: String(payment.payment_status || '').toLowerCase(),
-          coveredPeriods: parseCoveredPeriods(payment)
+          coveredPeriods,
+          createdAt: payment.createdAt || null,
+          updatedAt: payment.updatedAt || null
         }
       })
 
@@ -281,6 +292,14 @@ export default function PaymentMonitoringPage() {
   const closeRecordModal = () => {
     setIsRecordModalOpen(false)
     setForm(EMPTY_FORM)
+  }
+
+  const openPaymentViewModal = (record) => {
+    setSelectedPaymentRecord(record)
+  }
+
+  const closePaymentViewModal = () => {
+    setSelectedPaymentRecord(null)
   }
 
   const handleFormChange = (field, value) => {
@@ -445,21 +464,36 @@ export default function PaymentMonitoringPage() {
 
       <section className={styles.cardGrid} aria-label="Payment monitoring stats">
         <article className={styles.statCard}>
-          <p className={styles.statLabel}>Total Collected (Current Month)</p>
-          <p className={styles.statValue}>{toPeso(stats.totalCollectedCurrentMonth)}</p>
-          <p className={styles.statSubtext}>From recorded payments</p>
+          <div className={styles.statContent}>
+            <p className={styles.statLabel}>Total Collected (Current Month)</p>
+            <p className={styles.statValue}>{toPeso(stats.totalCollectedCurrentMonth)}</p>
+            <p className={styles.statSubtext}>From recorded payments</p>
+          </div>
+          <div className={styles.statIconWrap}>
+            <CollectedIcon className={styles.statIcon} aria-hidden="true" />
+          </div>
         </article>
 
         <article className={styles.statCard}>
-          <p className={styles.statLabel}>Pending Payments (Current Month)</p>
-          <p className={styles.statValue}>{stats.pendingPayments}</p>
-          <p className={styles.statSubtext}>Outstanding balances</p>
+          <div className={styles.statContent}>
+            <p className={styles.statLabel}>Pending Payments (Current Month)</p>
+            <p className={styles.statValue}>{stats.pendingPayments}</p>
+            <p className={styles.statSubtext}>Outstanding balances</p>
+          </div>
+          <div className={styles.statIconWrap}>
+            <PendingIcon className={styles.statIcon} aria-hidden="true" />
+          </div>
         </article>
 
         <article className={styles.statCard}>
-          <p className={styles.statLabel}>Collection Rate</p>
-          <p className={styles.statValue}>{`${stats.collectionRate}%`}</p>
-          <p className={styles.statSubtext}>Current month</p>
+          <div className={styles.statContent}>
+            <p className={styles.statLabel}>Collection Rate</p>
+            <p className={styles.statValue}>{`${stats.collectionRate}%`}</p>
+            <p className={styles.statSubtext}>Current month</p>
+          </div>
+          <div className={styles.statIconWrap}>
+            <RateIcon className={styles.statIcon} aria-hidden="true" />
+          </div>
         </article>
       </section>
 
@@ -495,10 +529,10 @@ export default function PaymentMonitoringPage() {
             <thead>
               <tr>
                 <th>Homeowner</th>
-                <th>Unit Number</th>
                 <th>Receipt No.</th>
                 <th>Amount</th>
                 <th>Date Paid</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -518,10 +552,18 @@ export default function PaymentMonitoringPage() {
                 filteredRecords.map((record) => (
                   <tr key={record.id}>
                     <td>{record.homeownerName}</td>
-                    <td>{record.unitNumber}</td>
                     <td>{record.receiptNo}</td>
                     <td>{toPeso(record.amount)}</td>
                     <td>{formatDate(record.datePaid)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className={styles.viewButton}
+                        onClick={() => openPaymentViewModal(record)}
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -537,7 +579,7 @@ export default function PaymentMonitoringPage() {
             <p className={styles.modalLead}>Enter payment details for the homeowner</p>
 
             <div className={styles.formGrid}>
-              <div>
+              <div className={styles.fullSpan}>
                 <label className={styles.fieldLabel}>Homeowner</label>
                 <div className={styles.autocompleteWrap}>
                   <input
@@ -573,20 +615,6 @@ export default function PaymentMonitoringPage() {
               </div>
 
               <div>
-                <label className={styles.fieldLabel}>Amount Paid</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className={styles.input}
-                  value={form.amount}
-                  disabled
-                  readOnly
-                  placeholder="Add payment periods to compute"
-                />
-              </div>
-
-              <div>
                 <label className={styles.fieldLabel}>Date</label>
                 <input
                   type="date"
@@ -608,8 +636,8 @@ export default function PaymentMonitoringPage() {
                 />
               </div>
 
-              <div>
-                <label className={styles.fieldLabel}>Payment For Periods (YYYYMM)</label>
+              <div className={styles.fullSpan}>
+                <label className={styles.fieldLabel}>Payment Periods</label>
                 <div className={styles.periodPickerRow}>
                   <select
                     className={styles.input}
@@ -623,11 +651,10 @@ export default function PaymentMonitoringPage() {
                     ))}
                   </select>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     className={styles.input}
                     value={form.periodYear}
-                    min="2000"
-                    max="3000"
                     onChange={(event) => handleFormChange('periodYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="Year"
                   />
@@ -635,7 +662,6 @@ export default function PaymentMonitoringPage() {
                     Add
                   </button>
                 </div>
-                <p className={styles.periodHint}>Optional. Add one or more covered months for this payment.</p>
                 <div className={styles.periodTags}>
                   {(form.paymentPeriods || []).length === 0 ? (
                     <span className={styles.periodEmpty}>No periods added yet</span>
@@ -653,10 +679,11 @@ export default function PaymentMonitoringPage() {
                     ))
                   )}
                 </div>
+                <p className={styles.periodHint}>Optional. Add one or more covered months for this payment.</p>
               </div>
             </div>
 
-            <div>
+            <div className={styles.fullSpan}>
               <label className={styles.fieldLabel}>Payment Details</label>
               <textarea
                 className={styles.textarea}
@@ -672,6 +699,97 @@ export default function PaymentMonitoringPage() {
               </button>
               <button type="button" className={styles.primaryButton} onClick={savePaymentRecord}>
                 Add Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPaymentRecord && (
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modal} ${styles.viewModal}`}>
+            <h2 className={styles.modalTitle}>Payment Record Details</h2>
+            <p className={styles.modalLead}>Full details for the selected payment record</p>
+
+            <div className={styles.formGrid}>
+              <div className={styles.fullSpan}>
+                <label className={styles.fieldLabel}>Homeowner</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={selectedPaymentRecord.homeownerName}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Date</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={formatDate(selectedPaymentRecord.datePaid)}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Receipt No.</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={selectedPaymentRecord.receiptNo}
+                  readOnly
+                />
+              </div>
+
+              <div className={styles.fullSpan}>
+                <label className={styles.fieldLabel}>Payment Periods</label>
+                <div className={styles.periodTags}>
+                  {selectedPaymentRecord.coveredPeriods.length === 0 ? (
+                    <span className={styles.periodEmpty}>No periods recorded</span>
+                  ) : (
+                    selectedPaymentRecord.coveredPeriods.map((period) => (
+                      <span key={period} className={styles.periodTag}>
+                        {paymentPeriodToLabel(period)}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.fullSpan}>
+                <label className={styles.fieldLabel}>Payment Details</label>
+                <textarea
+                  className={`${styles.textarea} ${styles.readonlyField}`}
+                  value={selectedPaymentRecord.details}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Amount Paid</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={toPeso(selectedPaymentRecord.amount)}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Unit Number</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={selectedPaymentRecord.unitNumber}
+                  readOnly
+                />
+              </div>
+            </div>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closePaymentViewModal}>
+                Close
               </button>
             </div>
           </div>

@@ -19,13 +19,42 @@ const EMPTY_FORM = {
   occupantStatus: '',
   householdCount: '',
   loanAvailed: '',
-  residentId: '',
   imageName: '',
   pictureId: '',
   imageUrl: ''
 }
 
 const VALID_PHASES = ['1', '2', '3']
+const AVAILABLE_STATUSES = ['Status 1', 'Status 2', 'Status 3', 'Status 4']
+
+const toEntryYear = (dateValue) => {
+  if (!dateValue) {
+    return ''
+  }
+
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  return String(date.getFullYear())
+}
+
+const toEntryDateValue = (yearValue) => {
+  const year = digitsOnly(yearValue).slice(0, 4)
+  if (year.length !== 4) {
+    return ''
+  }
+
+  return `${year}-01-01`
+}
+
+const normalizeStatus = (value) => {
+  const normalized = String(value || '').trim()
+  return normalized || AVAILABLE_STATUSES[0]
+}
+
+const normalizeName = (value) => String(value || '').replace(/\d/g, '')
 
 const toInputDate = (dateValue) => {
   if (!dateValue) {
@@ -85,11 +114,11 @@ const mapRecordToHomeowner = (record = {}) => {
     lastName,
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
     phone: String(record.phone_number || ''),
-    status: String(record.status || 'Active').toLowerCase() === 'inactive' ? 'inactive' : 'active',
+    status: normalizeStatus(record.status),
     phase: address.phase,
     block: address.block,
     lot: address.lot,
-    entryDate: toInputDate(record.entry_date),
+    entryDate: toEntryYear(record.entry_date),
     occupantStatus: String(record.occupant_status || '-'),
     householdCount: record.household_no !== undefined && record.household_no !== null ? String(record.household_no) : '0',
     loanAvailed: String(record.loan_availed || '-'),
@@ -200,6 +229,7 @@ export default function HomeownerManagementPage() {
   const [editForm, setEditForm] = useState(null)
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
+  const [pendingStatusChange, setPendingStatusChange] = useState(null)
 
   const fetchHomeowners = async () => {
     try {
@@ -231,14 +261,16 @@ export default function HomeownerManagementPage() {
   const isStepOneValid =
     addForm.firstName.trim() &&
     addForm.lastName.trim() &&
-    addForm.phone.trim() &&
+    !/\d/.test(addForm.firstName) &&
+    !/\d/.test(addForm.lastName) &&
+    /^\d{11}$/.test(addForm.phone.trim()) &&
     addForm.jobDescription.trim()
 
   const isStepTwoValid =
     VALID_PHASES.includes(addForm.phase.trim()) &&
-    /^\d+$/.test(addForm.block.trim()) &&
-    /^\d+$/.test(addForm.lot.trim()) &&
-    addForm.entryDate.trim() &&
+    /^\d{1,3}$/.test(addForm.block.trim()) &&
+    /^\d{1,3}$/.test(addForm.lot.trim()) &&
+    /^\d{4}$/.test(addForm.entryDate.trim()) &&
     addForm.occupantStatus.trim() &&
     /^\d+$/.test(addForm.householdCount.trim()) &&
     addForm.loanAvailed.trim()
@@ -256,11 +288,11 @@ export default function HomeownerManagementPage() {
     }
 
     if (tableFilter === 'active') {
-      return results.filter((homeowner) => homeowner.status === 'active')
+      return results.filter((homeowner) => homeowner.status.toLowerCase() === 'active')
     }
 
     if (tableFilter === 'inactive') {
-      return results.filter((homeowner) => homeowner.status === 'inactive')
+      return results.filter((homeowner) => homeowner.status.toLowerCase() === 'inactive')
     }
 
     if (tableFilter === 'oldest') {
@@ -298,31 +330,49 @@ export default function HomeownerManagementPage() {
   }
 
   const handleBlockLotChange = (field, value) => {
-    handleFormChange(field, digitsOnly(value))
+    handleFormChange(field, digitsOnly(value).slice(0, 3))
   }
 
   const handleHouseholdCountChange = (value) => {
     handleFormChange('householdCount', digitsOnly(value))
   }
 
+  const handleEntryYearChange = (value) => {
+    handleFormChange('entryDate', digitsOnly(value).slice(0, 4))
+  }
+
+  const getStatusPillClass = (statusValue) => {
+    const status = String(statusValue || '').trim().toLowerCase()
+
+    if (status === 'active') {
+      return styles.statusActive
+    }
+
+    if (status === 'inactive') {
+      return styles.statusInactive
+    }
+
+    return styles.statusDefault
+  }
+
   const registerHomeowner = async () => {
     if (!isStepTwoValid) {
       notify.error({
         title: 'Invalid Address Details',
-        description: 'Phase must be 1-3 and block, lot, and household count must be numeric.'
+        description: 'Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits.'
       })
       return
     }
 
     try {
       const payload = {
-        first_name: addForm.firstName.trim(),
-        last_name: addForm.lastName.trim(),
+        first_name: normalizeName(addForm.firstName).trim(),
+        last_name: normalizeName(addForm.lastName).trim(),
         phone_number: addForm.phone.trim(),
         job_description: addForm.jobDescription.trim(),
         work_address: addForm.workAddress.trim(),
         work_status: addForm.workStatus.trim(),
-        entry_date: addForm.entryDate,
+        entry_date: toEntryDateValue(addForm.entryDate),
         occupant_status: addForm.occupantStatus.trim(),
         household_no: Number(addForm.householdCount),
         loan_availed: addForm.loanAvailed.trim(),
@@ -331,7 +381,7 @@ export default function HomeownerManagementPage() {
           block: Number(addForm.block),
           lot: Number(addForm.lot)
         },
-        status: 'Active'
+        status: AVAILABLE_STATUSES[0]
       }
 
       if (addForm.pictureId) {
@@ -413,7 +463,6 @@ export default function HomeownerManagementPage() {
       entryDate: homeowner.entryDate,
       occupantStatus: homeowner.occupantStatus,
       householdCount: homeowner.householdCount,
-      residentId: homeowner.residentId,
       jobDescription: homeowner.jobDescription,
       workAddress: homeowner.workAddress,
       workStatus: homeowner.workStatus,
@@ -432,20 +481,52 @@ export default function HomeownerManagementPage() {
     setEditForm(null)
   }
 
-  const toggleStatus = async (homeownerId) => {
+  const requestStatusChange = (newStatus) => {
+    if (!selectedHomeowner) {
+      return
+    }
+
+    const normalizedStatus = normalizeStatus(newStatus)
+    if (normalizedStatus === selectedHomeowner.status) {
+      return
+    }
+
+    setPendingStatusChange({
+      homeownerId: selectedHomeowner.id,
+      previousStatus: selectedHomeowner.status,
+      newStatus: normalizedStatus
+    })
+  }
+
+  const closeStatusConfirmModal = () => {
+    setPendingStatusChange(null)
+  }
+
+  const confirmStatusChange = async () => {
+    if (!pendingStatusChange) {
+      return
+    }
+
+    const { homeownerId, newStatus } = pendingStatusChange
     const target = homeowners.find((homeowner) => homeowner.id === homeownerId)
     if (!target) {
+      setPendingStatusChange(null)
       return
     }
 
     try {
       const response = await apiClient.put(`/records/${homeownerId}`, {
-        status: target.status === 'active' ? 'Inactive' : 'Active'
+        status: newStatus
       })
       const updated = mapRecordToHomeowner(response?.data)
 
       setHomeowners((prev) => prev.map((homeowner) => (homeowner.id === homeownerId ? updated : homeowner)))
       setSelectedHomeowner((prev) => (prev && prev.id === homeownerId ? updated : prev))
+      setPendingStatusChange(null)
+      notify.success({
+        title: 'Status Updated',
+        description: `Homeowner status changed to ${updated.status}.`
+      })
     } catch (error) {
       notify.error({
         title: 'Status Update Failed',
@@ -561,14 +642,21 @@ export default function HomeownerManagementPage() {
     }
 
     const normalizedPhase = String(editForm.phase || '').trim()
-    const normalizedBlock = digitsOnly(editForm.block)
-    const normalizedLot = digitsOnly(editForm.lot)
+    const normalizedBlock = digitsOnly(editForm.block).slice(0, 3)
+    const normalizedLot = digitsOnly(editForm.lot).slice(0, 3)
     const normalizedHousehold = digitsOnly(editForm.householdCount)
+    const normalizedEntryYear = digitsOnly(editForm.entryDate).slice(0, 4)
 
-    if (!VALID_PHASES.includes(normalizedPhase) || !normalizedBlock || !normalizedLot || !normalizedHousehold) {
+    if (
+      !VALID_PHASES.includes(normalizedPhase) ||
+      !/^\d{1,3}$/.test(normalizedBlock) ||
+      !/^\d{1,3}$/.test(normalizedLot) ||
+      !normalizedHousehold ||
+      !/^\d{4}$/.test(normalizedEntryYear)
+    ) {
       notify.error({
         title: 'Invalid Edit Values',
-        description: 'Phase must be 1-3 and block, lot, and household count must be numeric.'
+        description: 'Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits.'
       })
       return
     }
@@ -576,7 +664,7 @@ export default function HomeownerManagementPage() {
     try {
       const payload = {
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
-        entry_date: editForm.entryDate,
+        entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
         household_no: Number(normalizedHousehold),
         job_description: editForm.jobDescription,
@@ -664,6 +752,7 @@ export default function HomeownerManagementPage() {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>User ID</th>
                 <th>Unit Number</th>
                 <th>Phone</th>
                 <th>Status</th>
@@ -673,13 +762,13 @@ export default function HomeownerManagementPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
+                  <td colSpan={6} className={styles.emptyRow}>
                     Loading homeowners...
                   </td>
                 </tr>
               ) : filteredHomeowners.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
+                  <td colSpan={6} className={styles.emptyRow}>
                     No homeowners found for your search.
                   </td>
                 </tr>
@@ -700,16 +789,11 @@ export default function HomeownerManagementPage() {
                         <span>{`${homeowner.firstName} ${homeowner.lastName}`}</span>
                       </div>
                     </td>
+                    <td>{homeowner.id || '-'}</td>
                     <td>{homeowner.unitNumber}</td>
                     <td>{formatPhone(homeowner.phone)}</td>
                     <td>
-                      <span
-                        className={`${styles.statusPill} ${
-                          homeowner.status === 'active' ? styles.statusActive : styles.statusInactive
-                        }`}
-                      >
-                        {homeowner.status === 'active' ? 'Active' : 'Inactive'}
-                      </span>
+                      <span className={`${styles.statusPill} ${getStatusPillClass(homeowner.status)}`}>{homeowner.status}</span>
                     </td>
                     <td>
                       <button type="button" className={styles.viewButton} onClick={() => openViewModal(homeowner)}>
@@ -766,7 +850,7 @@ export default function HomeownerManagementPage() {
                       type="text"
                       className={styles.input}
                       value={addForm.firstName}
-                      onChange={(event) => handleFormChange('firstName', event.target.value)}
+                      onChange={(event) => handleFormChange('firstName', normalizeName(event.target.value))}
                     />
 
                     <label className={styles.fieldLabel}>
@@ -776,7 +860,7 @@ export default function HomeownerManagementPage() {
                       type="text"
                       className={styles.input}
                       value={addForm.lastName}
-                      onChange={(event) => handleFormChange('lastName', event.target.value)}
+                      onChange={(event) => handleFormChange('lastName', normalizeName(event.target.value))}
                     />
                   </div>
                 </div>
@@ -868,6 +952,7 @@ export default function HomeownerManagementPage() {
                       inputMode="numeric"
                       className={styles.input}
                       value={addForm.block}
+                      maxLength={3}
                       onChange={(event) => handleBlockLotChange('block', event.target.value)}
                     />
                   </div>
@@ -880,6 +965,7 @@ export default function HomeownerManagementPage() {
                       inputMode="numeric"
                       className={styles.input}
                       value={addForm.lot}
+                      maxLength={3}
                       onChange={(event) => handleBlockLotChange('lot', event.target.value)}
                     />
                   </div>
@@ -891,10 +977,13 @@ export default function HomeownerManagementPage() {
                       Entry Date <span className={styles.requiredMark}>*</span>
                     </label>
                     <input
-                      type="date"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
                       className={styles.input}
                       value={addForm.entryDate}
-                      onChange={(event) => handleFormChange('entryDate', event.target.value)}
+                      onChange={(event) => handleEntryYearChange(event.target.value)}
+                      placeholder="YYYY"
                     />
                   </div>
                   <div>
@@ -916,8 +1005,8 @@ export default function HomeownerManagementPage() {
                       No. of People in Household <span className={styles.requiredMark}>*</span>
                     </label>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       className={styles.input}
                       value={addForm.householdCount}
                       onChange={(event) => handleHouseholdCountChange(event.target.value)}
@@ -934,17 +1023,6 @@ export default function HomeownerManagementPage() {
                       onChange={(event) => handleFormChange('loanAvailed', event.target.value)}
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className={styles.fieldLabel}>Resident ID #</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    value={addForm.residentId}
-                    onChange={(event) => handleFormChange('residentId', event.target.value)}
-                    placeholder="Optional"
-                  />
                 </div>
 
                 <div className={styles.modalActions}>
@@ -1090,14 +1168,16 @@ export default function HomeownerManagementPage() {
                         inputMode="numeric"
                         className={styles.input}
                         value={editForm?.block || ''}
-                        onChange={(event) => handleEditChange('block', digitsOnly(event.target.value))}
+                        maxLength={3}
+                        onChange={(event) => handleEditChange('block', digitsOnly(event.target.value).slice(0, 3))}
                       />
                       <input
                         type="text"
                         inputMode="numeric"
                         className={styles.input}
                         value={editForm?.lot || ''}
-                        onChange={(event) => handleEditChange('lot', digitsOnly(event.target.value))}
+                        maxLength={3}
+                        onChange={(event) => handleEditChange('lot', digitsOnly(event.target.value).slice(0, 3))}
                       />
                     </div>
                   ) : (
@@ -1108,10 +1188,13 @@ export default function HomeownerManagementPage() {
                   <p className={styles.detailLabel}>Entry Date</p>
                   {isEditingHomeowner ? (
                     <input
-                      type="date"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
                       className={styles.input}
                       value={editForm?.entryDate || ''}
-                      onChange={(event) => handleEditChange('entryDate', event.target.value)}
+                      onChange={(event) => handleEditChange('entryDate', digitsOnly(event.target.value).slice(0, 4))}
+                      placeholder="YYYY"
                     />
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.entryDate}</p>
@@ -1134,8 +1217,8 @@ export default function HomeownerManagementPage() {
                   <p className={styles.detailLabel}>Household Count</p>
                   {isEditingHomeowner ? (
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       className={styles.input}
                       value={editForm?.householdCount || ''}
                       onChange={(event) => handleEditChange('householdCount', digitsOnly(event.target.value))}
@@ -1146,16 +1229,7 @@ export default function HomeownerManagementPage() {
                 </div>
                 <div>
                   <p className={styles.detailLabel}>Resident ID #</p>
-                  {isEditingHomeowner ? (
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={editForm?.residentId || ''}
-                      onChange={(event) => handleEditChange('residentId', event.target.value)}
-                    />
-                  ) : (
-                    <p className={styles.detailValue}>{selectedHomeowner.residentId}</p>
-                  )}
+                  <p className={styles.detailValue}>{selectedHomeowner.residentId}</p>
                 </div>
                 <div>
                   <p className={styles.detailLabel}>Job Description</p>
@@ -1240,30 +1314,60 @@ export default function HomeownerManagementPage() {
               </div>
             )}
 
-            <div className={`${styles.modalActions} ${styles.viewActions}`}>
-              <button
-                type="button"
-                className={`${styles.statusToggleButton} ${
-                  selectedHomeowner.status === 'active' ? styles.statusDangerButton : styles.statusSafeButton
-                }`}
-                onClick={() => toggleStatus(selectedHomeowner.id)}
-              >
-                {selectedHomeowner.status === 'active' ? 'Set as Inactive' : 'Set as Active'}
-              </button>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                disabled={isUpdatingPhoto}
-                onClick={() => {
-                  if (isEditingHomeowner) {
-                    saveHomeownerEdits()
-                    return
-                  }
+            {activeViewTab === 'info' ? (
+              <div className={`${styles.modalActions} ${styles.viewActions}`}>
+                <div className={styles.statusFieldRow}>
+                  <span className={styles.statusLabel}>Status:</span>
+                  <select
+                    className={`${styles.input} ${styles.statusSelect}`}
+                    value={selectedHomeowner.status}
+                    onChange={(event) => requestStatusChange(event.target.value)}
+                  >
+                    {!AVAILABLE_STATUSES.includes(selectedHomeowner.status) ? (
+                      <option value={selectedHomeowner.status}>{selectedHomeowner.status}</option>
+                    ) : null}
+                    {AVAILABLE_STATUSES.map((statusOption) => (
+                      <option key={statusOption} value={statusOption}>
+                        {statusOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  setIsEditingHomeowner(true)
-                }}
-              >
-                {isEditingHomeowner ? 'Save Changes' : 'Edit'}
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  disabled={isUpdatingPhoto}
+                  onClick={() => {
+                    if (isEditingHomeowner) {
+                      saveHomeownerEdits()
+                      return
+                    }
+
+                    setIsEditingHomeowner(true)
+                  }}
+                >
+                  {isEditingHomeowner ? 'Save Changes' : 'Edit'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {pendingStatusChange && (
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modal} ${styles.confirmModal}`}>
+            <h3 className={styles.stepTitle}>Confirm Status Change</h3>
+            <p className={styles.modalLead}>
+              Change homeowner status from {pendingStatusChange.previousStatus} to {pendingStatusChange.newStatus}?
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closeStatusConfirmModal}>
+                Cancel
+              </button>
+              <button type="button" className={styles.primaryButton} onClick={confirmStatusChange}>
+                Confirm
               </button>
             </div>
           </div>

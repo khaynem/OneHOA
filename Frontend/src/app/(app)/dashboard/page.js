@@ -47,8 +47,8 @@ export default function DashboardPage() {
     ]
   }, [dashboardData])
 
-  const recentPayments = dashboardData?.recentPayments || []
-  const previousActivities = dashboardData?.previousActivities || []
+  const recentPayments = (dashboardData?.recentPayments || []).slice(0, 5)
+  const previousActivities = (dashboardData?.previousActivities || []).slice(0, 5)
 
   return (
     <main className={styles.dashboard}>

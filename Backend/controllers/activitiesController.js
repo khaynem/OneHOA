@@ -24,7 +24,7 @@ const getActivities = async (req, res) => {
 
 const createActivity = async (req, res) => {
     try {
-        const { title, content, date, "pictures._id": pictureId } = req.body || {};
+        const { title, content, date, archived, "pictures._id": pictureId } = req.body || {};
 
         if (!String(title || "").trim()) {
             return res.status(400).json({ success: false, message: "Activity title is required." });
@@ -34,6 +34,7 @@ const createActivity = async (req, res) => {
             title: String(title).trim(),
             content: String(content || "").trim(),
             date: date ? new Date(date) : new Date(),
+            archived: Boolean(archived),
         };
 
         if (pictureId) {
@@ -66,7 +67,7 @@ const updateActivity = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid activity ID." });
         }
 
-        const { title, content, date, "pictures._id": pictureId } = req.body || {};
+        const { title, content, date, archived, "pictures._id": pictureId } = req.body || {};
 
         const payload = {};
 
@@ -83,6 +84,10 @@ const updateActivity = async (req, res) => {
 
         if (date !== undefined) {
             payload.date = date ? new Date(date) : null;
+        }
+
+        if (archived !== undefined) {
+            payload.archived = Boolean(archived);
         }
 
         if (pictureId !== undefined) {

@@ -160,6 +160,11 @@
   color: #a01414;
 }
 
+.statusDefault {
+  background: #e5eef8;
+  color: #1f4f78;
+}
+
 .viewButton {
   border: 0;
   background: transparent;
@@ -622,6 +627,29 @@
 
 .viewActions {
   margin-top: 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.statusSelect {
+  min-width: 220px;
+  margin-bottom: 0;
+}
+
+.statusFieldRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statusLabel {
+  color: #20262f;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.confirmModal {
+  width: min(92vw, 480px);
 }
 
 @media (max-width: 1240px) {

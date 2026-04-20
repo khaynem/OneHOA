@@ -49,22 +49,36 @@ const mapActivity = (activity = {}) => ({
   postedDate: activity.createdAt || activity.date || null,
   eventDate: activity.date || null,
   images: activity.pictures?._id?.path ? [String(activity.pictures._id.path)] : [],
-  pictureId: activity.pictures?._id?._id ? String(activity.pictures._id._id) : ''
+  pictureId: activity.pictures?._id?._id ? String(activity.pictures._id._id) : '',
+  archived: Boolean(activity.archived)
 })
 
 export default function HOAActivitiesPage() {
   const [activities, setActivities] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false)
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [isEditingActivity, setIsEditingActivity] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
 
   const [form, setForm] = useState(EMPTY_FORM)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
 
   const sortedActivities = useMemo(
-    () => [...activities].sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
+    () =>
+      [...activities]
+        .filter((activity) => !activity.archived)
+        .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
+    [activities]
+  )
+
+  const archivedActivities = useMemo(
+    () =>
+      [...activities]
+        .filter((activity) => activity.archived)
+        .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
     [activities]
   )
 
@@ -97,6 +111,14 @@ export default function HOAActivitiesPage() {
   const closeCreateModal = () => {
     setIsCreateModalOpen(false)
     setForm(EMPTY_FORM)
+  }
+
+  const openArchivedModal = () => {
+    setIsArchivedModalOpen(true)
+  }
+
+  const closeArchivedModal = () => {
+    setIsArchivedModalOpen(false)
   }
 
   const openActivityModal = (activity) => {
@@ -249,6 +271,53 @@ export default function HOAActivitiesPage() {
     }
   }
 
+  const promptArchiveActivity = (activity) => {
+    setConfirmAction({ type: 'archive', activity })
+  }
+
+  const promptUnarchiveActivity = (activity) => {
+    setConfirmAction({ type: 'unarchive', activity })
+  }
+
+  const closeConfirmAction = () => {
+    setConfirmAction(null)
+  }
+
+  const runArchiveAction = async () => {
+    if (!confirmAction?.activity?.id) {
+      return
+    }
+
+    const shouldArchive = confirmAction.type === 'archive'
+
+    try {
+      const response = await apiClient.put(`/activities/${confirmAction.activity.id}`, {
+        archived: shouldArchive
+      })
+
+      const updated = mapActivity(response?.data)
+      setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
+
+      if (shouldArchive) {
+        setSelectedActivity(null)
+      }
+
+      notify.success({
+        title: shouldArchive ? 'Activity Archived' : 'Activity Restored',
+        description: shouldArchive
+          ? 'The activity has been moved to archived records.'
+          : 'The activity has been restored to recent activities.'
+      })
+
+      closeConfirmAction()
+    } catch (error) {
+      notify.error({
+        title: shouldArchive ? 'Archive Failed' : 'Restore Failed',
+        description: error.message || 'Unable to update activity archive status.'
+      })
+    }
+  }
+
   return (
     <main className={styles.page}>
       <section className={styles.headerRow}>
@@ -257,10 +326,16 @@ export default function HOAActivitiesPage() {
           <p className={styles.subtitle}>Post and track community activities and events</p>
         </div>
 
-        <button type="button" className={styles.recordButton} onClick={openCreateModal}>
-          <ActivityIcon className={styles.recordButtonIcon} aria-hidden="true" />
-          Record New Activity
-        </button>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.recordButton} onClick={openCreateModal}>
+            <ActivityIcon className={styles.recordButtonIcon} aria-hidden="true" />
+            Record New Activity
+          </button>
+
+          <button type="button" className={styles.archivedButton} onClick={openArchivedModal}>
+            Archived
+          </button>
+        </div>
       </section>
 
       <section className={styles.listModal}>
@@ -286,16 +361,13 @@ export default function HOAActivitiesPage() {
                   <h3 className={styles.activityTitle}>{activity.title}</h3>
                 </div>
 
-                {activity.reporter || activity.location ? (
-                  <p className={styles.activityMeta}>
-                    {activity.reporter ? `${activity.reporter}` : ''}
-                    {activity.reporter && activity.location ? ' • ' : ''}
-                    {activity.location ? `${activity.location}` : ''}
-                  </p>
-                ) : null}
-
                 <p className={styles.activityDetails}>{activity.details}</p>
-                <p className={styles.postedDate}>Posted: {formatDate(activity.postedDate)}</p>
+                <p className={styles.activityMetaLine}>
+                  <span className={styles.metaLabel}>Date Posted:</span> {formatDate(activity.postedDate)}
+                </p>
+                <p className={styles.activityMetaLine}>
+                  <span className={styles.metaLabel}>Posted By:</span> {activity.reporter || '-'}
+                </p>
               </button>
             ))
           )}
@@ -440,8 +512,12 @@ export default function HOAActivitiesPage() {
                 </div>
 
                 <div className={styles.modalActions}>
-                  <button type="button" className={styles.secondaryButton} onClick={closeActivityModal}>
-                    Close
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => promptArchiveActivity(selectedActivity)}
+                  >
+                    Archive
                   </button>
                   <button type="button" className={styles.primaryButton} onClick={() => setIsEditingActivity(true)}>
                     <EditIcon className={styles.editIcon} aria-hidden="true" />
@@ -450,6 +526,81 @@ export default function HOAActivitiesPage() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {isArchivedModalOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 className={styles.modalTitle}>Archived Activities</h2>
+                <p className={styles.modalLead}>Review archived activities and restore when needed</p>
+              </div>
+
+              <button type="button" className={styles.closeButton} onClick={closeArchivedModal} aria-label="Close">
+                x
+              </button>
+            </div>
+
+            <div className={styles.archivedList}>
+              {archivedActivities.length === 0 ? (
+                <div className={styles.emptyState}>No archived activities found.</div>
+              ) : (
+                archivedActivities.map((activity) => (
+                  <div key={activity.id} className={styles.archivedItem}>
+                    <div>
+                      <h3 className={styles.activityTitle}>{activity.title}</h3>
+                      <p className={styles.activityDetails}>{activity.details}</p>
+                      <p className={styles.activityMetaLine}>
+                        <span className={styles.metaLabel}>Date Posted:</span> {formatDate(activity.postedDate)}
+                      </p>
+                      <p className={styles.activityMetaLine}>
+                        <span className={styles.metaLabel}>Posted By:</span> {activity.reporter || '-'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={() => promptUnarchiveActivity(activity)}
+                    >
+                      Unarchive
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closeArchivedModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmAction && (
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modal} ${styles.confirmModal}`}>
+            <h2 className={styles.confirmTitle}>
+              {confirmAction.type === 'archive' ? 'Archive Activity' : 'Unarchive Activity'}
+            </h2>
+            <p className={styles.modalLead}>
+              {confirmAction.type === 'archive'
+                ? `Are you sure you want to archive "${confirmAction.activity.title}"?`
+                : `Are you sure you want to unarchive "${confirmAction.activity.title}"?`}
+            </p>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closeConfirmAction}>
+                Cancel
+              </button>
+              <button type="button" className={styles.primaryButton} onClick={runArchiveAction}>
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

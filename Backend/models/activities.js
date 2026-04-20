@@ -21,7 +21,11 @@ const activitiesSchema = new mongoose.Schema(
         },
         'date': {
             type: Date,
-        }
+        },
+        archived: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: true,

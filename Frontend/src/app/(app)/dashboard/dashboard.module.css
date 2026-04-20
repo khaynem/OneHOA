@@ -70,8 +70,8 @@
 }
 
 .statIconWrap {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   border-radius: 8px;
   background: #0070c4;
   display: grid;
@@ -81,8 +81,8 @@
 }
 
 .statIcon {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   color: #ffffff;
 }
 
@@ -116,8 +116,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  max-height: 320px;
-  overflow-y: auto;
   padding-right: 4px;
 }
 

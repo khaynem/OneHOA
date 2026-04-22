@@ -19,7 +19,15 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ID Card - ${escapeHtml(fullName)}</title>
   <style>
-    @page { size: 85.6mm 54mm; margin: 0; }
+    :root {
+      --card-width: 85.60mm;
+      --card-height: 53.98mm;
+      --border-green: #3f9b2f;
+      --accent-red: #c42020;
+      --ink: #111;
+      --muted: #333;
+    }
+    @page { size: var(--card-width) var(--card-height); margin: 0; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -28,129 +36,152 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8mm;
-      padding: 8mm;
+      gap: 6mm;
+      padding: 6mm;
     }
     .card {
-      width: 85.6mm;
-      height: 54mm;
-      border: 1.2mm solid #3f9b2f;
+      width: var(--card-width);
+      height: var(--card-height);
+      border: 1.1mm solid var(--border-green);
       background: #fff;
       position: relative;
       overflow: hidden;
       page-break-inside: avoid;
+      break-inside: avoid;
     }
     .front {
       display: grid;
-      grid-template-columns: 34mm 1fr;
-      gap: 2mm;
-      padding: 2.2mm;
+      grid-template-columns: 30mm 1fr 20mm;
+      gap: 1.8mm;
+      padding: 2.3mm;
     }
     .logoWrap {
       display: grid;
       place-items: center;
     }
     .logo {
-      width: 30mm;
-      height: 30mm;
+      width: 27mm;
+      height: 27mm;
       object-fit: contain;
       border-radius: 50%;
     }
     .frontDetails {
       display: flex;
       flex-direction: column;
-      gap: 1.4mm;
-      color: #111;
-      font-size: 2.55mm;
-      line-height: 1.18;
+      gap: 1.1mm;
+      min-width: 0;
+      color: var(--ink);
+      font-size: 2.45mm;
+      line-height: 1.16;
     }
     .assoc {
-      color: #c42020;
+      color: var(--accent-red);
       font-weight: 700;
-      font-size: 2.9mm;
+      font-size: 2.15mm;
       text-transform: uppercase;
+      letter-spacing: 0.1px;
     }
     .name {
-      margin-top: 1.6mm;
-      font-size: 4.1mm;
+      margin-top: 0.8mm;
+      font-size: 4.8mm;
       font-weight: 800;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.3px;
       text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .address {
-      margin-top: 0.4mm;
-      font-size: 3.6mm;
+      margin-top: 0.1mm;
+      font-size: 4.7mm;
       font-weight: 700;
       text-transform: uppercase;
+      line-height: 1.05;
     }
     .id {
       margin-top: auto;
-      font-size: 3.1mm;
+      font-size: 4.9mm;
       font-weight: 800;
-      color: #c42020;
+      color: var(--accent-red);
+    }
+    .photoWrap {
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding-bottom: 0.2mm;
     }
     .photo {
-      position: absolute;
-      right: 2.2mm;
-      bottom: 2.2mm;
-      width: 20mm;
-      height: 24mm;
+      width: 18.8mm;
+      height: 23.5mm;
       border: 0.35mm solid #666;
       object-fit: cover;
       background: #f7f7f7;
     }
     .photoPlaceholder {
-      position: absolute;
-      right: 2.2mm;
-      bottom: 2.2mm;
-      width: 20mm;
-      height: 24mm;
+      width: 18.8mm;
+      height: 23.5mm;
       border: 0.35mm solid #666;
       display: grid;
       place-items: center;
-      color: #666;
+      color: var(--muted);
       font-size: 2.2mm;
       font-weight: 700;
       text-transform: uppercase;
       background: #fafafa;
     }
     .back {
-      padding: 4mm;
-      display: flex;
-      flex-direction: column;
-      gap: 2mm;
-      color: #111;
+      padding: 2.6mm 3.1mm 2.2mm;
+      color: var(--ink);
+    }
+    .backInner {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      gap: 1.4mm;
     }
     .backTitle {
       margin: 0;
       text-align: center;
-      font-size: 3.35mm;
+      font-size: 5.1mm;
       font-weight: 800;
       text-transform: uppercase;
     }
     .backBody {
       margin: 0;
       text-align: center;
-      font-size: 2.55mm;
-      line-height: 1.4;
+      font-size: 4.3mm;
+      line-height: 1.2;
     }
     .signatureRow {
-      margin-top: auto;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 4mm;
+      gap: 5mm;
       align-items: end;
     }
     .line {
       border-top: 0.32mm solid #222;
-      padding-top: 1mm;
+      padding-top: 0.8mm;
       text-align: center;
-      font-size: 2.4mm;
+      font-size: 4.2mm;
       font-weight: 700;
     }
     @media print {
-      body { background: #fff; padding: 0; gap: 0; }
-      .card + .card { margin-top: 2mm; }
+      body {
+        display: block;
+        background: #fff;
+        padding: 0;
+        margin: 0;
+      }
+      .card {
+        margin: 0;
+        page-break-after: always;
+        break-after: page;
+      }
+      .card:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
     }
   </style>
 </head>
@@ -166,16 +197,21 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
       <div class="address">${escapeHtml(unitText)}</div>
       <div class="id">ID#: ${escapeHtml(residentId)}</div>
     </div>
-    ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(fullName)}" class="photo" />` : '<div class="photoPlaceholder">Photo</div>'}
+    <div class="photoWrap">
+      ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(fullName)}" class="photo" />` : '<div class="photoPlaceholder">Photo</div>'}
+    </div>
   </section>
 
   <section class="card back">
-    <h2 class="backTitle">Home Owners Association Officers</h2>
-    <p class="backBody">This certifies that the person named on the front side is a registered member of FC-Hanjin Village Home Owners Association.</p>
-    <p class="backBody">If found, please return this card to the HOA office at FC-Hanjin Village, Castillejos, Zambales.</p>
-    <div class="signatureRow">
-      <div class="line">President</div>
-      <div class="line">Card Holder</div>
+    <div class="backInner">
+      <h2 class="backTitle">Home Owners Association Officers</h2>
+      <p class="backBody">This certifies that the person named on the front side is a registered member of FC-Hanjin Village Home Owners Association.</p>
+      <p class="backBody">If found, please return this card to the HOA office at FC-Hanjin Village, Castillejos, Zambales.</p>
+      <div></div>
+      <div class="signatureRow">
+        <div class="line">President</div>
+        <div class="line">Card Holder</div>
+      </div>
     </div>
   </section>
 </body>

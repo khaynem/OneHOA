@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
+import { isStrongPassword, STRONG_PASSWORD_MESSAGE } from '@/lib/passwordPolicy'
 import {
   clearPasswordResetFlowState,
   getPasswordResetFlowState,
@@ -52,6 +53,11 @@ export default function ResetPasswordPage() {
 
     if (newPassword !== confirmNewPassword) {
       notify.error('New password and confirm new password do not match.')
+      return
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      notify.error(STRONG_PASSWORD_MESSAGE)
       return
     }
 
@@ -156,6 +162,10 @@ export default function ResetPasswordPage() {
                 </button>
               </div>
             </label>
+
+            <p className={styles.devHint}>
+              Strong password requirements: minimum 8 characters, with at least 1 uppercase letter, 1 lowercase letter, and 1 special character.
+            </p>
 
             <button type="submit" className={styles.button} disabled={isResetting}>
               {isResetting ? 'Resetting...' : 'Save New Password'}

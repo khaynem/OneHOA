@@ -4,6 +4,8 @@ const User = require("../models/users");
 const { sendPasswordResetCode } = require("../services/emailService");
 
 const RESET_CODE_EXPIRY_MINUTES = Number(process.env.RESET_CODE_EXPIRY_MINUTES || 10);
+const PASSWORD_POLICY_MESSAGE = "Password must be at least 8 characters long and include uppercase, lowercase, and special characters.";
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$/;
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -24,6 +26,10 @@ function buildAccountLookupQuery(normalizedEmail) {
       { username: normalizedEmail },
     ],
   };
+}
+
+function isStrongPassword(password) {
+  return STRONG_PASSWORD_REGEX.test(String(password || ""));
 }
 
 function createToken(payload) {
@@ -55,6 +61,10 @@ const register = async (req, res) => {
 
     if (!normalizedEmail || !password) {
       return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
     const existingUser = await User.findOne(buildAccountLookupQuery(normalizedEmail));
@@ -129,14 +139,13 @@ const forgotPassword = async (req, res) => {
     }
 
     const user = await User.findOne(buildAccountLookupQuery(normalizedEmail));
+    if (!user) {
+      return res.status(200).json({ message: "If an account exists, a reset code has been sent." });
+    }
+
     if (!user.email) {
       user.email = normalizedEmail;
       await user.save();
-    }
-
-
-    if (!user) {
-      return res.status(200).json({ message: "If an account exists, a reset code has been sent." });
     }
 
     const code = generateResetCode();
@@ -175,6 +184,10 @@ const resetPassword = async (req, res) => {
 
     if (!normalizedEmail || !code || !new_password) {
       return res.status(400).json({ message: "Email, code, and new_password are required" });
+    }
+
+    if (!isStrongPassword(new_password)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
     const user = await User.findOne(buildAccountLookupQuery(normalizedEmail));

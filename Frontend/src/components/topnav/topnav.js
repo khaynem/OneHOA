@@ -18,17 +18,61 @@ export default function Topnav({
 	onLogout,
 }) {
 	const router = useRouter()
+	const [currentUser, setCurrentUser] = useState(user || null)
 	const [menuOpen, setMenuOpen] = useState(false)
 	const [showConfirm, setShowConfirm] = useState(false)
 	const [logoutError, setLogoutError] = useState('')
 	const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-	const initial = useMemo(() => {
-		if (!user?.name) return 'A'
-		return user.name.charAt(0).toUpperCase()
+	useEffect(() => {
+		setCurrentUser(user || null)
 	}, [user])
 
-	const displayName = user?.name || 'Admin'
+	useEffect(() => {
+		let isMounted = true
+
+		const loadCurrentUser = async () => {
+			try {
+				const response = await apiClient.get('/auth/me')
+				if (isMounted && response?.user) {
+					setCurrentUser(response.user)
+				}
+			} catch {
+				// Keep existing fallback label when current user cannot be loaded.
+			}
+		}
+
+		loadCurrentUser()
+
+		return () => {
+			isMounted = false
+		}
+	}, [])
+
+	const formatRole = (role) => {
+		const normalized = String(role || '').trim().toLowerCase()
+		if (!normalized) {
+			return 'User'
+		}
+
+		if (normalized === 'super-admin' || normalized === 'super_admin' || normalized === 'superadmin') {
+			return 'Super Admin'
+		}
+
+		return normalized
+			.split(/[_\s-]+/)
+			.filter(Boolean)
+			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+			.join(' ')
+	}
+
+	const roleLabel = formatRole(currentUser?.role)
+
+	const initial = useMemo(() => {
+		return roleLabel.charAt(0).toUpperCase() || 'U'
+	}, [roleLabel])
+
+	const displayName = roleLabel
 
 	const openLogoutConfirm = () => {
 		setMenuOpen(false)

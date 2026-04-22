@@ -1,16 +1,41 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { HiOutlineUsers } from 'react-icons/hi2'
+import {
+  HiOutlineCalendarDays,
+  HiOutlineCreditCard,
+  HiOutlineHome,
+  HiOutlineUsers,
+} from 'react-icons/hi2'
 import Sidebar from '@/components/sidebar/sidebar'
 import Topnav from '@/components/topnav/topnav'
 import styles from './layout.module.css'
 
 const SUPER_ADMIN_LINKS = [
   {
+    href: '/dashboard',
+    label: 'Dashboard',
+    Icon: HiOutlineHome,
+  },
+  {
+    href: '/homeowner-management',
+    label: 'Homeowner Management',
+    Icon: HiOutlineUsers,
+  },
+  {
+    href: '/payment-monitoring',
+    label: 'Payment Monitoring',
+    Icon: HiOutlineCreditCard,
+  },
+  {
+    href: '/hoa-activities',
+    label: 'HOA Activities',
+    Icon: HiOutlineCalendarDays,
+  },
+  {
     href: '/admin/account-management',
     label: 'Account Management',
-    Icon: HiOutlineUsers
-  }
+    Icon: HiOutlineUsers,
+  },
 ]
 
 export default function SuperAdminLayout({ children }) {

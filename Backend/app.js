@@ -7,6 +7,9 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const paymentsRoutes = require("./routes/paymentsRoutes");
 const activitiesRoutes = require("./routes/activitiesRoutes");
 const usersRoutes = require("./routes/usersRoutes");
+const notificationsRoutes = require("./routes/notificationsRoutes");
+const auditLogsRoutes = require("./routes/auditLogsRoutes");
+const { auditOfficerActivity } = require("./middleware/auditMiddleware");
 
 const app = express();
 
@@ -21,6 +24,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
+app.use(auditOfficerActivity());
 
 //Routes
 app.use("/api/auth", authRoutes);
@@ -29,6 +33,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/activities", activitiesRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/audit-logs", auditLogsRoutes);
 
 app.get("/api/health", (req, res) => {
 	res.status(200).json({

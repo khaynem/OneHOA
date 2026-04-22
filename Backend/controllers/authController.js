@@ -56,7 +56,7 @@ function buildCookieOptions() {
 
 const register = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, first_name, last_name, status } = req.body;
     const normalizedEmail = normalizeEmail(email);
 
     if (!normalizedEmail || !password) {
@@ -72,14 +72,24 @@ const register = async (req, res) => {
       return res.status(409).json({ message: "Email already exists" });
     }
 
-    const user = await User.create({ email: normalizedEmail, password, role });
+    const user = await User.create({
+      email: normalizedEmail,
+      password,
+      role,
+      first_name: String(first_name || "").trim(),
+      last_name: String(last_name || "").trim(),
+      status,
+    });
 
     return res.status(201).json({
       message: "User registered successfully",
       user: {
         id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
         email: user.email,
         role: user.role,
+        status: user.status,
       },
     });
   } catch (error) {
@@ -101,6 +111,10 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    if (user.status === "inactive") {
+      return res.status(403).json({ message: "Account is inactive. Please contact an administrator." });
+    }
+
     if (!user.email) {
       user.email = normalizedEmail;
       await user.save();
@@ -120,8 +134,11 @@ const login = async (req, res) => {
       token,
       user: {
         id: user._id,
+        first_name: user.first_name,
+        last_name: user.last_name,
         email: user.email,
         role: user.role,
+        status: user.status,
       },
     });
   } catch (error) {

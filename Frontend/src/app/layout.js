@@ -5,9 +5,9 @@ export const metadata = {
   title: "OneHOA",
   description: "Homeowners Association Management System",
   icons: {
-    icon: "/images/HOA Logo.png",
-    shortcut: "/images/HOA Logo.png",
-    apple: "/images/HOA Logo.png",
+    icon: "/images/HOA%20Logo.png",
+    shortcut: "/images/HOA%20Logo.png",
+    apple: "/images/HOA%20Logo.png",
   },
 };
 

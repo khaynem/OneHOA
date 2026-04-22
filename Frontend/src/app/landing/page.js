@@ -42,7 +42,7 @@ export default function LandingPage() {
         </div>
 
         <nav className={styles.nav}>
-          <Link href="/landing" className={`${styles.navLink} ${active === 'home' ? styles.active : ''}`}>Home</Link>
+          <Link href="/" className={`${styles.navLink} ${active === 'home' ? styles.active : ''}`}>Home</Link>
           <Link href="#about" className={`${styles.navLink} ${active === 'about' ? styles.active : ''}`}>About</Link>
           <Link href="#features" className={`${styles.navLink} ${active === 'features' ? styles.active : ''}`}>Features</Link>
         </nav>

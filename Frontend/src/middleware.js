@@ -7,11 +7,11 @@ const protectedRoutes = [
   "/homeowner-management",
   "/payment-monitoring",
   "/hoa-activities",
+  "/admin/account-management",
 ];
 
 const routeRoleRules = {
-  // Example for future use:
-  // "/payment-monitoring": ["admin", "treasurer"],
+  "/admin/account-management": ["admin"],
 };
 
 function matchesRoute(pathname, routes) {
@@ -86,5 +86,6 @@ export const config = {
     "/homeowner-management/:path*",
     "/payment-monitoring/:path*",
     "/hoa-activities/:path*",
+    "/admin/account-management/:path*",
   ],
 };

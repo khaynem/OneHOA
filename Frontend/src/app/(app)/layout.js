@@ -1,12 +1,60 @@
 "use client"
 import { useEffect, useState } from 'react'
+import { HiOutlineUsers } from 'react-icons/hi2'
+import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
 import Topnav from '../../components/topnav/topnav'
 import styles from './layout.module.css'
 
+const BASE_APP_LINKS = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/homeowner-management', label: 'Homeowner Management' },
+  { href: '/payment-monitoring', label: 'Payment Monitoring' },
+  { href: '/hoa-activities', label: 'HOA Activities' },
+]
+
+const ACCOUNT_MANAGEMENT_LINK = {
+  href: '/admin/account-management',
+  label: 'Account Management',
+  Icon: HiOutlineUsers,
+}
+
+function canAccessAccountManagement(role) {
+  const normalizedRole = String(role || '').trim().toLowerCase()
+  return normalizedRole === 'admin'
+}
+
 export default function AppRouteGroupLayout({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileView, setIsMobileView] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState('')
+
+  const appLinks = canAccessAccountManagement(currentUserRole)
+    ? [...BASE_APP_LINKS, ACCOUNT_MANAGEMENT_LINK]
+    : BASE_APP_LINKS
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadCurrentUser = async () => {
+      try {
+        const response = await apiClient.get('/auth/me')
+        if (isMounted && response?.user?.role) {
+          setCurrentUserRole(String(response.user.role))
+        }
+      } catch {
+        if (isMounted) {
+          setCurrentUserRole('')
+        }
+      }
+    }
+
+    loadCurrentUser()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     const mobileBreakpoint = 900
@@ -30,7 +78,7 @@ export default function AppRouteGroupLayout({ children }) {
 
   return (
     <div className={styles.shell}>
-      <Sidebar isCollapsed={isSidebarCollapsed} />
+      <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} />
       <div className={styles.mainColumn}>
         <Topnav
           isSidebarCollapsed={isSidebarCollapsed}

@@ -6,6 +6,7 @@ const recordsRoutes = require("./routes/recordsRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const paymentsRoutes = require("./routes/paymentsRoutes");
 const activitiesRoutes = require("./routes/activitiesRoutes");
+const usersRoutes = require("./routes/usersRoutes");
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/records", recordsRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/activities", activitiesRoutes);
+app.use("/api/users", usersRoutes);
 
 app.get("/api/health", (req, res) => {
 	res.status(200).json({

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
+import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import styles from './homeowner-management.module.css'
 
 const EMPTY_FORM = {
@@ -107,9 +108,11 @@ const mapRecordToHomeowner = (record = {}) => {
   const picture = getPictureFields(record)
   const firstName = String(record.first_name || '').trim()
   const lastName = String(record.last_name || '').trim()
+  const generatedId = String(record.generated_id || '').trim()
 
   return {
     id: String(record._id || ''),
+    displayId: generatedId || '-',
     firstName,
     lastName,
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
@@ -122,7 +125,7 @@ const mapRecordToHomeowner = (record = {}) => {
     occupantStatus: String(record.occupant_status || '-'),
     householdCount: record.household_no !== undefined && record.household_no !== null ? String(record.household_no) : '0',
     loanAvailed: String(record.loan_availed || '-'),
-    residentId: firstName || lastName ? `${firstName} ${lastName}`.trim() : String(record._id || '-'),
+    residentId: generatedId || '-',
     workAddress: String(record.work_address || '-'),
     workStatus: String(record.work_status || '-'),
     jobDescription: String(record.job_description || '-'),
@@ -708,6 +711,30 @@ export default function HomeownerManagementPage() {
     }
   }
 
+  const generateAndPrintIdCard = (homeowner) => {
+    if (!homeowner) {
+      return
+    }
+
+    const popup = window.open('', '_blank', 'width=1100,height=760')
+    if (!popup) {
+      notify.error({
+        title: 'Popup Blocked',
+        description: 'Please allow popups in your browser to generate ID cards.'
+      })
+      return
+    }
+
+    popup.document.open()
+    popup.document.write(buildHomeownerIdCardHtml(homeowner))
+    popup.document.close()
+
+    popup.onload = () => {
+      popup.focus()
+      popup.print()
+    }
+  }
+
   return (
     <main className={styles.page}>
       <section className={styles.headerRow}>
@@ -789,7 +816,7 @@ export default function HomeownerManagementPage() {
                         <span>{`${homeowner.firstName} ${homeowner.lastName}`}</span>
                       </div>
                     </td>
-                    <td>{homeowner.id || '-'}</td>
+                    <td>{homeowner.displayId || '-'}</td>
                     <td>{homeowner.unitNumber}</td>
                     <td>{formatPhone(homeowner.phone)}</td>
                     <td>
@@ -1333,6 +1360,14 @@ export default function HomeownerManagementPage() {
                     ))}
                   </select>
                 </div>
+
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => generateAndPrintIdCard(selectedHomeowner)}
+                >
+                  Generate ID Card
+                </button>
 
                 <button
                   type="button"

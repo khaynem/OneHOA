@@ -10,6 +10,26 @@ import {
 import { ApiError, apiClient } from '@/lib/apiClient'
 import styles from './dashboard.module.css'
 
+const formatDateTimeAMPM = (dateValue) => {
+  if (!dateValue) {
+    return '-'
+  }
+
+  const parsedDate = new Date(dateValue)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(parsedDate)
+}
+
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -89,7 +109,9 @@ export default function DashboardPage() {
               <li key={item.id || `${item.homeowner}-${item.details}-${index}`} className={styles.listRow}>
                 <div>
                   <p className={styles.rowTitle}>{item.homeowner}</p>
-                  <p className={styles.rowSubtitle}>{item.details}</p>
+                  <p className={styles.rowSubtitle}>
+                    {item.date ? `${item.details} • ${formatDateTimeAMPM(item.date)}` : item.details}
+                  </p>
                 </div>
                 <p className={styles.amount}>{item.amount}</p>
               </li>
@@ -115,7 +137,7 @@ export default function DashboardPage() {
 
                 <div>
                   <p className={styles.rowTitle}>{item.title}</p>
-                  <p className={styles.rowSubtitle}>{item.date}</p>
+                  <p className={styles.rowSubtitle}>{formatDateTimeAMPM(item.date)}</p>
                 </div>
               </li>
             ))}

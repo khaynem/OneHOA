@@ -30,6 +30,31 @@ function isValidObjectId(id) {
     return mongoose.Types.ObjectId.isValid(id);
 }
 
+function buildGeneratedId(record = {}) {
+    const sourceDate = record.entry_date || record.createdAt || record.updatedAt || new Date();
+    const parsedDate = new Date(sourceDate);
+    const year = Number.isNaN(parsedDate.getTime()) ? new Date().getFullYear() : parsedDate.getFullYear();
+
+    const householdNumber = Number(record.household_no);
+    if (!Number.isInteger(householdNumber) || householdNumber < 0) {
+        return String(year);
+    }
+
+    return `${year}${String(householdNumber).padStart(4, "0")}`;
+}
+
+function withGeneratedId(recordDoc) {
+    if (!recordDoc) {
+        return recordDoc;
+    }
+
+    const plainRecord = typeof recordDoc.toObject === "function" ? recordDoc.toObject() : recordDoc;
+    return {
+        ...plainRecord,
+        generated_id: buildGeneratedId(plainRecord),
+    };
+}
+
 function extractAddressPayload(payload = {}) {
     if (!payload.address || typeof payload.address !== "object") {
         return null;
@@ -160,7 +185,7 @@ const updateRecordPhoto = async (req, res) => {
             { new: true, runValidators: true }
         ).populate("address._id").populate("pictures._id");
 
-        return res.status(200).json({ success: true, data: updatedRecord });
+        return res.status(200).json({ success: true, data: withGeneratedId(updatedRecord) });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
@@ -195,9 +220,9 @@ const getRecords = async (req, res) => {
             Record.countDocuments(filter),
         ]);
 
-        return res.status(200).json({
+          return res.status(200).json({
            success: true,
-           data: items,
+              data: items.map((item) => withGeneratedId(item)),
            meta: { page, limit, total, totalPages: Math.ceil(total / limit) }, 
         });
     } catch (error) {
@@ -223,7 +248,7 @@ const getRecordById = async (req, res) => {
             return res.status(404).json({ success: false, message: "Record not found." });
         }
 
-        return res.status(200).json({ success: true, data: record });
+        return res.status(200).json({ success: true, data: withGeneratedId(record) });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
@@ -248,7 +273,7 @@ const createRecord = async (req, res) => {
 
         const newRecord = await Record.create(payload);
         const populatedRecord = await Record.findById(newRecord._id).populate("address._id").populate("pictures._id");
-        return res.status(201).json({ success: true, data: populatedRecord });
+        return res.status(201).json({ success: true, data: withGeneratedId(populatedRecord) });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
@@ -285,7 +310,7 @@ const updateRecord = async (req, res) => {
             runValidators: true,
         }).populate("address._id").populate("pictures._id");
 
-        return res.status(200).json({ success: true, data: updatedRecord });
+        return res.status(200).json({ success: true, data: withGeneratedId(updatedRecord) });
     } catch (error) {
         console.error(error);
         return res.status(500).json({

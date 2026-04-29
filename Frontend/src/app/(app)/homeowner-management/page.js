@@ -731,6 +731,9 @@ export default function HomeownerManagementPage() {
 
     popup.onload = () => {
       popup.focus()
+      popup.onafterprint = () => {
+        popup.close()
+      }
       popup.print()
     }
   }
@@ -1136,19 +1139,28 @@ export default function HomeownerManagementPage() {
             </div>
 
             <div className={styles.tabRow}>
+              <div className={styles.tabGroup}>
+                <button
+                  type="button"
+                  className={`${styles.tabButton} ${activeViewTab === 'info' ? styles.tabActive : ''}`}
+                  onClick={() => setActiveViewTab('info')}
+                >
+                  Homeowner Info
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.tabButton} ${activeViewTab === 'payments' ? styles.tabActive : ''}`}
+                  onClick={() => setActiveViewTab('payments')}
+                >
+                  Payments
+                </button>
+              </div>
               <button
                 type="button"
-                className={`${styles.tabButton} ${activeViewTab === 'info' ? styles.tabActive : ''}`}
-                onClick={() => setActiveViewTab('info')}
+                className={`${styles.secondaryButton} ${styles.tabActionButton}`}
+                onClick={() => generateAndPrintIdCard(selectedHomeowner)}
               >
-                Homeowner Info
-              </button>
-              <button
-                type="button"
-                className={`${styles.tabButton} ${activeViewTab === 'payments' ? styles.tabActive : ''}`}
-                onClick={() => setActiveViewTab('payments')}
-              >
-                Payments
+                Generate ID Card
               </button>
             </div>
 
@@ -1360,14 +1372,6 @@ export default function HomeownerManagementPage() {
                     ))}
                   </select>
                 </div>
-
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => generateAndPrintIdCard(selectedHomeowner)}
-                >
-                  Generate ID Card
-                </button>
 
                 <button
                   type="button"

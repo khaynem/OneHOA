@@ -6,6 +6,26 @@ const escapeHtml = (value) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 
+const buildNameStyle = (value) => {
+  const length = String(value || '').trim().length
+  let fontSize = 3.2
+
+  if (length > 26) {
+    fontSize = 2.8
+  }
+  if (length > 32) {
+    fontSize = 2.5
+  }
+  if (length > 40) {
+    fontSize = 2.2
+  }
+  if (length > 48) {
+    fontSize = 2.0
+  }
+
+  return `font-size: ${fontSize}mm; line-height: 1.1;`
+}
+
 export const buildHomeownerIdCardHtml = (homeowner = {}) => {
   const fullName = `${homeowner.lastName || ''}, ${homeowner.firstName || ''}`.replace(/^,\s*/, '').trim() || 'HOMEOWNER'
   const unitText = `PHASE ${homeowner.phase || '-'}, BLOCK ${homeowner.block || '-'}, LOT ${homeowner.lot || '-'}`
@@ -80,23 +100,22 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
     .fieldName {
       position: absolute;
       left: 52mm;
-      top: 41mm;
+      top: 39.6mm;
       width: 33mm;
-      font-size: 3.2mm;
       font-weight: 700;
       text-align: center;
       text-transform: uppercase;
-      white-space: nowrap;
+      white-space: normal;
+      word-break: break-word;
       overflow: hidden;
-      text-overflow: ellipsis;
       z-index: 1;
     }
     .fieldUnit {
       position: absolute;
       left: 50mm;
-      top: 44.6mm;
+      top: 47mm;
       width: 36mm;
-      font-size: 2.5mm;
+      font-size: 2.4mm;
       font-weight: 700;
       text-align: center;
       text-transform: uppercase;
@@ -146,7 +165,7 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
     <section class="card front">
       <img src="/images/FRONT_bg.png" alt="" class="bgImage" />
       <div class="fieldId">ID#: ${escapeHtml(residentId)}</div>
-      <div class="fieldName">${escapeHtml(fullName)}</div>
+      <div class="fieldName" style="${buildNameStyle(fullName)}">${escapeHtml(fullName)}</div>
       <div class="fieldUnit">${escapeHtml(unitText)}</div>
       ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(fullName)}" class="photo" />` : '<div class="photoPlaceholder">Photo</div>'}
     </section>

@@ -506,6 +506,8 @@ export default function HomeownerManagementPage() {
     setIsEditingHomeowner(false)
     setStatusDraft(statusListToSingleOption(homeowner.status))
     setEditForm({
+      firstName: homeowner.firstName,
+      lastName: homeowner.lastName,
       unitNumber: homeowner.unitNumber,
       phone: homeowner.phone,
       phase: homeowner.phase,
@@ -640,6 +642,8 @@ export default function HomeownerManagementPage() {
       return
     }
 
+    const normalizedFirstName = normalizeName(editForm.firstName).trim()
+    const normalizedLastName = normalizeName(editForm.lastName).trim()
     const normalizedPhase = String(editForm.phase || '').trim()
     const normalizedBlock = digitsOnly(editForm.block).slice(0, 3)
     const normalizedLot = digitsOnly(editForm.lot).slice(0, 3)
@@ -647,6 +651,10 @@ export default function HomeownerManagementPage() {
     const normalizedEntryYear = digitsOnly(editForm.entryDate).slice(0, 4)
 
     if (
+      !normalizedFirstName ||
+      !normalizedLastName ||
+      /\d/.test(normalizedFirstName) ||
+      /\d/.test(normalizedLastName) ||
       !VALID_PHASES.includes(normalizedPhase) ||
       !/^\d{1,3}$/.test(normalizedBlock) ||
       !/^\d{1,3}$/.test(normalizedLot) ||
@@ -662,6 +670,8 @@ export default function HomeownerManagementPage() {
 
     try {
       const payload = {
+        first_name: normalizedFirstName,
+        last_name: normalizedLastName,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
         entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
@@ -708,6 +718,12 @@ export default function HomeownerManagementPage() {
       })
     }
   }
+
+  const displayHomeownerName = selectedHomeowner
+    ? isEditingHomeowner
+      ? `${editForm?.firstName || ''} ${editForm?.lastName || ''}`.trim() || `${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`
+      : `${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`
+    : ''
 
   const generateAndPrintIdCard = (homeowner) => {
     if (!homeowner) {
@@ -1135,7 +1151,7 @@ export default function HomeownerManagementPage() {
                   </button>
                 )}
                 <div>
-                  <h2 className={styles.modalTitle}>{`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}</h2>
+                  <h2 className={styles.modalTitle}>{displayHomeownerName}</h2>
                   <p className={styles.modalLead}>Homeowner details</p>
                   {isEditingHomeowner ? <small className={styles.photoHint}>{isUpdatingPhoto ? 'Uploading photo...' : 'Click photo to change'}</small> : null}
                 </div>
@@ -1187,6 +1203,29 @@ export default function HomeownerManagementPage() {
             {activeViewTab === 'info' ? (
               <div className={styles.detailsGrid}>
                 <div>
+                  <p className={styles.detailLabel}>Name</p>
+                  {isEditingHomeowner ? (
+                    <div className={styles.compactGridTwo}>
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={editForm?.firstName || ''}
+                        onChange={(event) => handleEditChange('firstName', normalizeName(event.target.value))}
+                        placeholder="First name"
+                      />
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={editForm?.lastName || ''}
+                        onChange={(event) => handleEditChange('lastName', normalizeName(event.target.value))}
+                        placeholder="Last name"
+                      />
+                    </div>
+                  ) : (
+                    <p className={styles.detailValue}>{`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}</p>
+                  )}
+                </div>
+                <div>
                   <p className={styles.detailLabel}>Unit Number</p>
                   {isEditingHomeowner ? (
                     <p className={styles.detailValue}>{`${editForm?.phase || '-'}-${editForm?.block || '-'}-${editForm?.lot || '-'}`}</p>
@@ -1218,9 +1257,9 @@ export default function HomeownerManagementPage() {
                         onChange={(event) => handleEditChange('phase', event.target.value)}
                       >
                         <option value="">Phase</option>
-                        <option value="1">Phase 1</option>
-                        <option value="2">Phase 2</option>
-                        <option value="3">Phase 3</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
                       </select>
                       <input
                         type="text"

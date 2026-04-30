@@ -1,16 +1,16 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { HiOutlineUsers } from 'react-icons/hi2'
+import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDays } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
 import Topnav from '../../components/topnav/topnav'
 import styles from './layout.module.css'
 
 const BASE_APP_LINKS = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/homeowner-management', label: 'Homeowner Management' },
-  { href: '/payment-monitoring', label: 'Payment Monitoring' },
-  { href: '/hoa-activities', label: 'HOA Activities' },
+  { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
+  { href: '/homeowner-management', label: 'Homeowner Management', Icon: HiOutlineUsers },
+  { href: '/payment-monitoring', label: 'Payment Monitoring', Icon: HiOutlineCreditCard },
+  { href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
 ]
 
 const ACCOUNT_MANAGEMENT_LINK = {

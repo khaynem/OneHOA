@@ -2,20 +2,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-	HiOutlineCalendarDays,
-	HiOutlineCreditCard,
-	HiOutlineHome,
-	HiOutlineUsers,
-} from 'react-icons/hi2'
 import styles from './sidebar.module.css'
-
-const DEFAULT_LINKS = [
-	{ href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
-	{ href: '/homeowner-management', label: 'Homeowner Management', Icon: HiOutlineUsers },
-	{ href: '/payment-monitoring', label: 'Payment Monitoring', Icon: HiOutlineCreditCard },
-	{ href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
-]
 
 export default function Sidebar({ isCollapsed = false, links = DEFAULT_LINKS }) {
 	const pathname = usePathname()

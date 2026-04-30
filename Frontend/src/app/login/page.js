@@ -94,10 +94,6 @@ export default function LoginPage() {
             </label>
 
             <div className={styles.rowOptions}>
-              <label className={styles.remember}>
-                <input type="checkbox" />
-                <span>Remember me</span>
-              </label>
               <Link href="/forgot-password" className={styles.forgot}>
                 Forgot Password?
               </Link>
@@ -107,10 +103,6 @@ export default function LoginPage() {
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
-
-          <div className={styles.separator} />
-          <p className={styles.googleText}>or login using Google Account</p>
-          <div className={styles.googleSpace} aria-hidden="true" />
         </div>
       </section>
 
@@ -128,7 +120,7 @@ export default function LoginPage() {
           <p className={styles.brandLead}>
             Management Information System for
             <br />
-            Homeowner Records, Certification,
+            Homeowner Records, ID Generation,
             <br />
             and Dues Monitoring
           </p>

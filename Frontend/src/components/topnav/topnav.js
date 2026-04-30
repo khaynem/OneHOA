@@ -168,6 +168,16 @@ export default function Topnav({
 		}
 	}, [showConfirm])
 
+	const handleMarkAllRead = async () => {
+		try {
+			await apiClient.patch('/notifications/mark-all-read')
+			setNotifications((prev) => prev.map((item) => ({ ...item, read: true, read_at: new Date().toISOString() })))
+			setUnreadCount(0)
+		} catch {
+			// Ignore read-state failures in the UI.
+		}
+	}
+
 	const handleConfirmLogout = async () => {
 		setLogoutError('')
 		setIsLoggingOut(true)
@@ -229,7 +239,16 @@ export default function Topnav({
 
 						{notificationsOpen && isPresident ? (
 							<div className={styles.notificationsMenu} role="menu" aria-label="President notifications">
-								<div className={styles.notificationsHeader}>Notifications</div>
+								<div className={styles.notificationsHeader}>
+									<span className={styles.notificationsTitle}>Notifications</span>
+									<button
+										type="button"
+										className={`${styles.secondaryButton}`}
+										onClick={handleMarkAllRead}
+									>
+										Mark all read
+									</button>
+								</div>
 								<div className={styles.notificationsBody}>
 									{isLoadingNotifications ? (
 										<p className={styles.notificationEmpty}>Loading notifications...</p>

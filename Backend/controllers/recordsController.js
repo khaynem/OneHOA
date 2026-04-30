@@ -20,6 +20,22 @@ const ALLOWED_FIELDS = [
     "status"
 ];
 
+const FIELD_LABELS = {
+    last_name: "Last Name",
+    first_name: "First Name",
+    phone_number: "Phone Number",
+    job_description: "Job Description",
+    work_address: "Work Address",
+    work_status: "Work Status",
+    entry_date: "Entry Date",
+    occupant_status: "Occupant Status",
+    household_no: "Household No",
+    loan_availed: "Loan Availed",
+    "address._id": "Address",
+    "pictures._id": "Photo",
+    status: "Status",
+};
+
 function pickAllowedFields(payload = {}) {
     return Object.fromEntries(
         Object.entries(payload).filter(([key, value]) => ALLOWED_FIELDS.includes(key) && value !== undefined)
@@ -41,6 +57,41 @@ function buildGeneratedId(record = {}) {
     }
 
     return `${year}${String(householdNumber).padStart(4, "0")}`;
+}
+
+function normalizeStatusInput(statusInput) {
+    if (Array.isArray(statusInput)) {
+        return statusInput
+            .map((status) => String(status || '').trim())
+            .filter((status) => status.length > 0);
+    }
+
+    if (statusInput === undefined || statusInput === null) {
+        return undefined;
+    }
+
+    const normalized = String(statusInput || '').trim();
+    return normalized ? [normalized] : [];
+}
+
+function formatUpdatedFieldLabel(field) {
+    if (FIELD_LABELS[field]) {
+        return FIELD_LABELS[field];
+    }
+
+    const normalized = String(field || "").replace(/\._id$/, "");
+    return normalized
+        .split(/[._\s-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
+function formatHomeownerName(record = {}) {
+    const firstName = String(record.first_name || '').trim();
+    const lastName = String(record.last_name || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || 'homeowner';
 }
 
 function withGeneratedId(recordDoc) {
@@ -184,8 +235,20 @@ const updateRecordPhoto = async (req, res) => {
             { "pictures._id": picture._id },
             { new: true, runValidators: true }
         ).populate("address._id").populate("pictures._id");
+        const updatedWithId = withGeneratedId(updatedRecord);
+        const homeownerName = formatHomeownerName(updatedWithId);
 
-        return res.status(200).json({ success: true, data: withGeneratedId(updatedRecord) });
+        res.locals.auditDetails = {
+            summary: `updated homeowner ${homeownerName}`,
+            metadata: {
+                record_id: String(updatedWithId._id || ''),
+                generated_id: String(updatedWithId.generated_id || ''),
+                homeowner_name: homeownerName,
+                picture_id: String(picture._id || ''),
+            },
+        };
+
+        return res.status(200).json({ success: true, data: updatedWithId });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
@@ -261,6 +324,10 @@ const getRecordById = async (req, res) => {
 const createRecord = async (req, res) => {
     try {
         const payload = pickAllowedFields(req.body);
+        const normalizedStatus = normalizeStatusInput(payload.status ?? req.body.status);
+        if (normalizedStatus !== undefined) {
+            payload.status = normalizedStatus;
+        }
 
         const resolvedAddressId = await resolveAddressIdFromPayload(req.body);
         if (resolvedAddressId) {
@@ -273,7 +340,19 @@ const createRecord = async (req, res) => {
 
         const newRecord = await Record.create(payload);
         const populatedRecord = await Record.findById(newRecord._id).populate("address._id").populate("pictures._id");
-        return res.status(201).json({ success: true, data: withGeneratedId(populatedRecord) });
+        const createdRecord = withGeneratedId(populatedRecord);
+        const homeownerName = formatHomeownerName(createdRecord);
+
+        res.locals.auditDetails = {
+            summary: `registered homeowner ${homeownerName}`,
+            metadata: {
+                record_id: String(createdRecord._id || ''),
+                generated_id: String(createdRecord.generated_id || ''),
+                homeowner_name: homeownerName,
+            },
+        };
+
+        return res.status(201).json({ success: true, data: createdRecord });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
@@ -292,6 +371,10 @@ const updateRecord = async (req, res) => {
         }
 
         const payload = pickAllowedFields(req.body);
+        const normalizedStatus = normalizeStatusInput(payload.status ?? req.body.status);
+        if (normalizedStatus !== undefined) {
+            payload.status = normalizedStatus;
+        }
         const existingRecord = await Record.findById(id);
 
         if (!existingRecord) {
@@ -309,8 +392,18 @@ const updateRecord = async (req, res) => {
             new: true,
             runValidators: true,
         }).populate("address._id").populate("pictures._id");
+        const updatedWithId = withGeneratedId(updatedRecord);
+        const homeownerName = formatHomeownerName(updatedWithId);
+        res.locals.auditDetails = {
+            summary: `updated homeowner ${homeownerName}`,
+            metadata: {
+                record_id: String(updatedWithId._id || ''),
+                generated_id: String(updatedWithId.generated_id || ''),
+                homeowner_name: homeownerName,
+            },
+        };
 
-        return res.status(200).json({ success: true, data: withGeneratedId(updatedRecord) });
+        return res.status(200).json({ success: true, data: updatedWithId });
     } catch (error) {
         console.error(error);
         return res.status(500).json({
@@ -333,6 +426,17 @@ const deleteRecord = async (req, res) => {
         if (!deletedRecord) {
             return res.status(404).json({ success: false, message: "Record not found." });
         }
+
+        const generatedId = buildGeneratedId(deletedRecord);
+        const homeownerName = formatHomeownerName(deletedRecord);
+        res.locals.auditDetails = {
+            summary: `deleted homeowner ${homeownerName} with generated ID ${generatedId}`,
+            metadata: {
+                record_id: String(deletedRecord._id || ''),
+                generated_id: String(generatedId || ''),
+                homeowner_name: homeownerName,
+            },
+        };
 
         return res.status(200).json({ success: true, message: "Record deleted successfully." });
     } catch (error) {

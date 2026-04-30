@@ -27,6 +27,7 @@ export default function Topnav({
 	const [showConfirm, setShowConfirm] = useState(false)
 	const [logoutError, setLogoutError] = useState('')
 	const [isLoggingOut, setIsLoggingOut] = useState(false)
+	const visibleNotifications = useMemo(() => notifications.slice(0, 10), [notifications])
 
 	useEffect(() => {
 		setCurrentUser(user || null)
@@ -155,6 +156,11 @@ export default function Topnav({
 		}
 	}
 
+	const handleViewAllNotifications = () => {
+		setNotificationsOpen(false)
+		router.push('/notifications')
+	}
+
 	useEffect(() => {
 		if (showConfirm) {
 			setNotificationsOpen(false)
@@ -224,26 +230,37 @@ export default function Topnav({
 						{notificationsOpen && isPresident ? (
 							<div className={styles.notificationsMenu} role="menu" aria-label="President notifications">
 								<div className={styles.notificationsHeader}>Notifications</div>
-								{isLoadingNotifications ? (
-									<p className={styles.notificationEmpty}>Loading notifications...</p>
-								) : notifications.length === 0 ? (
-									<p className={styles.notificationEmpty}>No officer activity notifications yet.</p>
-								) : (
-									<ul className={styles.notificationList}>
-										{notifications.map((item) => (
-											<li key={item._id}>
-												<button
-													type="button"
-													className={`${styles.notificationItem} ${item.read ? styles.notificationRead : ''}`}
-													onClick={() => markNotificationRead(item._id)}
-												>
-													<span className={styles.notificationTitle}>{item.title}</span>
-													<span className={styles.notificationMessage}>{item.message}</span>
-												</button>
-											</li>
-										))}
-									</ul>
-								)}
+								<div className={styles.notificationsBody}>
+									{isLoadingNotifications ? (
+										<p className={styles.notificationEmpty}>Loading notifications...</p>
+									) : visibleNotifications.length === 0 ? (
+										<p className={styles.notificationEmpty}>No officer activity notifications yet.</p>
+									) : (
+										<ul className={styles.notificationList}>
+											{visibleNotifications.map((item) => (
+												<li key={item._id}>
+													<button
+														type="button"
+														className={`${styles.notificationItem} ${item.read ? styles.notificationRead : ''}`}
+														onClick={() => markNotificationRead(item._id)}
+													>
+														<span className={styles.notificationTitle}>{item.title}</span>
+														<span className={styles.notificationMessage}>{item.message}</span>
+													</button>
+												</li>
+											))}
+										</ul>
+									)}
+								</div>
+								<div className={styles.notificationsFooter}>
+									<button
+										type="button"
+										className={styles.notificationsLink}
+										onClick={handleViewAllNotifications}
+									>
+										View all notifications
+									</button>
+								</div>
 							</div>
 						) : null}
 					</div>

@@ -150,6 +150,7 @@
   display: inline-block;
 }
 
+
 .statusActive {
   background: #d8ead2;
   color: #437a3f;
@@ -650,8 +651,8 @@
 
 .statusFieldRow {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .statusLabel {
@@ -659,6 +660,7 @@
   font-size: 1rem;
   font-weight: 600;
 }
+
 
 .confirmModal {
   width: min(92vw, 480px);

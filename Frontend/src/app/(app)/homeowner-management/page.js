@@ -6,6 +6,15 @@ import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import styles from './homeowner-management.module.css'
 
+const DEFAULT_STATUS_OPTIONS = [
+  'Homeowner (HO), NOT HVNA MEMBER',
+  'Homeowner (HO), HVNA MEMBER',
+  'Homeowner',
+  'HVNA Member',
+  'Renter',
+  'Caretaker'
+]
+
 const EMPTY_FORM = {
   firstName: '',
   lastName: '',
@@ -20,13 +29,13 @@ const EMPTY_FORM = {
   occupantStatus: '',
   householdCount: '',
   loanAvailed: '',
+  status: DEFAULT_STATUS_OPTIONS[0],
   imageName: '',
   pictureId: '',
   imageUrl: ''
 }
 
 const VALID_PHASES = ['1', '2', '3']
-const AVAILABLE_STATUSES = ['Status 1', 'Status 2', 'Status 3', 'Status 4']
 
 const toEntryYear = (dateValue) => {
   if (!dateValue) {
@@ -50,10 +59,46 @@ const toEntryDateValue = (yearValue) => {
   return `${year}-01-01`
 }
 
-const normalizeStatus = (value) => {
+const normalizeStatusList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry || '').trim()).filter(Boolean)
+  }
+
+  if (value === undefined || value === null) {
+    return []
+  }
+
   const normalized = String(value || '').trim()
-  return normalized || AVAILABLE_STATUSES[0]
+  return normalized ? [normalized] : []
 }
+
+const statusListToSingleOption = (statuses) => {
+  const list = normalizeStatusList(statuses)
+  if (list.length === 0) {
+    return DEFAULT_STATUS_OPTIONS[0]
+  }
+
+  const joined = list.join(', ').toLowerCase()
+  const matching = DEFAULT_STATUS_OPTIONS.find((option) => option.toLowerCase() === joined)
+  if (matching) {
+    return matching
+  }
+
+  const first = list[0]
+  const fallback = DEFAULT_STATUS_OPTIONS.find((option) => option.toLowerCase() === first.toLowerCase())
+  return fallback || DEFAULT_STATUS_OPTIONS[0]
+}
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'recent', label: 'Recently Added', type: 'sort' },
+  { value: 'oldest', label: 'Oldest', type: 'sort' },
+  { value: 'homeowner-ho-non-hvna', label: 'Homeowner (HO), NOT HVNA MEMBER', type: 'status', match: 'Homeowner (HO), NOT HVNA MEMBER' },
+  { value: 'homeowner-ho-hvna', label: 'Homeowner (HO), HVNA MEMBER', type: 'status', match: 'Homeowner (HO), HVNA MEMBER' },
+  { value: 'homeowner', label: 'Homeowner', type: 'status', match: 'Homeowner' },
+  { value: 'hvna member', label: 'HVNA Member', type: 'status', match: 'HVNA Member' },
+  { value: 'renter', label: 'Renter', type: 'status', match: 'Renter' },
+  { value: 'caretaker', label: 'Caretaker', type: 'status', match: 'Caretaker' }
+]
 
 const normalizeName = (value) => String(value || '').replace(/\d/g, '')
 
@@ -117,7 +162,7 @@ const mapRecordToHomeowner = (record = {}) => {
     lastName,
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
     phone: String(record.phone_number || ''),
-    status: normalizeStatus(record.status),
+    status: normalizeStatusList(record.status),
     phase: address.phase,
     block: address.block,
     lot: address.lot,
@@ -232,7 +277,7 @@ export default function HomeownerManagementPage() {
   const [editForm, setEditForm] = useState(null)
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
-  const [pendingStatusChange, setPendingStatusChange] = useState(null)
+  const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
 
   const fetchHomeowners = async () => {
     try {
@@ -260,6 +305,7 @@ export default function HomeownerManagementPage() {
   useEffect(() => {
     fetchHomeowners()
   }, [])
+
 
   const isStepOneValid =
     addForm.firstName.trim() &&
@@ -290,12 +336,13 @@ export default function HomeownerManagementPage() {
       })
     }
 
-    if (tableFilter === 'active') {
-      return results.filter((homeowner) => homeowner.status.toLowerCase() === 'active')
-    }
+    const filterOption = STATUS_FILTER_OPTIONS.find((option) => option.value === tableFilter)
 
-    if (tableFilter === 'inactive') {
-      return results.filter((homeowner) => homeowner.status.toLowerCase() === 'inactive')
+    if (filterOption?.type === 'status') {
+      const matchValue = String(filterOption.match || '').toLowerCase()
+      return results.filter((homeowner) =>
+        normalizeStatusList(homeowner.status).some((status) => status.toLowerCase() === matchValue)
+      )
     }
 
     if (tableFilter === 'oldest') {
@@ -347,12 +394,12 @@ export default function HomeownerManagementPage() {
   const getStatusPillClass = (statusValue) => {
     const status = String(statusValue || '').trim().toLowerCase()
 
-    if (status === 'active') {
-      return styles.statusActive
+    if (status.includes('renter')) {
+      return styles.statusInactive
     }
 
-    if (status === 'inactive') {
-      return styles.statusInactive
+    if (status.includes('homeowner') || status.includes('caretaker') || status.includes('hvna')) {
+      return styles.statusActive
     }
 
     return styles.statusDefault
@@ -384,7 +431,7 @@ export default function HomeownerManagementPage() {
           block: Number(addForm.block),
           lot: Number(addForm.lot)
         },
-        status: AVAILABLE_STATUSES[0]
+        status: normalizeStatusList(addForm.status)
       }
 
       if (addForm.pictureId) {
@@ -457,6 +504,7 @@ export default function HomeownerManagementPage() {
     setSelectedHomeowner(homeowner)
     setActiveViewTab('info')
     setIsEditingHomeowner(false)
+    setStatusDraft(statusListToSingleOption(homeowner.status))
     setEditForm({
       unitNumber: homeowner.unitNumber,
       phone: homeowner.phone,
@@ -482,61 +530,9 @@ export default function HomeownerManagementPage() {
     setActiveViewTab('info')
     setIsEditingHomeowner(false)
     setEditForm(null)
+    setStatusDraft(DEFAULT_STATUS_OPTIONS[0])
   }
 
-  const requestStatusChange = (newStatus) => {
-    if (!selectedHomeowner) {
-      return
-    }
-
-    const normalizedStatus = normalizeStatus(newStatus)
-    if (normalizedStatus === selectedHomeowner.status) {
-      return
-    }
-
-    setPendingStatusChange({
-      homeownerId: selectedHomeowner.id,
-      previousStatus: selectedHomeowner.status,
-      newStatus: normalizedStatus
-    })
-  }
-
-  const closeStatusConfirmModal = () => {
-    setPendingStatusChange(null)
-  }
-
-  const confirmStatusChange = async () => {
-    if (!pendingStatusChange) {
-      return
-    }
-
-    const { homeownerId, newStatus } = pendingStatusChange
-    const target = homeowners.find((homeowner) => homeowner.id === homeownerId)
-    if (!target) {
-      setPendingStatusChange(null)
-      return
-    }
-
-    try {
-      const response = await apiClient.put(`/records/${homeownerId}`, {
-        status: newStatus
-      })
-      const updated = mapRecordToHomeowner(response?.data)
-
-      setHomeowners((prev) => prev.map((homeowner) => (homeowner.id === homeownerId ? updated : homeowner)))
-      setSelectedHomeowner((prev) => (prev && prev.id === homeownerId ? updated : prev))
-      setPendingStatusChange(null)
-      notify.success({
-        title: 'Status Updated',
-        description: `Homeowner status changed to ${updated.status}.`
-      })
-    } catch (error) {
-      notify.error({
-        title: 'Status Update Failed',
-        description: error.message || 'Unable to update homeowner status.'
-      })
-    }
-  }
 
   const handleEditChange = (field, value) => {
     setEditForm((prev) => ({ ...prev, [field]: value }))
@@ -673,6 +669,7 @@ export default function HomeownerManagementPage() {
         job_description: editForm.jobDescription,
         work_address: editForm.workAddress,
         work_status: editForm.workStatus,
+        status: normalizeStatusList(statusDraft),
         address: {
           phase: Number(normalizedPhase),
           block: Number(normalizedBlock),
@@ -698,6 +695,7 @@ export default function HomeownerManagementPage() {
       )
 
       setSelectedHomeowner(updatedHomeowner)
+      setStatusDraft(statusListToSingleOption(updatedHomeowner.status))
       setIsEditingHomeowner(false)
       notify.success({
         title: 'Homeowner Updated',
@@ -768,10 +766,11 @@ export default function HomeownerManagementPage() {
             onChange={(event) => setTableFilter(event.target.value)}
             aria-label="Filter homeowners"
           >
-            <option value="recent">Recently Added</option>
-            <option value="oldest">Oldest</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </section>
@@ -823,7 +822,11 @@ export default function HomeownerManagementPage() {
                     <td>{homeowner.unitNumber}</td>
                     <td>{formatPhone(homeowner.phone)}</td>
                     <td>
-                      <span className={`${styles.statusPill} ${getStatusPillClass(homeowner.status)}`}>{homeowner.status}</span>
+                      <span
+                        className={`${styles.statusPill} ${getStatusPillClass(statusListToSingleOption(homeowner.status))}`}
+                      >
+                        {statusListToSingleOption(homeowner.status)}
+                      </span>
                     </td>
                     <td>
                       <button type="button" className={styles.viewButton} onClick={() => openViewModal(homeowner)}>
@@ -1052,6 +1055,23 @@ export default function HomeownerManagementPage() {
                       value={addForm.loanAvailed}
                       onChange={(event) => handleFormChange('loanAvailed', event.target.value)}
                     />
+                  </div>
+                </div>
+
+                <div className={styles.twoColGrid}>
+                  <div>
+                    <label className={styles.fieldLabel}>Status</label>
+                    <select
+                      className={styles.input}
+                      value={addForm.status}
+                      onChange={(event) => handleFormChange('status', event.target.value)}
+                    >
+                      {DEFAULT_STATUS_OPTIONS.map((statusOption) => (
+                        <option key={statusOption} value={statusOption}>
+                          {statusOption}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1359,13 +1379,11 @@ export default function HomeownerManagementPage() {
                   <span className={styles.statusLabel}>Status:</span>
                   <select
                     className={`${styles.input} ${styles.statusSelect}`}
-                    value={selectedHomeowner.status}
-                    onChange={(event) => requestStatusChange(event.target.value)}
+                    value={statusDraft}
+                    onChange={(event) => setStatusDraft(event.target.value)}
+                    disabled={!isEditingHomeowner}
                   >
-                    {!AVAILABLE_STATUSES.includes(selectedHomeowner.status) ? (
-                      <option value={selectedHomeowner.status}>{selectedHomeowner.status}</option>
-                    ) : null}
-                    {AVAILABLE_STATUSES.map((statusOption) => (
+                    {DEFAULT_STATUS_OPTIONS.map((statusOption) => (
                       <option key={statusOption} value={statusOption}>
                         {statusOption}
                       </option>
@@ -1394,24 +1412,6 @@ export default function HomeownerManagementPage() {
         </div>
       )}
 
-      {pendingStatusChange && (
-        <div className={styles.modalOverlay}>
-          <div className={`${styles.modal} ${styles.confirmModal}`}>
-            <h3 className={styles.stepTitle}>Confirm Status Change</h3>
-            <p className={styles.modalLead}>
-              Change homeowner status from {pendingStatusChange.previousStatus} to {pendingStatusChange.newStatus}?
-            </p>
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryButton} onClick={closeStatusConfirmModal}>
-                Cancel
-              </button>
-              <button type="button" className={styles.primaryButton} onClick={confirmStatusChange}>
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   )
 }

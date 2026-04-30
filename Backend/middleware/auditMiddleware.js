@@ -37,14 +37,38 @@ function actionFromMethod(method) {
   return 'changed';
 }
 
-async function createPresidentNotifications({ auditLogId, actorEmail, action, entity }) {
+function actionFromAuthPath(pathname) {
+  const normalized = String(pathname || '');
+
+  if (normalized.endsWith('/login')) {
+    return 'logged in';
+  }
+
+  if (normalized.endsWith('/logout')) {
+    return 'logged out';
+  }
+
+  return '';
+}
+
+function buildNotificationMessage({ actorEmail, action, entity, detailSummary }) {
+  const normalizedAction = String(action || '').toLowerCase();
+  const isAuthAction = normalizedAction === 'logged in' || normalizedAction === 'logged out';
+  const baseMessage = isAuthAction
+    ? `Officer ${actorEmail || 'account'} ${action}.`
+    : `Officer ${actorEmail || 'account'} ${action} ${entity || 'a resource'}.`;
+
+  return detailSummary ? `${baseMessage} ${detailSummary}` : baseMessage;
+}
+
+async function createPresidentNotifications({ auditLogId, actorEmail, action, entity, detailSummary }) {
   const presidents = await User.find({ role: 'president', status: 'active' }).select('_id').lean();
   if (!presidents.length) {
     return;
   }
 
   const title = 'Officer Activity Update';
-  const message = `Officer ${actorEmail || 'account'} ${action} ${entity || 'a resource'}.`;
+  const message = buildNotificationMessage({ actorEmail, action, entity, detailSummary });
 
   const payload = presidents.map((president) => ({
     recipient_user_id: president._id,
@@ -82,13 +106,23 @@ function auditOfficerActivity() {
       }
 
       const { entity, entityId } = extractEntityAndId(pathWithoutQuery);
-      const action = actionFromMethod(method);
-      const summary = `Officer ${user.email || user.id} ${action} ${entity || 'resource'} via ${method} ${pathWithoutQuery}`;
+      const authAction = actionFromAuthPath(pathWithoutQuery);
+      const action = authAction || actionFromMethod(method);
+      const detailSummary = res.locals && res.locals.auditDetails ? String(res.locals.auditDetails.summary || '') : '';
+      const summary = authAction
+        ? `Officer ${user.email || user.id} ${action}.`
+        : detailSummary
+          ? `Officer ${user.email || user.id} ${action} ${entity || 'resource'} - ${detailSummary}`
+          : `Officer ${user.email || user.id} ${action} ${entity || 'resource'} via ${method} ${pathWithoutQuery}`;
 
       const metadata = {
         ip: req.ip,
         userAgent: req.headers['user-agent'] || '',
       };
+
+      if (res.locals && res.locals.auditDetails && res.locals.auditDetails.metadata) {
+        metadata.details = res.locals.auditDetails.metadata;
+      }
 
       AuditLog.create({
         actor_user_id: user.id,
@@ -108,6 +142,7 @@ function auditOfficerActivity() {
           actorEmail: user.email || '',
           action,
           entity,
+          detailSummary: detailSummary || '',
         }))
         .catch((error) => {
           console.error('Failed to write officer audit log or notifications:', error.message);

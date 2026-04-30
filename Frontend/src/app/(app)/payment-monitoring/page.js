@@ -161,17 +161,20 @@ export default function PaymentMonitoringPage() {
   const [selectedPaymentRecord, setSelectedPaymentRecord] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [isHomeownerSuggestOpen, setIsHomeownerSuggestOpen] = useState(false)
+  const [debouncedHomeownerSearch, setDebouncedHomeownerSearch] = useState('')
 
   const homeownerDirectory = useMemo(
     () =>
       homeowners.map((homeowner) => {
         const address = homeowner.address?._id || homeowner['address._id'] || null
         const name = getHomeownerName(homeowner)
+        const unitNumber = toUnitNumberFromAddress(address)
 
         return {
           id: String(homeowner._id),
           name,
-          unitNumber: toUnitNumberFromAddress(address)
+          unitNumber,
+          searchKey: `${name} ${unitNumber}`.toLowerCase()
         }
       }),
     [homeowners]
@@ -241,6 +244,14 @@ export default function PaymentMonitoringPage() {
     loadPaymentMonitoringData()
   }, [])
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedHomeownerSearch(form.homeownerSearch)
+    }, 150)
+
+    return () => window.clearTimeout(timer)
+  }, [form.homeownerSearch])
+
   const filteredRecords = useMemo(() => {
     const q = searchText.trim().toLowerCase()
     const now = new Date()
@@ -307,19 +318,20 @@ export default function PaymentMonitoringPage() {
   }
 
   const homeownerSuggestions = useMemo(() => {
-    const query = form.homeownerSearch.trim().toLowerCase()
+    if (!isRecordModalOpen) {
+      return []
+    }
+
+    const query = debouncedHomeownerSearch.trim().toLowerCase()
 
     if (!query) {
       return homeownerDirectory.slice(0, 8)
     }
 
     return homeownerDirectory
-      .filter((homeowner) => {
-        const searchable = `${homeowner.name} ${homeowner.unitNumber}`.toLowerCase()
-        return searchable.includes(query)
-      })
+      .filter((homeowner) => homeowner.searchKey.includes(query))
       .slice(0, 8)
-  }, [form.homeownerSearch, homeownerDirectory])
+  }, [debouncedHomeownerSearch, homeownerDirectory, isRecordModalOpen])
 
   const handleHomeownerSearchChange = (value) => {
     handleFormChange('homeownerSearch', value)

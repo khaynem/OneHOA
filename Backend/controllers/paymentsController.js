@@ -173,7 +173,7 @@ const createPayment = async (req, res) => {
             });
         }
 
-        const record = await Record.findById(selectedRecordId).select('_id');
+        const record = await Record.findById(selectedRecordId).select('_id first_name last_name household_no');
         if (!record) {
             return res.status(404).json({ message: 'Record not found.' });
         }
@@ -183,7 +183,8 @@ const createPayment = async (req, res) => {
             payment_status: 'paid',
             $or: [
                 { payment_for_periods: { $in: coveredPeriods } },
-                { billing_period: { $in: coveredPeriods } },
+                { payment_for_periods: { $size: 0 }, billing_period: { $in: coveredPeriods } },
+                { payment_for_periods: { $exists: false }, billing_period: { $in: coveredPeriods } },
             ],
         })
             .select('payment_for_periods billing_period')
@@ -217,6 +218,19 @@ const createPayment = async (req, res) => {
         });
 
         await newPayment.save();
+
+        const homeownerName = `${record.first_name || ''} ${record.last_name || ''}`.trim() || 'homeowner';
+        const periodLabel = coveredPeriods.join(', ');
+        res.locals.auditDetails = {
+            summary: `added receipt ${receipt_no} for ${homeownerName} covering ${periodLabel}`,
+            metadata: {
+                payment_id: String(newPayment._id || ''),
+                receipt_no: String(receipt_no || ''),
+                record_id: String(record._id || ''),
+                homeowner_name: homeownerName,
+                payment_periods: coveredPeriods,
+            },
+        };
 
         res.status(201).json({ message: 'Payment created successfully.', payment: newPayment });
 

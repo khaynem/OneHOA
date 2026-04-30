@@ -77,7 +77,8 @@
   top: calc(100% + 8px);
   width: min(88vw, 360px);
   max-height: 360px;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid #e7e7e7;
   border-radius: 8px;
@@ -100,6 +101,11 @@
   padding: 12px;
   color: #5f6670;
   font-size: 14px;
+}
+
+.notificationsBody {
+  overflow-y: auto;
+  flex: 1;
 }
 
 .notificationList {
@@ -139,6 +145,27 @@
   color: #4b5563;
   font-size: 12px;
   line-height: 1.3;
+}
+
+.notificationsFooter {
+  border-top: 1px solid #edf0f3;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: center;
+  background: #fff;
+}
+
+.notificationsLink {
+  border: none;
+  background: transparent;
+  color: #0a68b2;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notificationsLink:hover {
+  text-decoration: underline;
 }
 
 .userMenuWrap {

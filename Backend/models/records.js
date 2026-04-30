@@ -51,8 +51,8 @@ const recordsSchema = new mongoose.Schema(
             ref: 'Picture',
         },
         status: {
-            type: String,
-            trim: true,
+            type: [String],
+            default: [],
         }
     },
     {

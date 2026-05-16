@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { HiOutlineIdentification } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
@@ -40,17 +41,17 @@ const PAGE_SIZE = 10
 
 const EMPTY_FORM = {
   firstName: '',
+  middleName: '',
   lastName: '',
   phone: '',
   jobDescription: '',
-  workAddress: '',
   workStatus: '',
   phase: '',
   block: '',
   lot: '',
   entryDate: '',
   occupantStatus: '',
-  householdCount: '',
+  householdMembers: '',
   status: DEFAULT_STATUS_OPTIONS[0],
   imageName: '',
   pictureId: '',
@@ -141,6 +142,17 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'na', label: 'N/A', type: 'status', match: 'N/A' }
 ]
 
+const PAYMENT_FILTER_OPTIONS = [
+  { value: 'all', label: 'All payment statuses' },
+  { value: 'current-due', label: 'Monthly due this month (unpaid)' },
+  { value: 'past-due', label: 'Past monthly dues unpaid' }
+]
+
+const OCCUPANT_FILTER_OPTIONS = [
+  { value: 'all', label: 'All occupants' },
+  { value: 'owner', label: 'Owner occupants only' }
+]
+
 const normalizeName = (value) => String(value || '').replace(/\d/g, '')
 
 const toInputDate = (dateValue) => {
@@ -189,17 +201,22 @@ const getPictureFields = (record = {}) => {
   }
 }
 
-const mapRecordToHomeowner = (record = {}) => {
+const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
   const address = getAddressFields(record)
   const picture = getPictureFields(record)
   const firstName = String(record.first_name || '').trim()
+  const middleName = String(record.middle_name || '').trim()
   const lastName = String(record.last_name || '').trim()
   const generatedId = String(record.generated_id || '').trim()
+  const householdMembersValue = String(record.household_members || '').trim()
+  const householdFallback =
+    record.household_no !== undefined && record.household_no !== null ? String(record.household_no) : ''
 
   return {
     id: String(record._id || ''),
     displayId: generatedId || '-',
     firstName,
+    middleName,
     lastName,
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
     phone: String(record.phone_number || ''),
@@ -209,13 +226,13 @@ const mapRecordToHomeowner = (record = {}) => {
     lot: address.lot,
     entryDate: toEntryYear(record.entry_date),
     occupantStatus: String(record.occupant_status || '-'),
-    householdCount: record.household_no !== undefined && record.household_no !== null ? String(record.household_no) : '0',
+    householdMembers: householdMembersValue || householdFallback || '-',
     residentId: generatedId || '-',
-    workAddress: String(record.work_address || '-'),
     workStatus: String(record.work_status || '-'),
     jobDescription: String(record.job_description || '-'),
     pictureId: picture.pictureId,
     photoUrl: picture.photoUrl,
+    paymentSummary,
     paymentHistory: [],
     unpaidPeriods: [],
     totalPaid: 0,
@@ -246,6 +263,35 @@ const formatPhone = (value) => {
   }
 
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`
+}
+
+const formatDisplayName = (firstName, middleName, lastName, { middleInitialOnly = false } = {}) => {
+  const first = String(firstName || '').trim()
+  const middle = String(middleName || '').trim()
+  const last = String(lastName || '').trim()
+
+  if (middleInitialOnly) {
+    const initial = middle ? `${middle.charAt(0).toUpperCase()}.` : ''
+    return [first, initial, last].filter(Boolean).join(' ').trim()
+  }
+
+  return [first, middle, last].filter(Boolean).join(' ').trim()
+}
+
+const buildAddressKey = (homeowner) => {
+  if (!homeowner) {
+    return ''
+  }
+
+  const phase = String(homeowner.phase || '').trim()
+  const block = String(homeowner.block || '').trim()
+  const lot = String(homeowner.lot || '').trim()
+
+  if (!phase || !block || !lot) {
+    return ''
+  }
+
+  return `${phase}-${block}-${lot}`
 }
 
 const periodToLabel = (period) => {
@@ -302,9 +348,12 @@ const getUpcomingPeriodLabel = (payments = []) => {
   }).format(nextDate)
 }
 
-export default function HomeownerManagementPage() {
+function HomeownerManagementInner() {
+  const searchParams = useSearchParams()
   const [searchText, setSearchText] = useState('')
   const [tableFilter, setTableFilter] = useState('recent')
+  const [paymentFilter, setPaymentFilter] = useState('all')
+  const [occupantFilter, setOccupantFilter] = useState('all')
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -323,18 +372,75 @@ export default function HomeownerManagementPage() {
   const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
 
+  const ownerByAddress = useMemo(() => {
+    const map = new Map()
+
+    homeowners.forEach((homeowner) => {
+      if (!isOwnerOccupant(homeowner.occupantStatus)) {
+        return
+      }
+
+      const key = buildAddressKey(homeowner)
+      if (key) {
+        map.set(key, homeowner)
+      }
+    })
+
+    return map
+  }, [homeowners])
+
+  const occupantsByAddress = useMemo(() => {
+    const map = new Map()
+
+    homeowners.forEach((homeowner) => {
+      const key = buildAddressKey(homeowner)
+      if (!key) {
+        return
+      }
+
+      if (!map.has(key)) {
+        map.set(key, [])
+      }
+
+      map.get(key).push(homeowner)
+    })
+
+    return map
+  }, [homeowners])
+
   const fetchHomeowners = async () => {
     try {
       setIsLoading(true)
-      const response = await apiClient.get('/records', {
-        query: {
-          page: 1,
-          limit: 200
-        }
-      })
+      const now = new Date()
+      const monthsSinceStart =
+        (now.getFullYear() - TRACKER_START.year) * 12 +
+        (now.getMonth() + 1 - TRACKER_START.month) +
+        1
+      const trackerMonths = Math.max(monthsSinceStart, 1)
 
-      const records = Array.isArray(response?.data) ? response.data : []
-      setHomeowners(records.map(mapRecordToHomeowner))
+      const [recordsResponse, trackerResponse] = await Promise.all([
+        apiClient.get('/records', {
+          query: {
+            page: 1,
+            limit: 200
+          }
+        }),
+        apiClient.get('/payments/tracker', {
+          query: {
+            months: trackerMonths
+          }
+        })
+      ])
+
+      const records = Array.isArray(recordsResponse?.data) ? recordsResponse.data : []
+      const trackerHomeowners = trackerResponse?.data?.homeowners || []
+      const trackerMap = new Map(
+        trackerHomeowners.map((entry) => [String(entry.id || ''), entry.summary || null])
+      )
+
+      setHomeowners(
+        records.map((record) => mapRecordToHomeowner(record, trackerMap.get(String(record._id || ''))))
+      )
     } catch (error) {
       notify.error({
         title: 'Failed to Load Homeowners',
@@ -351,8 +457,26 @@ export default function HomeownerManagementPage() {
   }, [])
 
   useEffect(() => {
+    const paymentParam = searchParams.get('paymentFilter')
+    const occupantParam = searchParams.get('occupantFilter')
+    const sortParam = searchParams.get('sort')
+
+    if (PAYMENT_FILTER_OPTIONS.some((option) => option.value === paymentParam)) {
+      setPaymentFilter(paymentParam)
+    }
+
+    if (OCCUPANT_FILTER_OPTIONS.some((option) => option.value === occupantParam)) {
+      setOccupantFilter(occupantParam)
+    }
+
+    if (STATUS_FILTER_OPTIONS.some((option) => option.value === sortParam)) {
+      setTableFilter(sortParam)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, tableFilter])
+  }, [searchText, tableFilter, paymentFilter, occupantFilter])
 
   useEffect(() => {
     let isMounted = true
@@ -392,8 +516,7 @@ export default function HomeownerManagementPage() {
     /^\d{1,3}$/.test(addForm.block.trim()) &&
     /^\d{1,3}$/.test(addForm.lot.trim()) &&
     /^\d{4}$/.test(addForm.entryDate.trim()) &&
-    addForm.occupantStatus.trim() &&
-    /^\d+$/.test(addForm.householdCount.trim())
+    addForm.occupantStatus.trim()
 
   const filteredHomeowners = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -402,9 +525,34 @@ export default function HomeownerManagementPage() {
 
     if (q) {
       results = results.filter((homeowner) => {
-        const fullName = `${homeowner.firstName} ${homeowner.lastName}`.toLowerCase()
+        const fullName = formatDisplayName(
+          homeowner.firstName,
+          homeowner.middleName,
+          homeowner.lastName,
+          { middleInitialOnly: false }
+        ).toLowerCase()
         return fullName.includes(q) || homeowner.unitNumber.toLowerCase().includes(q)
       })
+    }
+
+    if (occupantFilter === 'owner') {
+      results = results.filter((homeowner) => isOwnerOccupant(homeowner.occupantStatus))
+    }
+
+    if (paymentFilter === 'current-due') {
+      results = results.filter(
+        (homeowner) =>
+          isOwnerOccupant(homeowner.occupantStatus) &&
+          homeowner.paymentSummary?.currentMonthStatus === 'unpaid'
+      )
+    }
+
+    if (paymentFilter === 'past-due') {
+      results = results.filter(
+        (homeowner) =>
+          isOwnerOccupant(homeowner.occupantStatus) &&
+          Number(homeowner.paymentSummary?.pastDueMonths || 0) > 0
+      )
     }
 
     const filterOption = STATUS_FILTER_OPTIONS.find((option) => option.value === tableFilter)
@@ -421,7 +569,7 @@ export default function HomeownerManagementPage() {
     }
 
     return [...results].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-  }, [homeowners, searchText, tableFilter])
+  }, [homeowners, searchText, tableFilter, paymentFilter, occupantFilter])
 
   const totalPages = Math.max(Math.ceil(filteredHomeowners.length / PAGE_SIZE), 1)
   const pagedHomeowners = useMemo(() => {
@@ -466,8 +614,8 @@ export default function HomeownerManagementPage() {
     handleFormChange(field, digitsOnly(value).slice(0, 3))
   }
 
-  const handleHouseholdCountChange = (value) => {
-    handleFormChange('householdCount', digitsOnly(value))
+  const handleHouseholdMembersChange = (value) => {
+    handleFormChange('householdMembers', value)
   }
 
   const handleEntryYearChange = (value) => {
@@ -517,14 +665,13 @@ export default function HomeownerManagementPage() {
     try {
       const payload = {
         first_name: normalizeName(addForm.firstName).trim(),
+        middle_name: normalizeName(addForm.middleName).trim(),
         last_name: normalizeName(addForm.lastName).trim(),
         phone_number: addForm.phone.trim(),
         job_description: addForm.jobDescription.trim(),
-        work_address: addForm.workAddress.trim(),
         work_status: addForm.workStatus.trim(),
         entry_date: toEntryDateValue(addForm.entryDate),
         occupant_status: addForm.occupantStatus.trim(),
-        household_no: Number(addForm.householdCount),
         address: {
           phase: Number(addForm.phase),
           block: Number(addForm.block),
@@ -614,6 +761,7 @@ export default function HomeownerManagementPage() {
     setStatusDraft(isOwnerOccupant(homeowner.occupantStatus) ? statusListToSingleOption(homeowner.status) : NON_OWNER_STATUS)
     setEditForm({
       firstName: homeowner.firstName,
+      middleName: homeowner.middleName,
       lastName: homeowner.lastName,
       unitNumber: homeowner.unitNumber,
       phone: homeowner.phone,
@@ -622,9 +770,8 @@ export default function HomeownerManagementPage() {
       lot: homeowner.lot,
       entryDate: homeowner.entryDate,
       occupantStatus: homeowner.occupantStatus,
-      householdCount: homeowner.householdCount,
+      householdMembers: homeowner.householdMembers,
       jobDescription: homeowner.jobDescription,
-      workAddress: homeowner.workAddress,
       workStatus: homeowner.workStatus,
       pictureId: homeowner.pictureId,
       photoUrl: homeowner.photoUrl,
@@ -794,7 +941,6 @@ export default function HomeownerManagementPage() {
     const normalizedPhase = String(editForm.phase || '').trim()
     const normalizedBlock = digitsOnly(editForm.block).slice(0, 3)
     const normalizedLot = digitsOnly(editForm.lot).slice(0, 3)
-    const normalizedHousehold = digitsOnly(editForm.householdCount)
     const normalizedEntryYear = digitsOnly(editForm.entryDate).slice(0, 4)
 
     if (
@@ -805,7 +951,6 @@ export default function HomeownerManagementPage() {
       !VALID_PHASES.includes(normalizedPhase) ||
       !/^\d{1,3}$/.test(normalizedBlock) ||
       !/^\d{1,3}$/.test(normalizedLot) ||
-      !normalizedHousehold ||
       !/^\d{4}$/.test(normalizedEntryYear)
     ) {
       notify.error({
@@ -818,13 +963,12 @@ export default function HomeownerManagementPage() {
     try {
       const payload = {
         first_name: normalizedFirstName,
+        middle_name: normalizeName(editForm.middleName).trim(),
         last_name: normalizedLastName,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
         entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
-        household_no: Number(normalizedHousehold),
         job_description: editForm.jobDescription,
-        work_address: editForm.workAddress,
         work_status: editForm.workStatus,
         status: normalizeStatusList(getStatusForOccupant(statusDraft, editForm.occupantStatus)),
         address: {
@@ -872,9 +1016,27 @@ export default function HomeownerManagementPage() {
 
   const displayHomeownerName = selectedHomeowner
     ? isEditingHomeowner
-      ? `${editForm?.firstName || ''} ${editForm?.lastName || ''}`.trim() || `${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`
-      : `${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`
+      ?
+        formatDisplayName(
+          editForm?.firstName,
+          editForm?.middleName,
+          editForm?.lastName
+        ) || formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
+      : formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
     : ''
+
+  const selectedOccupantStatus = isEditingHomeowner
+    ? editForm?.occupantStatus
+    : selectedHomeowner?.occupantStatus
+  const isSelectedOwner = isOwnerOccupant(selectedOccupantStatus)
+
+  const selectedAddressKey = selectedHomeowner ? buildAddressKey(selectedHomeowner) : ''
+  const ownerForSelected = selectedAddressKey ? ownerByAddress.get(selectedAddressKey) : null
+  const relatedOccupants = selectedAddressKey
+    ? (occupantsByAddress.get(selectedAddressKey) || []).filter(
+        (homeowner) => homeowner.id !== selectedHomeowner?.id && !isOwnerOccupant(homeowner.occupantStatus)
+      )
+    : []
 
   const generateAndPrintIdCard = (homeowner) => {
     if (!homeowner || !isOwnerOccupant(homeowner.occupantStatus)) {
@@ -962,6 +1124,30 @@ export default function HomeownerManagementPage() {
           />
           <select
             className={styles.filterSelect}
+            value={paymentFilter}
+            onChange={(event) => setPaymentFilter(event.target.value)}
+            aria-label="Filter by payment status"
+          >
+            {PAYMENT_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.filterSelect}
+            value={occupantFilter}
+            onChange={(event) => setOccupantFilter(event.target.value)}
+            aria-label="Filter by occupant status"
+          >
+            {OCCUPANT_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className={styles.filterSelect}
             value={tableFilter}
             onChange={(event) => setTableFilter(event.target.value)}
             aria-label="Filter homeowners"
@@ -1015,7 +1201,11 @@ export default function HomeownerManagementPage() {
                         ) : (
                           <span className={styles.rowAvatarPlaceholder}>No Photo</span>
                         )}
-                        <span>{`${homeowner.firstName} ${homeowner.lastName}`}</span>
+                        <span>
+                          {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
+                            middleInitialOnly: true
+                          })}
+                        </span>
                       </div>
                     </td>
                     <td>{homeowner.displayId || '-'}</td>
@@ -1108,6 +1298,14 @@ export default function HomeownerManagementPage() {
                       onChange={(event) => handleFormChange('firstName', normalizeName(event.target.value))}
                     />
 
+                    <label className={styles.fieldLabel}>Middle Name</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addForm.middleName}
+                      onChange={(event) => handleFormChange('middleName', normalizeName(event.target.value))}
+                    />
+
                     <label className={styles.fieldLabel}>
                       Last Name <span className={styles.requiredMark}>*</span>
                     </label>
@@ -1132,7 +1330,7 @@ export default function HomeownerManagementPage() {
                   placeholder="09XX XXX XXXX"
                 />
 
-                <div className={styles.threeColGrid}>
+                <div className={styles.twoColGrid}>
                   <div>
                     <label className={styles.fieldLabel}>
                       Job Title <span className={styles.requiredMark}>*</span>
@@ -1142,15 +1340,6 @@ export default function HomeownerManagementPage() {
                       className={styles.input}
                       value={addForm.jobDescription}
                       onChange={(event) => handleFormChange('jobDescription', event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className={styles.fieldLabel}>Work Address</label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={addForm.workAddress}
-                      onChange={(event) => handleFormChange('workAddress', event.target.value)}
                     />
                   </div>
                   <div>
@@ -1267,21 +1456,6 @@ export default function HomeownerManagementPage() {
                         </option>
                       ))}
                     </select>
-                  </div>
-                </div>
-
-                <div className={styles.twoColGrid}>
-                  <div>
-                    <label className={styles.fieldLabel}>
-                      No. of People in Household <span className={styles.requiredMark}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className={styles.input}
-                      value={addForm.householdCount}
-                      onChange={(event) => handleHouseholdCountChange(event.target.value)}
-                    />
                   </div>
                 </div>
 
@@ -1421,10 +1595,10 @@ export default function HomeownerManagementPage() {
 
             {activeViewTab === 'info' ? (
               <div className={styles.detailsGrid}>
-                <div>
-                  <p className={styles.detailLabel}>Name</p>
-                  {isEditingHomeowner ? (
-                    <div className={styles.compactGridTwo}>
+                <div className={styles.nameRow}>
+                  <div>
+                    <p className={styles.detailLabel}>First Name</p>
+                    {isEditingHomeowner ? (
                       <input
                         type="text"
                         className={styles.input}
@@ -1432,6 +1606,27 @@ export default function HomeownerManagementPage() {
                         onChange={(event) => handleEditChange('firstName', normalizeName(event.target.value))}
                         placeholder="First name"
                       />
+                    ) : (
+                      <p className={styles.detailValue}>{selectedHomeowner.firstName || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className={styles.detailLabel}>Middle Name</p>
+                    {isEditingHomeowner ? (
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={editForm?.middleName || ''}
+                        onChange={(event) => handleEditChange('middleName', normalizeName(event.target.value))}
+                        placeholder="Middle name"
+                      />
+                    ) : (
+                      <p className={styles.detailValue}>{selectedHomeowner.middleName || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className={styles.detailLabel}>Last Name</p>
+                    {isEditingHomeowner ? (
                       <input
                         type="text"
                         className={styles.input}
@@ -1439,18 +1634,14 @@ export default function HomeownerManagementPage() {
                         onChange={(event) => handleEditChange('lastName', normalizeName(event.target.value))}
                         placeholder="Last name"
                       />
-                    </div>
-                  ) : (
-                    <p className={styles.detailValue}>{`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}</p>
-                  )}
+                    ) : (
+                      <p className={styles.detailValue}>{selectedHomeowner.lastName || '-'}</p>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Unit Number</p>
-                  {isEditingHomeowner ? (
-                    <p className={styles.detailValue}>{`${editForm?.phase || '-'}-${editForm?.block || '-'}-${editForm?.lot || '-'}`}</p>
-                  ) : (
-                    <p className={styles.detailValue}>{selectedHomeowner.unitNumber}</p>
-                  )}
+                  <p className={styles.detailLabel}>Resident ID #</p>
+                  <p className={styles.detailValue}>{selectedHomeowner.residentId}</p>
                 </div>
                 <div>
                   <p className={styles.detailLabel}>Phone Number</p>
@@ -1502,6 +1693,14 @@ export default function HomeownerManagementPage() {
                   )}
                 </div>
                 <div>
+                  <p className={styles.detailLabel}>Unit Number</p>
+                  {isEditingHomeowner ? (
+                    <p className={styles.detailValue}>{`${editForm?.phase || '-'}-${editForm?.block || '-'}-${editForm?.lot || '-'}`}</p>
+                  ) : (
+                    <p className={styles.detailValue}>{selectedHomeowner.unitNumber}</p>
+                  )}
+                </div>
+                <div>
                   <p className={styles.detailLabel}>Entry Date</p>
                   {isEditingHomeowner ? (
                     <input
@@ -1539,25 +1738,7 @@ export default function HomeownerManagementPage() {
                   )}
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Household Count</p>
-                  {isEditingHomeowner ? (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      className={styles.input}
-                      value={editForm?.householdCount || ''}
-                      onChange={(event) => handleEditChange('householdCount', digitsOnly(event.target.value))}
-                    />
-                  ) : (
-                    <p className={styles.detailValue}>{selectedHomeowner.householdCount}</p>
-                  )}
-                </div>
-                <div>
-                  <p className={styles.detailLabel}>Resident ID #</p>
-                  <p className={styles.detailValue}>{selectedHomeowner.residentId}</p>
-                </div>
-                <div>
-                  <p className={styles.detailLabel}>Job Description</p>
+                  <p className={styles.detailLabel}>Job Title</p>
                   {isEditingHomeowner ? (
                     <input
                       type="text"
@@ -1567,19 +1748,6 @@ export default function HomeownerManagementPage() {
                     />
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.jobDescription}</p>
-                  )}
-                </div>
-                <div>
-                  <p className={styles.detailLabel}>Work Address</p>
-                  {isEditingHomeowner ? (
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={editForm?.workAddress || ''}
-                      onChange={(event) => handleEditChange('workAddress', event.target.value)}
-                    />
-                  ) : (
-                    <p className={styles.detailValue}>{selectedHomeowner.workAddress}</p>
                   )}
                 </div>
                 <div>
@@ -1602,6 +1770,43 @@ export default function HomeownerManagementPage() {
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.workStatus}</p>
                   )}
+                </div>
+                <div>
+                  <p className={styles.detailLabel}>Owner / Related Occupants</p>
+                  <div className={styles.relatedScroll}>
+                    {isSelectedOwner ? (
+                      relatedOccupants.length === 0 ? (
+                        <p className={styles.detailValue}>No related occupants listed.</p>
+                      ) : (
+                        <ul className={styles.relatedList}>
+                          {relatedOccupants.map((occupant) => (
+                            <li key={occupant.id} className={styles.relatedItem}>
+                              <span className={styles.relatedName}>
+                                {formatDisplayName(
+                                  occupant.firstName,
+                                  occupant.middleName,
+                                  occupant.lastName,
+                                  { middleInitialOnly: true }
+                                )}
+                              </span>
+                              <span className={styles.relatedMeta}>{occupant.occupantStatus}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )
+                    ) : (
+                      <p className={styles.detailValue}>
+                        {ownerForSelected
+                          ? `${formatDisplayName(
+                              ownerForSelected.firstName,
+                              ownerForSelected.middleName,
+                              ownerForSelected.lastName,
+                              { middleInitialOnly: true }
+                            )} (${ownerForSelected.unitNumber})`
+                          : 'Unassigned owner'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1738,5 +1943,13 @@ export default function HomeownerManagementPage() {
       )}
 
     </main>
+  )
+}
+
+export default function HomeownerManagementPage() {
+  return (
+    <Suspense fallback={<div className={styles.page}>Loading homeowner management...</div>}>
+      <HomeownerManagementInner />
+    </Suspense>
   )
 }

@@ -12,6 +12,10 @@ const recordsSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    middle_name: {
+      type: String,
+      trim: true,
+    },
     phone_number: {
       type: String,
       trim: true,
@@ -31,6 +35,13 @@ const recordsSchema = new mongoose.Schema(
     entry_date: {
       type: Date,
     },
+    archived: {
+      type: Boolean,
+      default: false,
+    },
+    archived_at: {
+      type: Date,
+    },
     occupant_status: {
       type: String,
       trim: true,
@@ -38,7 +49,7 @@ const recordsSchema = new mongoose.Schema(
     household_no: {
       type: Number,
     },
-    loan_availed: {
+    household_members: {
       type: String,
       trim: true,
     },
@@ -53,6 +64,12 @@ const recordsSchema = new mongoose.Schema(
     status: {
       type: [String],
       default: [],
+    },
+    generated_id: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
     },
   },
   {

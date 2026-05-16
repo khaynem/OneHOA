@@ -42,6 +42,26 @@ const getAddressIdsForOwnerCheck = async ({ addressPayload, addressId }) => {
   return addresses.map((address) => address._id);
 };
 
+const resolveEntryYear = (entryDate) => {
+  const parsed = entryDate ? new Date(entryDate) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date().getFullYear() : parsed.getFullYear();
+};
+
+const generateUniqueId = async (entryYear) => {
+  const yearText = String(entryYear || new Date().getFullYear());
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const suffix = String(Math.floor(1000 + Math.random() * 9000));
+    const candidate = `${yearText}${suffix}`;
+    const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
+    if (!exists) {
+      return candidate;
+    }
+  }
+
+  return `${yearText}${String(Date.now()).slice(-4)}`;
+};
+
 export async function GET(request) {
   try {
     await requireAuth();
@@ -112,6 +132,9 @@ export async function POST(request) {
     if (resolvedAddressId) {
       payload["address._id"] = resolvedAddressId;
     }
+
+    const entryYear = resolveEntryYear(payload.entry_date ?? body?.entry_date);
+    payload.generated_id = await generateUniqueId(entryYear);
 
     const occupantStatus = payload.occupant_status ?? body?.occupant_status;
     if (isOwnerOccupant(occupantStatus)) {

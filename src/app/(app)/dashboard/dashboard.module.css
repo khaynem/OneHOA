@@ -46,6 +46,9 @@
   align-items: center;
   transition: transform 180ms ease, box-shadow 180ms ease;
   transform-origin: center;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 @media (hover: hover) {

@@ -44,6 +44,26 @@ const getAddressIdsForOwnerCheck = async ({ addressPayload, addressId }) => {
   return addresses.map((address) => address._id);
 };
 
+const resolveEntryYear = (entryDate) => {
+  const parsed = entryDate ? new Date(entryDate) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date().getFullYear() : parsed.getFullYear();
+};
+
+const generateUniqueId = async (entryYear) => {
+  const yearText = String(entryYear || new Date().getFullYear());
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const suffix = String(Math.floor(1000 + Math.random() * 9000));
+    const candidate = `${yearText}${suffix}`;
+    const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
+    if (!exists) {
+      return candidate;
+    }
+  }
+
+  return `${yearText}${String(Date.now()).slice(-4)}`;
+};
+
 export async function GET(request, { params }) {
   try {
     await requireAuth();
@@ -87,6 +107,13 @@ export async function PUT(request, { params }) {
       payload.status = normalizedStatus;
     }
 
+    if (payload.archived !== undefined) {
+      payload.archived = Boolean(payload.archived);
+      payload.archived_at = payload.archived ? new Date() : null;
+    } else if (payload.archived_at !== undefined) {
+      delete payload.archived_at;
+    }
+
     const existingRecord = await Record.findById(id);
     if (!existingRecord) {
       return NextResponse.json({ success: false, message: "Record not found." }, { status: 404 });
@@ -126,6 +153,11 @@ export async function PUT(request, { params }) {
       }
     }
 
+    if (!existingRecord.generated_id) {
+      const entryYear = resolveEntryYear(payload.entry_date ?? existingRecord.entry_date);
+      payload.generated_id = await generateUniqueId(entryYear);
+    }
+
     const updatedRecord = await Record.findByIdAndUpdate(id, payload, {
       new: true,
       runValidators: true,
@@ -137,6 +169,21 @@ export async function PUT(request, { params }) {
     const homeownerName = formatHomeownerName(updatedWithId);
 
     try {
+      if (payload.archived !== undefined) {
+        await writeAuditLog({
+          request,
+          user,
+          statusCode: 200,
+          detailSummary: `${payload.archived ? "Archived" : "Unarchived"} homeowner ${homeownerName}`,
+          metadata: {
+            record_id: String(updatedWithId._id || ""),
+            generated_id: String(updatedWithId.generated_id || ""),
+            homeowner_name: homeownerName,
+            archived: payload.archived,
+          },
+        });
+      }
+
       await writeAuditLog({
         request,
         user,
@@ -170,6 +217,18 @@ export async function DELETE(request, { params }) {
     const { id } = await params;
     if (!isValidObjectId(id)) {
       return NextResponse.json({ success: false, message: "Invalid record ID." }, { status: 400 });
+    }
+
+    const existingRecord = await Record.findById(id);
+    if (!existingRecord) {
+      return NextResponse.json({ success: false, message: "Record not found." }, { status: 404 });
+    }
+
+    if (!existingRecord.archived) {
+      return NextResponse.json(
+        { success: false, message: "Record must be archived before deletion." },
+        { status: 409 }
+      );
     }
 
     const deletedRecord = await Record.findByIdAndDelete(id);

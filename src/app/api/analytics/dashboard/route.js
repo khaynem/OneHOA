@@ -120,7 +120,7 @@ export async function GET() {
           )
           .lean(),
         Payment.find()
-          .populate("records._id", "first_name last_name household_no")
+          .populate("records._id", "first_name middle_name last_name generated_id")
           .sort({ createdAt: -1 })
           .limit(5),
         Activity.find().sort({ createdAt: -1 }).limit(5),
@@ -179,18 +179,18 @@ export async function GET() {
 
     const recentPayments = recentPaymentsRaw.map((payment) => {
       const homeownerRecord = payment.records && payment.records._id ? payment.records._id : null;
+      const middleInitial = homeownerRecord?.middle_name
+        ? ` ${String(homeownerRecord.middle_name).trim().charAt(0).toUpperCase()}.`
+        : "";
       const homeownerName = homeownerRecord
-        ? `${homeownerRecord.first_name || ""} ${homeownerRecord.last_name || ""}`.trim()
+        ? `${homeownerRecord.first_name || ""}${middleInitial} ${homeownerRecord.last_name || ""}`.trim()
         : "Unlinked Homeowner";
 
-      const householdText =
-        homeownerRecord && homeownerRecord.household_no !== undefined
-          ? `#${homeownerRecord.household_no}`
-          : "";
+      const idText = homeownerRecord?.generated_id ? `#${homeownerRecord.generated_id}` : "";
 
       return {
         id: payment._id,
-        homeowner: householdText ? `${homeownerName} (${householdText})` : homeownerName,
+        homeowner: idText ? `${homeownerName} (${idText})` : homeownerName,
         details: payment.payment_details || payment.payment_method || "Payment",
         amount: formatPaymentAmount(payment.amount),
         date: payment.createdAt,

@@ -4,14 +4,15 @@ import Address from "./models/address";
 const ALLOWED_FIELDS = [
   "last_name",
   "first_name",
+  "middle_name",
   "phone_number",
   "job_description",
-  "work_address",
   "work_status",
   "entry_date",
+  "archived",
+  "archived_at",
   "occupant_status",
-  "household_no",
-  "loan_availed",
+  "household_members",
   "address._id",
   "pictures._id",
   "status",
@@ -20,14 +21,15 @@ const ALLOWED_FIELDS = [
 const FIELD_LABELS = {
   last_name: "Last Name",
   first_name: "First Name",
+  middle_name: "Middle Name",
   phone_number: "Phone Number",
   job_description: "Job Description",
-  work_address: "Work Address",
   work_status: "Work Status",
   entry_date: "Entry Date",
+  archived: "Archived",
+  archived_at: "Archived At",
   occupant_status: "Occupant Status",
-  household_no: "Household No",
-  loan_availed: "Loan Availed",
+  household_members: "Household Members",
   "address._id": "Address",
   "pictures._id": "Photo",
   status: "Status",
@@ -46,16 +48,26 @@ export function isValidObjectId(id) {
 }
 
 export function buildGeneratedId(record = {}) {
+  if (record.generated_id) {
+    return String(record.generated_id);
+  }
+
   const sourceDate = record.entry_date || record.createdAt || record.updatedAt || new Date();
   const parsedDate = new Date(sourceDate);
   const year = Number.isNaN(parsedDate.getTime()) ? new Date().getFullYear() : parsedDate.getFullYear();
 
-  const householdNumber = Number(record.household_no);
-  if (!Number.isInteger(householdNumber) || householdNumber < 0) {
-    return String(year);
+  const rawId = String(record._id || "");
+  const hexSuffix = rawId.slice(-4);
+  if (!hexSuffix) {
+    return `${year}${String(Math.floor(1000 + Math.random() * 9000))}`;
   }
 
-  return `${year}${String(householdNumber).padStart(4, "0")}`;
+  const suffixValue = Number.parseInt(hexSuffix, 16);
+  const suffix = Number.isNaN(suffixValue)
+    ? String(Math.floor(1000 + Math.random() * 9000))
+    : String(suffixValue % 10000).padStart(4, "0");
+
+  return `${year}${suffix}`;
 }
 
 export function normalizeStatusInput(statusInput) {
@@ -88,8 +100,9 @@ export function formatUpdatedFieldLabel(field) {
 
 export function formatHomeownerName(record = {}) {
   const firstName = String(record.first_name || "").trim();
+  const middleName = String(record.middle_name || "").trim();
   const lastName = String(record.last_name || "").trim();
-  const fullName = `${firstName} ${lastName}`.trim();
+  const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ").trim();
   return fullName || "homeowner";
 }
 

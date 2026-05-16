@@ -70,9 +70,15 @@
 
 .searchRow {
   display: grid;
-  grid-template-columns: 1fr 210px;
+  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(180px, 220px));
   gap: 10px;
   align-items: center;
+}
+
+@media (max-width: 980px) {
+  .searchRow {
+    grid-template-columns: 1fr;
+  }
 }
 
 .searchInput {
@@ -277,8 +283,9 @@
 
 .viewModal {
   width: min(96vw, 760px);
-  max-height: none;
-  overflow: visible;
+  max-height: 92dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .modalHeader {
@@ -623,7 +630,14 @@
 .detailsGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 18px;
+  gap: 10px 14px;
+}
+
+.nameRow {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
 }
 
 .compactGridThree {
@@ -652,6 +666,44 @@
   font-size: 0.96rem;
   font-weight: 600;
   font-family: poppins, sans-serif;
+}
+
+.relatedList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.relatedScroll {
+  max-height: 140px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.relatedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f6f8fb;
+}
+
+.relatedName {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.relatedMeta {
+  color: #6b7280;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .paymentSection {
@@ -926,6 +978,10 @@
   }
 
   .compactGridTwo {
+    grid-template-columns: 1fr;
+  }
+
+  .nameRow {
     grid-template-columns: 1fr;
   }
 

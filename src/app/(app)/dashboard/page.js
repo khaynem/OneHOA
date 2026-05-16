@@ -61,9 +61,24 @@ export default function DashboardPage() {
     const stats = dashboardData?.stats || {}
 
     return [
-      { label: 'Total Homeowners', value: stats.totalHomeowners || 0, Icon: HomeownerIcon },
-      { label: 'Pending Payments (Since Jan, 2026)', value: stats.pendingPayments || 0, Icon: PaymentIcon },
-      { label: 'Upcoming Payments', value: stats.upcomingPayments || 0, Icon: ActivityIcon },
+      {
+        label: 'Total Homeowners',
+        value: stats.totalHomeowners || 0,
+        Icon: HomeownerIcon,
+        href: '/homeowner-management'
+      },
+      {
+        label: 'Pending Payments (Since Jan, 2026)',
+        value: stats.pendingPayments || 0,
+        Icon: PaymentIcon,
+        href: '/homeowner-management?paymentFilter=past-due&occupantFilter=owner'
+      },
+      {
+        label: 'Upcoming Payments',
+        value: stats.upcomingPayments || 0,
+        Icon: ActivityIcon,
+        href: '/homeowner-management?paymentFilter=current-due&occupantFilter=owner'
+      },
     ]
   }, [dashboardData])
 
@@ -79,8 +94,8 @@ export default function DashboardPage() {
       {!isLoading && errorMessage && <p className={styles.errorText}>{errorMessage}</p>}
 
       <section className={styles.cardGrid} aria-label="Dashboard stats">
-        {statCards.map(({ label, value, Icon }) => (
-          <article key={label} className={styles.statCard}>
+        {statCards.map(({ label, value, Icon, href }) => (
+          <Link key={label} href={href} className={styles.statCard} aria-label={label}>
             <div>
               <p className={styles.statLabel}>{label}</p>
               <p className={styles.statValue}>{value}</p>
@@ -88,7 +103,7 @@ export default function DashboardPage() {
             <div className={styles.statIconWrap}>
               <Icon className={styles.statIcon} aria-hidden="true" />
             </div>
-          </article>
+          </Link>
         ))}
       </section>
 

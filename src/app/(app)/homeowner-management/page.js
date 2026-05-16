@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { HiOutlineIdentification } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
+import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
 import styles from './homeowner-management.module.css'
 
 const DEFAULT_STATUS_OPTIONS = ['HO, not HVNA member', 'HO, HVNA member', 'N/A']
@@ -32,6 +34,9 @@ const STATUS_ALIASES = new Map([
 ])
 
 const NON_OWNER_STATUS = 'N/A'
+const DEFAULT_MONTHLY_DUES = 100
+const TRACKER_START = { year: 2026, month: 1 }
+const PAGE_SIZE = 10
 
 const EMPTY_FORM = {
   firstName: '',
@@ -46,7 +51,6 @@ const EMPTY_FORM = {
   entryDate: '',
   occupantStatus: '',
   householdCount: '',
-  loanAvailed: '',
   status: DEFAULT_STATUS_OPTIONS[0],
   imageName: '',
   pictureId: '',
@@ -206,7 +210,6 @@ const mapRecordToHomeowner = (record = {}) => {
     entryDate: toEntryYear(record.entry_date),
     occupantStatus: String(record.occupant_status || '-'),
     householdCount: record.household_no !== undefined && record.household_no !== null ? String(record.household_no) : '0',
-    loanAvailed: String(record.loan_availed || '-'),
     residentId: generatedId || '-',
     workAddress: String(record.work_address || '-'),
     workStatus: String(record.work_status || '-'),
@@ -214,6 +217,8 @@ const mapRecordToHomeowner = (record = {}) => {
     pictureId: picture.pictureId,
     photoUrl: picture.photoUrl,
     paymentHistory: [],
+    unpaidPeriods: [],
+    totalPaid: 0,
     upcomingPayment: { month: '-' },
     createdAt: record.createdAt || record.updatedAt || null
   }
@@ -302,6 +307,7 @@ export default function HomeownerManagementPage() {
   const [tableFilter, setTableFilter] = useState('recent')
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [addStep, setAddStep] = useState(1)
@@ -315,6 +321,7 @@ export default function HomeownerManagementPage() {
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
   const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
+  const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
 
   const fetchHomeowners = async () => {
     try {
@@ -343,6 +350,34 @@ export default function HomeownerManagementPage() {
     fetchHomeowners()
   }, [])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchText, tableFilter])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadMonthlyDues = async () => {
+      try {
+        const response = await apiClient.get('/settings/dues')
+        const nextAmount = Number(response?.amount)
+        if (isMounted && !Number.isNaN(nextAmount) && nextAmount > 0) {
+          setMonthlyDues(nextAmount)
+        }
+      } catch {
+        if (isMounted) {
+          setMonthlyDues(DEFAULT_MONTHLY_DUES)
+        }
+      }
+    }
+
+    loadMonthlyDues()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
 
   const isStepOneValid =
     addForm.firstName.trim() &&
@@ -358,8 +393,7 @@ export default function HomeownerManagementPage() {
     /^\d{1,3}$/.test(addForm.lot.trim()) &&
     /^\d{4}$/.test(addForm.entryDate.trim()) &&
     addForm.occupantStatus.trim() &&
-    /^\d+$/.test(addForm.householdCount.trim()) &&
-    addForm.loanAvailed.trim()
+    /^\d+$/.test(addForm.householdCount.trim())
 
   const filteredHomeowners = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -388,6 +422,18 @@ export default function HomeownerManagementPage() {
 
     return [...results].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
   }, [homeowners, searchText, tableFilter])
+
+  const totalPages = Math.max(Math.ceil(filteredHomeowners.length / PAGE_SIZE), 1)
+  const pagedHomeowners = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredHomeowners.slice(start, start + PAGE_SIZE)
+  }, [currentPage, filteredHomeowners])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const closeAddModal = () => {
     setIsAddModalOpen(false)
@@ -479,7 +525,6 @@ export default function HomeownerManagementPage() {
         entry_date: toEntryDateValue(addForm.entryDate),
         occupant_status: addForm.occupantStatus.trim(),
         household_no: Number(addForm.householdCount),
-        loan_availed: addForm.loanAvailed.trim(),
         address: {
           phase: Number(addForm.phase),
           block: Number(addForm.block),
@@ -555,7 +600,15 @@ export default function HomeownerManagementPage() {
   }
 
   const openViewModal = (homeowner) => {
-    setSelectedHomeowner(homeowner)
+    const isOwner = isOwnerOccupant(homeowner.occupantStatus)
+
+    setSelectedHomeowner({
+      ...homeowner,
+      paymentHistory: isOwner ? homeowner.paymentHistory : [],
+      unpaidPeriods: isOwner ? homeowner.unpaidPeriods : [],
+      totalPaid: isOwner ? homeowner.totalPaid : 0,
+      upcomingPayment: isOwner ? homeowner.upcomingPayment : { month: '-' }
+    })
     setActiveViewTab('info')
     setIsEditingHomeowner(false)
     setStatusDraft(isOwnerOccupant(homeowner.occupantStatus) ? statusListToSingleOption(homeowner.status) : NON_OWNER_STATUS)
@@ -578,7 +631,9 @@ export default function HomeownerManagementPage() {
       imageName: ''
     })
 
-    fetchHomeownerPayments(homeowner.id)
+    if (isOwner) {
+      fetchHomeownerPayments(homeowner.id)
+    }
   }
 
   const closeViewModal = () => {
@@ -615,13 +670,27 @@ export default function HomeownerManagementPage() {
     setIsLoadingHomeownerPayments(true)
 
     try {
-      const response = await apiClient.get('/payments', {
-        query: {
-          record_id: homeownerId
-        }
-      })
+      const now = new Date()
+      const monthsSinceStart =
+        (now.getFullYear() - TRACKER_START.year) * 12 +
+        (now.getMonth() + 1 - TRACKER_START.month) +
+        1
+      const trackerMonths = Math.max(monthsSinceStart, 1)
 
-      const payments = Array.isArray(response?.data) ? response.data : []
+      const [paymentsResponse, trackerResponse] = await Promise.all([
+        apiClient.get('/payments', {
+          query: {
+            record_id: homeownerId
+          }
+        }),
+        apiClient.get('/payments/tracker', {
+          query: {
+            months: trackerMonths
+          }
+        })
+      ])
+
+      const payments = Array.isArray(paymentsResponse?.data) ? paymentsResponse.data : []
       const paymentHistory = payments
         .map((payment) => ({
           id: String(payment._id || `${payment.receipt_no || ''}-${payment.date || ''}`),
@@ -632,6 +701,15 @@ export default function HomeownerManagementPage() {
         }))
         .sort((a, b) => new Date(b.paidOn || 0).getTime() - new Date(a.paidOn || 0).getTime())
 
+      const totalPaid = payments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0)
+      const trackerHomeowners = trackerResponse?.data?.homeowners || []
+      const trackerEntry = trackerHomeowners.find((entry) => String(entry.id) === String(homeownerId))
+      const unpaidPeriods = Array.isArray(trackerEntry?.monthly_status)
+        ? trackerEntry.monthly_status.filter((entry) => entry.status === 'unpaid')
+        : []
+
+      const unpaidLabels = unpaidPeriods.map((entry) => entry.label)
+
       setSelectedHomeowner((prev) => {
         if (!prev || prev.id !== homeownerId) {
           return prev
@@ -640,7 +718,9 @@ export default function HomeownerManagementPage() {
         return {
           ...prev,
           paymentHistory,
-          upcomingPayment: { month: getUpcomingPeriodLabel(payments) }
+          upcomingPayment: { month: getUpcomingPeriodLabel(payments) },
+          totalPaid,
+          unpaidPeriods: unpaidLabels
         }
       })
     } catch (error) {
@@ -797,7 +877,7 @@ export default function HomeownerManagementPage() {
     : ''
 
   const generateAndPrintIdCard = (homeowner) => {
-    if (!homeowner) {
+    if (!homeowner || !isOwnerOccupant(homeowner.occupantStatus)) {
       return
     }
 
@@ -811,7 +891,40 @@ export default function HomeownerManagementPage() {
     }
 
     popup.document.open()
-    popup.document.write(buildHomeownerIdCardHtml(homeowner))
+    popup.document.write(buildHomeownerIdCardHtml(homeowner, window.location.origin))
+    popup.document.close()
+
+    popup.onload = () => {
+      popup.focus()
+      popup.onafterprint = () => {
+        popup.close()
+      }
+      popup.print()
+    }
+  }
+
+  const generatePaymentReport = (homeowner) => {
+    if (!homeowner) {
+      return
+    }
+
+    const popup = window.open('', '_blank', 'width=1100,height=760')
+    if (!popup) {
+      notify.error({
+        title: 'Popup Blocked',
+        description: 'Please allow popups in your browser to generate payment reports.'
+      })
+      return
+    }
+
+    popup.document.open()
+    popup.document.write(
+      buildHomeownerPaymentReportHtml({
+        homeowner,
+        monthlyDues,
+        generatedAt: new Date()
+      })
+    )
     popup.document.close()
 
     popup.onload = () => {
@@ -889,7 +1002,7 @@ export default function HomeownerManagementPage() {
                   </td>
                 </tr>
               ) : (
-                filteredHomeowners.map((homeowner) => (
+                pagedHomeowners.map((homeowner) => (
                   <tr key={homeowner.id}>
                     <td>
                       <div className={styles.nameCell}>
@@ -927,6 +1040,28 @@ export default function HomeownerManagementPage() {
           </table>
         </div>
       </section>
+
+      {filteredHomeowners.length > 0 ? (
+        <div className={styles.pagination}>
+          <button
+            type="button"
+            className={styles.pageButton}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+          <button
+            type="button"
+            className={styles.pageButton}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
 
       {isAddModalOpen && (
         <div className={styles.modalOverlay}>
@@ -994,13 +1129,13 @@ export default function HomeownerManagementPage() {
                   className={styles.input}
                   value={addForm.phone}
                   onChange={(event) => handlePhoneChange(event.target.value)}
-                  placeholder="XXXX XXX XXXX"
+                  placeholder="09XX XXX XXXX"
                 />
 
                 <div className={styles.threeColGrid}>
                   <div>
                     <label className={styles.fieldLabel}>
-                      Job Description <span className={styles.requiredMark}>*</span>
+                      Job Title <span className={styles.requiredMark}>*</span>
                     </label>
                     <input
                       type="text"
@@ -1148,17 +1283,6 @@ export default function HomeownerManagementPage() {
                       onChange={(event) => handleHouseholdCountChange(event.target.value)}
                     />
                   </div>
-                  <div>
-                    <label className={styles.fieldLabel}>
-                      Loan Availed <span className={styles.requiredMark}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={addForm.loanAvailed}
-                      onChange={(event) => handleFormChange('loanAvailed', event.target.value)}
-                    />
-                  </div>
                 </div>
 
                 <div className={styles.twoColGrid}>
@@ -1281,9 +1405,16 @@ export default function HomeownerManagementPage() {
               </div>
               <button
                 type="button"
-                className={`${styles.secondaryButton} ${styles.tabActionButton}`}
+                className={`${styles.idCardButton} ${styles.tabActionButton}`}
                 onClick={() => generateAndPrintIdCard(selectedHomeowner)}
+                disabled={!isOwnerOccupant(selectedHomeowner.occupantStatus)}
+                title={
+                  isOwnerOccupant(selectedHomeowner.occupantStatus)
+                    ? 'Generate homeowner ID card'
+                    : 'ID card is available for Owner occupants only.'
+                }
               >
+                <HiOutlineIdentification className={styles.idCardIcon} aria-hidden="true" />
                 Generate ID Card
               </button>
             </div>
@@ -1475,7 +1606,37 @@ export default function HomeownerManagementPage() {
               </div>
             ) : (
               <div className={styles.paymentSection}>
-                <h3 className={styles.paymentsTitle}>Past Monthly Payments</h3>
+                <div className={styles.paymentHeaderRow}>
+                  <h3 className={styles.paymentsTitle}>Past Monthly Payments</h3>
+                </div>
+
+                {!isOwnerOccupant(selectedHomeowner.occupantStatus) ? (
+                  <div className={styles.unpaidSection}>
+                    <p className={styles.detailLabel}>Payment Tracking Disabled</p>
+                    <p className={styles.detailValue}>Payment tracking is available for Owner occupants only.</p>
+                  </div>
+                ) : (
+                  <>
+
+                <div className={styles.paymentSummaryGrid}>
+                  <div className={styles.summaryCard}>
+                    <p className={styles.detailLabel}>Total Amount Paid</p>
+                    <p className={styles.detailValue}>
+                      {selectedHomeowner.totalPaid > 0 ? toPeso(selectedHomeowner.totalPaid) : '-'}
+                    </p>
+                  </div>
+                  <div className={styles.summaryCard}>
+                    <p className={styles.detailLabel}>Unpaid Dues</p>
+                    <p className={styles.detailValue}>
+                      {selectedHomeowner.unpaidPeriods.length}
+                      {selectedHomeowner.unpaidPeriods.length === 1 ? ' month' : ' months'}
+                    </p>
+                  </div>
+                  <div className={styles.summaryCard}>
+                    <p className={styles.detailLabel}>Monthly Dues</p>
+                    <p className={styles.detailValue}>{toPeso(monthlyDues)}</p>
+                  </div>
+                </div>
                 <div className={styles.paymentScroll}>
                   <ul className={styles.paymentList}>
                     <li className={`${styles.paymentRow} ${styles.paymentHeader}`}>
@@ -1508,11 +1669,32 @@ export default function HomeownerManagementPage() {
                     ))}
                   </ul>
                 </div>
-
-                <div className={styles.upcomingCard}>
-                  <p className={styles.detailLabel}>Upcoming Monthly Payment</p>
-                  <p className={styles.detailValue}>{selectedHomeowner.upcomingPayment.month}</p>
+                <div className={styles.unpaidSection}>
+                  <p className={styles.detailLabel}>Unpaid Months</p>
+                  {selectedHomeowner.unpaidPeriods.length === 0 ? (
+                    <p className={styles.detailValue}>No unpaid dues in the tracked period.</p>
+                  ) : (
+                    <ul className={styles.unpaidList}>
+                      {selectedHomeowner.unpaidPeriods.map((period) => (
+                        <li key={period} className={styles.unpaidItem}>
+                          {period}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className={styles.summarySubtext}>Tracking unpaid months since January 2026.</p>
                 </div>
+                <div className={styles.paymentActions}>
+                  <button
+                    type="button"
+                    className={styles.reportButton}
+                    onClick={() => generatePaymentReport(selectedHomeowner)}
+                  >
+                    Generate Payment Report
+                  </button>
+                </div>
+                </>
+                )}
               </div>
             )}
 

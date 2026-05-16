@@ -39,16 +39,11 @@ export default function NotificationsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
-  const loadNotifications = async (pageNumber = 1, append = false) => {
+  const loadNotifications = async (pageNumber = 1) => {
     try {
-      if (append) {
-        setIsLoadingMore(true)
-      } else {
-        setIsLoading(true)
-      }
+      setIsLoading(true)
       setErrorMessage('')
 
       const response = await apiClient.get('/notifications', {
@@ -58,7 +53,7 @@ export default function NotificationsPage() {
       const data = Array.isArray(response?.data) ? response.data : []
       const nextMeta = response?.meta || {}
 
-      setNotifications((prev) => (append ? [...prev, ...data] : data))
+      setNotifications(data)
       setPage(Number(nextMeta.page) || pageNumber)
       setTotalPages(Number(nextMeta.totalPages) || 1)
       setUnreadCount(Number(nextMeta.unreadCount) || 0)
@@ -66,12 +61,11 @@ export default function NotificationsPage() {
       setErrorMessage(error.message || 'Unable to load notifications.')
     } finally {
       setIsLoading(false)
-      setIsLoadingMore(false)
     }
   }
 
   useEffect(() => {
-    loadNotifications(1, false)
+    loadNotifications(1)
   }, [])
 
   const handleMarkRead = async (notificationId) => {
@@ -100,7 +94,8 @@ export default function NotificationsPage() {
     }
   }
 
-  const canLoadMore = useMemo(() => page < totalPages, [page, totalPages])
+  const canGoPrev = useMemo(() => page > 1, [page])
+  const canGoNext = useMemo(() => page < totalPages, [page, totalPages])
 
   return (
     <main className={styles.page}>
@@ -159,15 +154,24 @@ export default function NotificationsPage() {
         )}
       </section>
 
-      {canLoadMore ? (
-        <div className={styles.loadMoreWrap}>
+      {totalPages > 1 ? (
+        <div className={styles.pagination}>
           <button
             type="button"
-            className={styles.secondaryButton}
-            onClick={() => loadNotifications(page + 1, true)}
-            disabled={isLoadingMore}
+            className={styles.pageButton}
+            onClick={() => loadNotifications(page - 1)}
+            disabled={!canGoPrev || isLoading}
           >
-            {isLoadingMore ? 'Loading...' : 'Load more'}
+            Prev
+          </button>
+          <span className={styles.pageInfo}>Page {page} of {totalPages}</span>
+          <button
+            type="button"
+            className={styles.pageButton}
+            onClick={() => loadNotifications(page + 1)}
+            disabled={!canGoNext || isLoading}
+          >
+            Next
           </button>
         </div>
       ) : null}

@@ -26,11 +26,14 @@ const buildNameStyle = (value) => {
   return `font-size: ${fontSize}mm; line-height: 1.1;`
 }
 
-export const buildHomeownerIdCardHtml = (homeowner = {}) => {
+export const buildHomeownerIdCardHtml = (homeowner = {}, baseUrl = '') => {
   const fullName = `${homeowner.lastName || ''}, ${homeowner.firstName || ''}`.replace(/^,\s*/, '').trim() || 'HOMEOWNER'
   const unitText = `PHASE ${homeowner.phase || '-'}, BLOCK ${homeowner.block || '-'}, LOT ${homeowner.lot || '-'}`
   const residentId = homeowner.displayId || homeowner.residentId || homeowner.id || '-'
   const photoUrl = homeowner.photoUrl || ''
+  const normalizedBase = baseUrl ? String(baseUrl).replace(/\/$/, '') : ''
+  const frontBg = `${normalizedBase}/images/FRONT_bg.png`
+  const backBg = `${normalizedBase}/images/BACK-bg.png`
 
   return `<!doctype html>
 <html lang="en">
@@ -163,7 +166,7 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
 <body>
   <div class="page">
     <section class="card front">
-      <img src="/images/FRONT_bg.png" alt="" class="bgImage" />
+      <img src="${escapeHtml(frontBg)}" alt="" class="bgImage" />
       <div class="fieldId">ID#: ${escapeHtml(residentId)}</div>
       <div class="fieldName" style="${buildNameStyle(fullName)}">${escapeHtml(fullName)}</div>
       <div class="fieldUnit">${escapeHtml(unitText)}</div>
@@ -171,7 +174,7 @@ export const buildHomeownerIdCardHtml = (homeowner = {}) => {
     </section>
 
     <section class="card back">
-      <img src="/images/BACK-bg.png" alt="" class="bgImage" />
+      <img src="${escapeHtml(backBg)}" alt="" class="bgImage" />
     </section>
   </div>
 </body>

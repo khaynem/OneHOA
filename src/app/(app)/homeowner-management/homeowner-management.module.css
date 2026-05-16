@@ -19,6 +19,12 @@
   font-weight: 700;
   color: #1f2024;
 }
+  .paymentHeaderRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
 
 .subtitle {
   margin: 8px 0 0;
@@ -109,6 +115,36 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   max-width: 100%;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pageButton {
+  border: 1px solid #d2d7df;
+  background: #f9fafb;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pageButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  color: #4b5563;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .tableScroll {
@@ -241,6 +277,8 @@
 
 .viewModal {
   width: min(96vw, 760px);
+  max-height: none;
+  overflow: visible;
 }
 
 .modalHeader {
@@ -268,6 +306,62 @@
   object-fit: cover;
   border: 2px solid #d5e6f5;
 }
+  .paymentSummaryGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .summaryCard {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    padding: 12px 14px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+
+  .summarySubtext {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 0.85rem;
+  }
+
+  .unpaidSection {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    padding: 12px 14px;
+    margin-top: 2px;
+  }
+
+  .unpaidList {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .unpaidItem {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #ffe4e4;
+    color: #a01414;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 900px) {
+    .paymentSummaryGrid {
+      grid-template-columns: 1fr;
+    }
+
+    .paymentHeaderRow {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
 
 .modalAvatarPlaceholder {
   display: grid;
@@ -562,6 +656,8 @@
 
 .paymentSection {
   padding-bottom: 2px;
+  display: grid;
+  gap: 16px;
 }
 
 .paymentsTitle {
@@ -576,20 +672,21 @@
   margin: 0 0 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  overflow-y: auto;
-  overflow-x: visible;
-  max-height: 230px;
-  min-width: 690px;
+  overflow-y: auto  ;
+  overflow-x: hidden;
+  height: 168px;
+  max-height: 168px;
+  min-width: 0;
 }
 
 .paymentScroll {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 
 .paymentRow {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 0.9fr 0.8fr;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 1fr) minmax(110px, 0.9fr) minmax(120px, 0.8fr);
   gap: 10px;
   padding: 10px 12px;
   border-top: 1px solid #eceff2;
@@ -618,6 +715,63 @@
   border-radius: 8px;
   background: #f8fbff;
   padding: 12px;
+}
+
+.paymentActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.reportButton {
+  border: 0;
+  background: #0d7a5f;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 8px;
+  padding: 9px 16px;
+  min-height: 40px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.reportButton:hover {
+  background: #0b6a52;
+  transform: translateY(-1px);
+}
+
+.idCardButton {
+  border: 0;
+  background: #dbe4ee;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.96rem;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 9px 18px;
+  min-height: 40px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.idCardButton:hover:not(:disabled) {
+  background: #c2cad3;
+  transform: translateY(-1px);
+}
+
+.idCardButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.idCardIcon {
+  width: 18px;
+  height: 18px;
 }
 
 .statusToggleButton {

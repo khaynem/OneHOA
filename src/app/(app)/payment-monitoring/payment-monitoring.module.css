@@ -61,6 +61,84 @@
   margin-bottom: 16px;
 }
 
+.duesCard {
+  background: #fff;
+  border: 1px solid #d4d8dd;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.duesLabel {
+  margin: 0;
+  color: #4f4f4f;
+  font-size: 0.92rem;
+}
+
+.duesValue {
+  margin: 6px 0 0;
+  color: #101113;
+  font-size: clamp(1.4rem, 2vw, 1.7rem);
+  font-weight: 700;
+}
+
+.duesHint {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.duesControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.duesInput {
+  border: 1px solid #d7dce2;
+  border-radius: 8px;
+  padding: 9px 12px;
+  min-height: 40px;
+  font-size: 0.95rem;
+  width: 160px;
+  font-family: poppins, sans-serif;
+}
+
+.duesInput:focus {
+  border-color: #8cb6da;
+  box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.15);
+  outline: none;
+}
+
+.duesButton {
+  border: 0;
+  background: #0a68b2;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 8px;
+  padding: 9px 16px;
+  min-height: 40px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.duesButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.duesButton:hover:not(:disabled) {
+  background: #095b9b;
+  transform: translateY(-1px);
+}
+
 .statCard {
   background: #fff;
   border: 1px solid #d4d8dd;
@@ -172,6 +250,36 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   max-width: 100%;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pageButton {
+  border: 1px solid #d2d7df;
+  background: #f9fafb;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pageButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  color: #4b5563;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .tableTitle {

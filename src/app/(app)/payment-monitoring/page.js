@@ -23,6 +23,9 @@ const EMPTY_FORM = {
   paymentDetails: ''
 }
 
+const DEFAULT_MONTHLY_DUES = 100
+const PAGE_SIZE = 10
+
 const MONTH_OPTIONS = [
   { value: '01', label: 'January' },
   { value: '02', label: 'February' },
@@ -166,6 +169,11 @@ export default function PaymentMonitoringPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [isHomeownerSuggestOpen, setIsHomeownerSuggestOpen] = useState(false)
   const [debouncedHomeownerSearch, setDebouncedHomeownerSearch] = useState('')
+  const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
+  const [monthlyDuesDraft, setMonthlyDuesDraft] = useState(String(DEFAULT_MONTHLY_DUES))
+  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [isSavingDues, setIsSavingDues] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const monitoredHomeowners = useMemo(
     () => homeowners.filter((homeowner) => isPaymentMonitored(homeowner)),
@@ -262,12 +270,65 @@ export default function PaymentMonitoringPage() {
   }, [])
 
   useEffect(() => {
+    let isMounted = true
+
+    const loadDuesAndUser = async () => {
+      const [duesResult, meResult] = await Promise.allSettled([
+        apiClient.get('/settings/dues'),
+        apiClient.get('/auth/me')
+      ])
+
+      if (!isMounted) {
+        return
+      }
+
+      if (duesResult.status === 'fulfilled') {
+        const nextAmount = Number(duesResult.value?.amount)
+        if (!Number.isNaN(nextAmount) && nextAmount > 0) {
+          setMonthlyDues(nextAmount)
+          setMonthlyDuesDraft(String(nextAmount))
+        }
+      }
+
+      if (meResult.status === 'fulfilled') {
+        setCurrentUserRole(String(meResult.value?.user?.role || ''))
+      }
+    }
+
+    loadDuesAndUser()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    setForm((prev) => {
+      const periods = Array.isArray(prev.paymentPeriods) ? prev.paymentPeriods : []
+      if (periods.length === 0) {
+        return prev.amount ? { ...prev, amount: '' } : prev
+      }
+
+      const nextAmount = String(periods.length * monthlyDues)
+      if (prev.amount === nextAmount) {
+        return prev
+      }
+
+      return { ...prev, amount: nextAmount }
+    })
+  }, [monthlyDues])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedHomeownerSearch(form.homeownerSearch)
     }, 150)
 
     return () => window.clearTimeout(timer)
   }, [form.homeownerSearch])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchText, dateFilter])
 
   const filteredRecords = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -311,6 +372,18 @@ export default function PaymentMonitoringPage() {
         return (dateB?.getTime() || 0) - (dateA?.getTime() || 0)
       })
   }, [records, searchText, dateFilter])
+
+  const totalPages = Math.max(Math.ceil(filteredRecords.length / PAGE_SIZE), 1)
+  const pagedRecords = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredRecords.slice(start, start + PAGE_SIZE)
+  }, [currentPage, filteredRecords])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const openRecordModal = () => {
     setForm(EMPTY_FORM)
@@ -362,6 +435,41 @@ export default function PaymentMonitoringPage() {
     setIsHomeownerSuggestOpen(false)
   }
 
+  const saveMonthlyDues = async () => {
+    const nextAmount = Number(String(monthlyDuesDraft || '').replace(/[^\d.]/g, ''))
+
+    if (!Number.isFinite(nextAmount) || nextAmount <= 0) {
+      notify.error({
+        title: 'Invalid Monthly Dues',
+        description: 'Enter a valid amount greater than 0.'
+      })
+      return
+    }
+
+    try {
+      setIsSavingDues(true)
+      const response = await apiClient.put('/settings/dues', { amount: nextAmount })
+      const savedAmount = Number(response?.amount)
+
+      if (!Number.isNaN(savedAmount) && savedAmount > 0) {
+        setMonthlyDues(savedAmount)
+        setMonthlyDuesDraft(String(savedAmount))
+      }
+
+      notify.success({
+        title: 'Monthly Dues Updated',
+        description: 'The new monthly dues amount has been saved.'
+      })
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Update Dues',
+        description: error.message || 'Unable to update monthly dues.'
+      })
+    } finally {
+      setIsSavingDues(false)
+    }
+  }
+
   const savePaymentRecord = async () => {
     const amountPaid = Number(form.amount)
     const numericReceiptNo = Number(String(form.receiptNo).replace(/\D/g, ''))
@@ -393,6 +501,19 @@ export default function PaymentMonitoringPage() {
       return
     }
 
+    const alreadyPaidPeriods = records
+      .filter((record) => record.recordId === form.recordId && record.paymentStatus === 'paid')
+      .flatMap((record) => record.coveredPeriods || [])
+    const duplicatePeriods = paymentForPeriods.filter((period) => alreadyPaidPeriods.includes(period))
+
+    if (duplicatePeriods.length > 0) {
+      notify.error({
+        title: 'Duplicate Payment Period',
+        description: `Payment already recorded for ${duplicatePeriods.map(paymentPeriodToLabel).join(', ')}.`
+      })
+      return
+    }
+
     try {
       await apiClient.post('/payments', {
         receipt_no: numericReceiptNo,
@@ -418,22 +539,15 @@ export default function PaymentMonitoringPage() {
 
   const stats = useMemo(() => {
     const currentPeriod = getCurrentPeriod()
-    const now = new Date()
-
-    const currentMonthPaidByDate = records.filter((record) => {
-      if (record.paymentStatus !== 'paid') {
-        return false
-      }
-
-      const paidDate = parseLocalDate(record.datePaid)
-      return Boolean(paidDate) && isThisMonth(paidDate, now)
-    })
 
     const currentMonthPaidRecords = records.filter(
       (record) => record.paymentStatus === 'paid' && record.coveredPeriods.includes(currentPeriod)
     )
 
-    const totalCollectedCurrentMonth = currentMonthPaidByDate.reduce((sum, record) => sum + (Number(record.amount) || 0), 0)
+    const totalCollectedCurrentMonth = currentMonthPaidRecords.reduce(
+      (sum, record) => sum + (Number(record.amount) || 0),
+      0
+    )
 
     const paidHomeownerIds = new Set(currentMonthPaidRecords.map((record) => record.recordId).filter(Boolean))
     const totalHomeowners = monitoredHomeowners.length
@@ -464,7 +578,7 @@ export default function PaymentMonitoringPage() {
     setForm((prev) => ({
       ...prev,
       paymentPeriods: nextPeriods,
-      amount: String(nextPeriods.length * 100)
+      amount: String(nextPeriods.length * monthlyDues)
     }))
   }
 
@@ -473,7 +587,7 @@ export default function PaymentMonitoringPage() {
     setForm((prev) => ({
       ...prev,
       paymentPeriods: nextPeriods,
-      amount: nextPeriods.length > 0 ? String(nextPeriods.length * 100) : ''
+      amount: nextPeriods.length > 0 ? String(nextPeriods.length * monthlyDues) : ''
     }))
   }
 
@@ -489,6 +603,35 @@ export default function PaymentMonitoringPage() {
           <PaymentIcon className={styles.recordButtonIcon} aria-hidden="true" />
           Add Record Payment
         </button>
+      </section>
+
+      <section className={styles.duesCard} aria-label="Monthly dues">
+        <div>
+          <p className={styles.duesLabel}>Monthly Dues</p>
+          <p className={styles.duesValue}>{toPeso(monthlyDues)}</p>
+          <p className={styles.duesHint}>Used to calculate payment totals for new records.</p>
+        </div>
+        {['admin', 'president'].includes(String(currentUserRole || '').toLowerCase()) ? (
+          <div className={styles.duesControls}>
+            <input
+              type="text"
+              inputMode="decimal"
+              className={styles.duesInput}
+              value={monthlyDuesDraft}
+              onChange={(event) => setMonthlyDuesDraft(event.target.value)}
+              placeholder="Enter amount"
+              aria-label="Monthly dues amount"
+            />
+            <button
+              type="button"
+              className={styles.duesButton}
+              onClick={saveMonthlyDues}
+              disabled={isSavingDues}
+            >
+              {isSavingDues ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className={styles.cardGrid} aria-label="Payment monitoring stats">
@@ -578,7 +721,7 @@ export default function PaymentMonitoringPage() {
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((record) => (
+                pagedRecords.map((record) => (
                   <tr key={record.id}>
                     <td>{record.homeownerName}</td>
                     <td>{record.receiptNo}</td>
@@ -601,6 +744,28 @@ export default function PaymentMonitoringPage() {
         </div>
       </section>
 
+      {filteredRecords.length > 0 ? (
+        <div className={styles.pagination}>
+          <button
+            type="button"
+            className={styles.pageButton}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+          <button
+            type="button"
+            className={styles.pageButton}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
+
       {isRecordModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
@@ -617,6 +782,12 @@ export default function PaymentMonitoringPage() {
                     value={form.homeownerSearch}
                     onChange={(event) => handleHomeownerSearchChange(event.target.value)}
                     onFocus={() => setIsHomeownerSuggestOpen(true)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && homeownerSuggestions.length > 0) {
+                        event.preventDefault()
+                        selectHomeowner(homeownerSuggestions[0])
+                      }
+                    }}
                     onBlur={() => {
                       setTimeout(() => {
                         setIsHomeownerSuggestOpen(false)
@@ -625,13 +796,16 @@ export default function PaymentMonitoringPage() {
                     placeholder="Search homeowner name or unit number"
                   />
                   {isHomeownerSuggestOpen && homeownerSuggestions.length > 0 ? (
-                    <ul className={styles.suggestionList}>
+                    <ul className={styles.suggestionList} onMouseDown={(event) => event.preventDefault()}>
                       {homeownerSuggestions.map((homeowner) => (
                         <li key={homeowner.id}>
                           <button
                             type="button"
                             className={styles.suggestionItem}
-                            onClick={() => selectHomeowner(homeowner)}
+                            onMouseDown={(event) => {
+                              event.preventDefault()
+                              selectHomeowner(homeowner)
+                            }}
                           >
                             <span>{homeowner.name}</span>
                             <small>{homeowner.unitNumber}</small>
@@ -662,6 +836,16 @@ export default function PaymentMonitoringPage() {
                   value={form.receiptNo}
                   onChange={(event) => handleFormChange('receiptNo', event.target.value.replace(/\D/g, ''))}
                   placeholder="e.g. 1201"
+                />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Amount</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={form.amount ? toPeso(form.amount) : ''}
+                  readOnly
                 />
               </div>
 

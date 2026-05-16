@@ -15,6 +15,8 @@ const EMPTY_FORM = {
   imageUrl: ''
 }
 
+const PAGE_SIZE = 10
+
 const formatDate = (value) => {
   if (!value) {
     return '-'
@@ -77,6 +79,8 @@ export default function HOAActivitiesPage() {
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [isEditingActivity, setIsEditingActivity] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [archivedPage, setArchivedPage] = useState(1)
 
   const [form, setForm] = useState(EMPTY_FORM)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
@@ -97,6 +101,30 @@ export default function HOAActivitiesPage() {
         .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
     [activities]
   )
+
+  const totalPages = Math.max(Math.ceil(sortedActivities.length / PAGE_SIZE), 1)
+  const pagedActivities = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return sortedActivities.slice(start, start + PAGE_SIZE)
+  }, [currentPage, sortedActivities])
+
+  const archivedTotalPages = Math.max(Math.ceil(archivedActivities.length / PAGE_SIZE), 1)
+  const pagedArchivedActivities = useMemo(() => {
+    const start = (archivedPage - 1) * PAGE_SIZE
+    return archivedActivities.slice(start, start + PAGE_SIZE)
+  }, [archivedActivities, archivedPage])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  useEffect(() => {
+    if (archivedPage > archivedTotalPages) {
+      setArchivedPage(archivedTotalPages)
+    }
+  }, [archivedPage, archivedTotalPages])
 
   const loadActivities = async () => {
     try {
@@ -366,7 +394,7 @@ export default function HOAActivitiesPage() {
           ) : sortedActivities.length === 0 ? (
             <div className={styles.emptyState}>No activities posted yet.</div>
           ) : (
-            sortedActivities.map((activity) => (
+            pagedActivities.map((activity) => (
               <button
                 type="button"
                 key={activity.id}
@@ -388,6 +416,28 @@ export default function HOAActivitiesPage() {
             ))
           )}
         </div>
+
+        {sortedActivities.length > 0 ? (
+          <div className={styles.pagination}>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {isCreateModalOpen && (
@@ -564,7 +614,7 @@ export default function HOAActivitiesPage() {
               {archivedActivities.length === 0 ? (
                 <div className={styles.emptyState}>No archived activities found.</div>
               ) : (
-                archivedActivities.map((activity) => (
+                pagedArchivedActivities.map((activity) => (
                   <div key={activity.id} className={styles.archivedItem}>
                     <div>
                       <h3 className={styles.activityTitle}>{activity.title}</h3>
@@ -587,6 +637,28 @@ export default function HOAActivitiesPage() {
                 ))
               )}
             </div>
+
+            {archivedActivities.length > 0 ? (
+              <div className={styles.pagination}>
+                <button
+                  type="button"
+                  className={styles.pageButton}
+                  onClick={() => setArchivedPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={archivedPage === 1}
+                >
+                  Prev
+                </button>
+                <span className={styles.pageInfo}>Page {archivedPage} of {archivedTotalPages}</span>
+                <button
+                  type="button"
+                  className={styles.pageButton}
+                  onClick={() => setArchivedPage((prev) => Math.min(prev + 1, archivedTotalPages))}
+                  disabled={archivedPage === archivedTotalPages}
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
 
             <div className={styles.modalActions}>
               <button type="button" className={styles.secondaryButton} onClick={closeArchivedModal}>

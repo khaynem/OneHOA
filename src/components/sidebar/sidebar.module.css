@@ -4,12 +4,14 @@
   padding: 20px 14px;
   background: #003b75;
   min-height: 100dvh;
-  height: auto;
-  align-self: stretch;
+  height: 100dvh;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
   box-sizing: border-box;
   transition: width 0.28s ease, padding 0.28s ease;
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: auto;
 }
 
 .brandWrap {

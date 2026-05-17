@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   HiOutlineBanknotes as CollectedIcon,
   HiOutlineChartBar as RateIcon,
   HiOutlineCircleStack as PaymentIcon,
   HiOutlineClock as PendingIcon
 } from 'react-icons/hi2'
+import { Br, Cut, Line, Printer, Row, Text, render } from 'react-thermal-printer'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './payment-monitoring.module.css'
@@ -18,13 +19,18 @@ const EMPTY_FORM = {
   date: '',
   receiptNo: '',
   paymentPeriods: [],
-  periodYear: String(new Date().getFullYear()),
-  periodMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
+  rangeStartYear: String(new Date().getFullYear()),
+  rangeStartMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
+  rangeEndYear: String(new Date().getFullYear()),
+  rangeEndMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
   paymentDetails: ''
 }
 
 const DEFAULT_MONTHLY_DUES = 100
 const PAGE_SIZE = 10
+const PRINTER_TYPE = 'epson'
+const PRINTER_WIDTH = 50
+const PRINTER_BAUD_RATE = 115200
 
 const MONTH_OPTIONS = [
   { value: '01', label: 'January' },
@@ -92,8 +98,81 @@ const paymentPeriodToLabel = (period) => {
 const toPeso = (amount) =>
   new Intl.NumberFormat('en-PH', {
     style: 'currency',
-    currency: 'PHP'
+    currency: 'PHP',
+    currencyDisplay: 'symbol'
   }).format(Number(amount) || 0)
+
+const toYmd = (dateValue) => {
+  if (!dateValue) {
+    return ''
+  }
+
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const generateReceiptNo = (existingReceipts) => {
+  const existing = new Set(existingReceipts.map((value) => String(value).trim()))
+  let receipt = ''
+  let attempts = 0
+
+  while (attempts < 8) {
+    const randomPart = Math.floor(1000 + Math.random() * 9000)
+    receipt = `${Date.now()}${randomPart}`
+    if (!existing.has(receipt)) {
+      return receipt
+    }
+    attempts += 1
+  }
+
+  return `${Date.now()}${Math.floor(Math.random() * 10000)}`
+}
+
+const buildPeriodRange = (startYear, startMonth, endYear, endMonth) => {
+  const sYear = Number(startYear)
+  const sMonth = Number(startMonth)
+  const eYear = Number(endYear)
+  const eMonth = Number(endMonth)
+
+  if (
+    !Number.isInteger(sYear) || sYear < 2000 || sYear > 3000 ||
+    !Number.isInteger(eYear) || eYear < 2000 || eYear > 3000 ||
+    !Number.isInteger(sMonth) || sMonth < 1 || sMonth > 12 ||
+    !Number.isInteger(eMonth) || eMonth < 1 || eMonth > 12
+  ) {
+    return { periods: [], label: '' }
+  }
+
+  const startPeriod = sYear * 100 + sMonth
+  const endPeriod = eYear * 100 + eMonth
+  if (endPeriod < startPeriod) {
+    return { periods: [], label: '' }
+  }
+
+  const periods = []
+  let year = sYear
+  let month = sMonth
+  while (year * 100 + month <= endPeriod) {
+    periods.push(year * 100 + month)
+    month += 1
+    if (month > 12) {
+      month = 1
+      year += 1
+    }
+  }
+
+  return {
+    periods,
+    label: `${paymentPeriodToLabel(startPeriod)} - ${paymentPeriodToLabel(endPeriod)}`
+  }
+}
 
 const formatDate = (dateValue) => {
   if (!dateValue) {
@@ -111,6 +190,36 @@ const formatDate = (dateValue) => {
     year: 'numeric'
   }).format(date)
 }
+
+const formatReceiptPeriods = (periods = []) => {
+  if (!Array.isArray(periods) || periods.length === 0) {
+    return 'Not specified'
+  }
+
+  return periods.map(paymentPeriodToLabel).join(', ')
+}
+
+const buildReceiptElement = (receipt) => (
+  <Printer type={PRINTER_TYPE} width={PRINTER_WIDTH}>
+    <Text align="center" bold={true}>OneHOA</Text>
+    <Text align="center">Payment Receipt</Text>
+    <Br />
+    <Line />
+    <Row left="Receipt No" right={String(receipt.receiptNo || '-')} />
+    <Row left="Date Paid" right={formatDate(receipt.datePaid)} />
+    <Row left="Homeowner" right={String(receipt.homeownerName || '-')} />
+    <Row left="Ph-Blk-Lot" right={String(receipt.unitNumber || '-')} />
+    <Line />
+    <Row left="Periods" right={formatReceiptPeriods(receipt.coveredPeriods)} />
+    <Row left="Amount" right={toPeso(receipt.amount)} />
+    <Br />
+    <Text>Details:</Text>
+    <Text>{String(receipt.details || 'Monthly Due Payments')}</Text>
+    <Line />
+    <Text align="center">Thank you</Text>
+    <Cut />
+  </Printer>
+)
 
 const parseLocalDate = (dateValue) => {
   if (!dateValue) {
@@ -174,6 +283,11 @@ export default function PaymentMonitoringPage() {
   const [currentUserRole, setCurrentUserRole] = useState('')
   const [isSavingDues, setIsSavingDues] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [printerType, setPrinterType] = useState('usb')
+
+  const printerPortRef = useRef(null)
+  const printerTypeRef = useRef(null)
 
   const monitoredHomeowners = useMemo(
     () => homeowners.filter((homeowner) => isPaymentMonitored(homeowner)),
@@ -269,6 +383,7 @@ export default function PaymentMonitoringPage() {
     loadPaymentMonitoringData()
   }, [])
 
+
   useEffect(() => {
     let isMounted = true
 
@@ -317,6 +432,38 @@ export default function PaymentMonitoringPage() {
       return { ...prev, amount: nextAmount }
     })
   }, [monthlyDues])
+
+  const rangeInfo = useMemo(
+    () => buildPeriodRange(
+      form.rangeStartYear,
+      form.rangeStartMonth,
+      form.rangeEndYear,
+      form.rangeEndMonth
+    ),
+    [form.rangeStartMonth, form.rangeStartYear, form.rangeEndMonth, form.rangeEndYear]
+  )
+
+  useEffect(() => {
+    setForm((prev) => {
+      const periods = rangeInfo.periods
+      const nextAmount = periods.length > 0 ? String(periods.length * monthlyDues) : ''
+
+      if (
+        prev.amount === nextAmount &&
+        Array.isArray(prev.paymentPeriods) &&
+        prev.paymentPeriods.length === periods.length &&
+        prev.paymentPeriods.every((value, index) => value === periods[index])
+      ) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        paymentPeriods: periods,
+        amount: nextAmount
+      }
+    })
+  }, [rangeInfo, monthlyDues])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -386,7 +533,17 @@ export default function PaymentMonitoringPage() {
   }, [currentPage, totalPages])
 
   const openRecordModal = () => {
-    setForm(EMPTY_FORM)
+    const receiptNo = generateReceiptNo(records.map((record) => record.receiptNo))
+    const today = toYmd(new Date())
+    setForm({
+      ...EMPTY_FORM,
+      receiptNo,
+      date: today,
+      rangeStartYear: String(new Date().getFullYear()),
+      rangeStartMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
+      rangeEndYear: String(new Date().getFullYear()),
+      rangeEndMonth: String(new Date().getMonth() + 1).padStart(2, '0')
+    })
     setIsRecordModalOpen(true)
   }
 
@@ -470,15 +627,169 @@ export default function PaymentMonitoringPage() {
     }
   }
 
-  const savePaymentRecord = async () => {
-    const amountPaid = Number(form.amount)
-    const numericReceiptNo = Number(String(form.receiptNo).replace(/\D/g, ''))
-    const paymentForPeriods = Array.isArray(form.paymentPeriods) ? form.paymentPeriods : []
 
-    if (!form.recordId || !form.date || !form.receiptNo.trim() || !amountPaid || !numericReceiptNo) {
+  const ensurePrinterConnection = async () => {
+    if (!window.isSecureContext) {
+      throw new Error('Printing requires HTTPS or localhost to access the printer.')
+    }
+
+    if (printerPortRef.current && printerTypeRef.current === printerType) {
+      return { device: printerPortRef.current, type: printerType }
+    }
+
+    // Reset if switching types
+    printerPortRef.current = null
+
+    if (printerType === 'serial') {
+      if (!('serial' in navigator)) {
+        throw new Error('Web Serial is not supported in this browser.')
+      }
+      const ports = await navigator.serial.getPorts()
+      const port = ports[0] || (await navigator.serial.requestPort())
+      printerPortRef.current = port
+      printerTypeRef.current = 'serial'
+      return { device: port, type: 'serial' }
+    } else {
+      if (!('usb' in navigator)) {
+        throw new Error('Web USB is not supported in this browser.')
+      }
+      const devices = await navigator.usb.getDevices()
+      let device = devices[0]
+      if (!device) {
+        device = await navigator.usb.requestDevice({ filters: [] })
+      }
+      printerPortRef.current = device
+      printerTypeRef.current = 'usb'
+      return { device, type: 'usb' }
+    }
+  }
+
+  const writeToPrinter = async (data) => {
+    const { device, type } = await ensurePrinterConnection()
+
+    if (type === 'serial') {
+      let openedHere = false
+      if (!device.readable || !device.writable) {
+        await device.open({ baudRate: PRINTER_BAUD_RATE })
+        openedHere = true
+      }
+
+      const writer = device.writable?.getWriter()
+      if (!writer) {
+        throw new Error('Printer port is not writable.')
+      }
+
+      try {
+        await writer.write(data)
+      } finally {
+        writer.releaseLock()
+        if (openedHere) {
+          await device.close()
+        }
+      }
+    } else if (type === 'usb') {
+      let openedHere = false
+      if (!device.opened) {
+        await device.open()
+        openedHere = true
+      }
+
+      if (device.configuration === null) {
+        await device.selectConfiguration(1)
+      }
+
+      let interfaceNumber = -1
+      let endpointNumber = -1
+
+      for (const iface of device.configuration.interfaces) {
+        for (const alt of iface.alternates) {
+          for (const ep of alt.endpoints) {
+            if (ep.direction === 'out') {
+              interfaceNumber = iface.interfaceNumber
+              endpointNumber = ep.endpointNumber
+              break
+            }
+          }
+          if (endpointNumber !== -1) break
+        }
+        if (endpointNumber !== -1) break
+      }
+
+      if (interfaceNumber === -1 || endpointNumber === -1) {
+        throw new Error('Could not find a valid USB interface or endpoint to write to.')
+      }
+
+      if (!device.configuration.interfaces[interfaceNumber].claimed) {
+        await device.claimInterface(interfaceNumber)
+      }
+
+      await device.transferOut(endpointNumber, data)
+    }
+  }
+
+  const handlePrintReceipt = async (receiptData) => {
+    if (!receiptData) {
+      return
+    }
+
+    setIsPrinting(true)
+    try {
+      const receiptElement = buildReceiptElement({
+        ...receiptData,
+        printedAt: new Date()
+      })
+      const data = await render(receiptElement)
+      await writeToPrinter(data)
+      notify.success({
+        title: 'Receipt Sent to Printer',
+        description: 'Thermal printer received the receipt data.'
+      })
+    } catch (error) {
+      const errorName = String(error?.name || '')
+      const description =
+        errorName === 'NotFoundError'
+          ? 'No printer was selected. Please choose a port to continue.'
+          : error.message || 'Unable to print receipt.'
+      notify.error({
+        title: 'Print Failed',
+        description
+      })
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
+  const buildReceiptFromForm = (matchedHomeowner, amountPaid, numericReceiptNo, paymentForPeriods, paymentDate) => ({
+    homeownerName: matchedHomeowner?.name || '-',
+    unitNumber: matchedHomeowner?.unitNumber || '-',
+    amount: amountPaid,
+    datePaid: paymentDate,
+    receiptNo: String(numericReceiptNo || ''),
+    details: form.paymentDetails.trim() || 'Maintenance fee payment',
+    coveredPeriods: paymentForPeriods
+  })
+
+  const buildReceiptFromRecord = (record) => ({
+    homeownerName: record?.homeownerName || '-',
+    unitNumber: record?.unitNumber || '-',
+    amount: record?.amount || 0,
+    datePaid: record?.datePaid,
+    receiptNo: record?.receiptNo || '-',
+    details: record?.details || 'Maintenance fee payment',
+    coveredPeriods: record?.coveredPeriods || []
+  })
+
+  const savePaymentRecord = async ({ shouldPrint = false } = {}) => {
+    const amountPaid = Number(form.amount)
+    const safeReceiptNo = form.receiptNo || generateReceiptNo(records.map((record) => record.receiptNo))
+    const numericReceiptNo = Number(String(safeReceiptNo).replace(/\D/g, ''))
+    const paymentForPeriods = Array.isArray(form.paymentPeriods) ? form.paymentPeriods : []
+    const paymentDate = form.date || toYmd(new Date())
+
+    if (!form.recordId || !amountPaid || !numericReceiptNo) {
       notify.error({
         title: 'Missing Required Details',
-        description: 'Please complete homeowner, amount, date, and numeric receipt number.'
+        description: 'Please complete homeowner and payment period range.'
       })
       return
     }
@@ -486,7 +797,7 @@ export default function PaymentMonitoringPage() {
     if (paymentForPeriods.length === 0) {
       notify.error({
         title: 'Missing Payment Periods',
-        description: 'Add at least one payment period to compute amount.'
+        description: 'Choose a valid payment period range.'
       })
       return
     }
@@ -518,7 +829,7 @@ export default function PaymentMonitoringPage() {
       await apiClient.post('/payments', {
         receipt_no: numericReceiptNo,
         amount: amountPaid,
-        date: form.date,
+        date: paymentDate,
         payment_details: form.paymentDetails.trim() || 'Maintenance fee payment',
         record_id: form.recordId,
         payment_for_periods: paymentForPeriods.length > 0 ? paymentForPeriods : undefined
@@ -527,8 +838,19 @@ export default function PaymentMonitoringPage() {
         title: 'Payment Recorded',
         description: `${matchedHomeowner.name}'s payment has been added.`
       })
+      const receiptData = buildReceiptFromForm(
+        matchedHomeowner,
+        amountPaid,
+        numericReceiptNo,
+        paymentForPeriods,
+        paymentDate
+      )
       closeRecordModal()
       await loadPaymentMonitoringData()
+
+      if (shouldPrint) {
+        await handlePrintReceipt(receiptData)
+      }
     } catch (error) {
       notify.error({
         title: 'Failed to Record Payment',
@@ -561,35 +883,7 @@ export default function PaymentMonitoringPage() {
     }
   }, [monitoredHomeowners.length, records])
 
-  const addPaymentPeriod = () => {
-    const year = Number(form.periodYear)
-    const month = Number(form.periodMonth)
-
-    if (!Number.isInteger(year) || year < 2000 || year > 3000 || !Number.isInteger(month) || month < 1 || month > 12) {
-      notify.error({
-        title: 'Invalid Period',
-        description: 'Please pick a valid year and month.'
-      })
-      return
-    }
-
-    const period = year * 100 + month
-    const nextPeriods = Array.from(new Set([...(form.paymentPeriods || []), period])).sort((a, b) => a - b)
-    setForm((prev) => ({
-      ...prev,
-      paymentPeriods: nextPeriods,
-      amount: String(nextPeriods.length * monthlyDues)
-    }))
-  }
-
-  const removePaymentPeriod = (periodToRemove) => {
-    const nextPeriods = (form.paymentPeriods || []).filter((period) => period !== periodToRemove)
-    setForm((prev) => ({
-      ...prev,
-      paymentPeriods: nextPeriods,
-      amount: nextPeriods.length > 0 ? String(nextPeriods.length * monthlyDues) : ''
-    }))
-  }
+  const receiptDateLabel = formatDate(form.date)
 
   return (
     <main className={styles.page}>
@@ -818,12 +1112,12 @@ export default function PaymentMonitoringPage() {
               </div>
 
               <div>
-                <label className={styles.fieldLabel}>Date</label>
+                <label className={styles.fieldLabel}>Receipt Date</label>
                 <input
-                  type="date"
-                  className={styles.input}
-                  value={form.date}
-                  onChange={(event) => handleFormChange('date', event.target.value)}
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={receiptDateLabel}
+                  readOnly
                 />
               </div>
 
@@ -831,11 +1125,9 @@ export default function PaymentMonitoringPage() {
                 <label className={styles.fieldLabel}>Receipt No.</label>
                 <input
                   type="text"
-                  inputMode="numeric"
-                  className={styles.input}
+                  className={`${styles.input} ${styles.readonlyField}`}
                   value={form.receiptNo}
-                  onChange={(event) => handleFormChange('receiptNo', event.target.value.replace(/\D/g, ''))}
-                  placeholder="e.g. 1201"
+                  readOnly
                 />
               </div>
 
@@ -850,68 +1142,93 @@ export default function PaymentMonitoringPage() {
               </div>
 
               <div className={styles.fullSpan}>
-                <label className={styles.fieldLabel}>Payment Periods</label>
-                <div className={styles.periodPickerRow}>
-                  <select
-                    className={styles.input}
-                    value={form.periodMonth}
-                    onChange={(event) => handleFormChange('periodMonth', event.target.value)}
-                  >
-                    {MONTH_OPTIONS.map((month) => (
-                      <option key={month.value} value={month.value}>
-                        {month.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className={styles.input}
-                    value={form.periodYear}
-                    onChange={(event) => handleFormChange('periodYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="Year"
-                  />
-                  <button type="button" className={styles.addPeriodButton} onClick={addPaymentPeriod}>
-                    Add
-                  </button>
+                <label className={styles.fieldLabel}>Payment Period Range</label>
+                <div className={styles.periodRangeRow}>
+                  <div>
+                    <label className={styles.subLabel}>From</label>
+                    <div className={styles.rangeFields}>
+                      <select
+                        className={styles.input}
+                        value={form.rangeStartMonth}
+                        onChange={(event) => handleFormChange('rangeStartMonth', event.target.value)}
+                      >
+                        {MONTH_OPTIONS.map((month) => (
+                          <option key={month.value} value={month.value}>
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className={styles.input}
+                        value={form.rangeStartYear}
+                        onChange={(event) => handleFormChange('rangeStartYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="Year"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={styles.subLabel}>To</label>
+                    <div className={styles.rangeFields}>
+                      <select
+                        className={styles.input}
+                        value={form.rangeEndMonth}
+                        onChange={(event) => handleFormChange('rangeEndMonth', event.target.value)}
+                      >
+                        {MONTH_OPTIONS.map((month) => (
+                          <option key={month.value} value={month.value}>
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className={styles.input}
+                        value={form.rangeEndYear}
+                        onChange={(event) => handleFormChange('rangeEndYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="Year"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className={styles.periodTags}>
-                  {(form.paymentPeriods || []).length === 0 ? (
-                    <span className={styles.periodEmpty}>No periods added yet</span>
+                  {rangeInfo.periods.length === 0 ? (
+                    <span className={styles.periodEmpty}>Pick a valid range.</span>
                   ) : (
-                    form.paymentPeriods.map((period) => (
-                      <button
-                        key={period}
-                        type="button"
-                        className={styles.periodTag}
-                        onClick={() => removePaymentPeriod(period)}
-                        title="Remove period"
-                      >
-                        {paymentPeriodToLabel(period)} x
-                      </button>
-                    ))
+                    <span className={styles.periodTag}>
+                      {rangeInfo.label} ({rangeInfo.periods.length} months)
+                    </span>
                   )}
                 </div>
-                <p className={styles.periodHint}>Optional. Add one or more covered months for this payment.</p>
+                <p className={styles.periodHint}>The amount is calculated from the selected range.</p>
               </div>
             </div>
 
-            <div className={styles.fullSpan}>
-              <label className={styles.fieldLabel}>Payment Details</label>
-              <textarea
-                className={styles.textarea}
-                value={form.paymentDetails}
-                onChange={(event) => handleFormChange('paymentDetails', event.target.value)}
-                placeholder="Optional notes"
-              />
-            </div>
-
             <div className={styles.modalActions}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label className={styles.subLabel}>Printer:</label>
+                <select
+                  className={styles.input}
+                  value={printerType}
+                  onChange={(e) => setPrinterType(e.target.value)}
+                  style={{ width: '120px', padding: '0.25rem' }}
+                >
+                  <option value="usb">USB</option>
+                  <option value="serial">Serial</option>
+                </select>
+              </div>
               <button type="button" className={styles.secondaryButton} onClick={closeRecordModal}>
                 Cancel
               </button>
-              <button type="button" className={styles.primaryButton} onClick={savePaymentRecord}>
-                Add Record Payment
+              <button
+                type="button"
+                className={styles.printButton}
+                onClick={() => savePaymentRecord({ shouldPrint: true })}
+                disabled={isPrinting}
+              >
+                {isPrinting ? 'Printing...' : 'Add & Print Receipt'}
               </button>
             </div>
           </div>
@@ -1001,8 +1318,28 @@ export default function PaymentMonitoringPage() {
             </div>
 
             <div className={styles.modalActions}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label className={styles.subLabel}>Printer:</label>
+                <select
+                  className={styles.input}
+                  value={printerType}
+                  onChange={(e) => setPrinterType(e.target.value)}
+                  style={{ width: '120px', padding: '0.25rem' }}
+                >
+                  <option value="usb">USB</option>
+                  <option value="serial">Serial</option>
+                </select>
+              </div>
               <button type="button" className={styles.secondaryButton} onClick={closePaymentViewModal}>
                 Close
+              </button>
+              <button
+                type="button"
+                className={styles.printButton}
+                onClick={() => handlePrintReceipt(buildReceiptFromRecord(selectedPaymentRecord))}
+                disabled={isPrinting}
+              >
+                {isPrinting ? 'Printing...' : 'Print Receipt'}
               </button>
             </div>
           </div>

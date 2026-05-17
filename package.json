@@ -10,9 +10,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@serwist/next": "^9.5.11",
     "axios": "^1.14.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.7.0",
+    "iconv-lite": "^0.6.3",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.2.0",
     "mongoose": "^8.17.0",
@@ -21,7 +23,9 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hot-toast": "^2.6.0",
-    "react-icons": "^4.12.0"
+    "react-icons": "^4.12.0",
+    "react-thermal-printer": "^0.22.0",
+    "serwist": "^9.5.11"
   },
   "devDependencies": {
     "@types/node": "25.8.0",

@@ -74,6 +74,7 @@
   margin-bottom: 16px;
 }
 
+
 .duesLabel {
   margin: 0;
   color: #4f4f4f;
@@ -506,6 +507,27 @@
   gap: 10px;
 }
 
+.subLabel {
+  display: block;
+  margin: 0 0 6px;
+  color: #6b7280;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.periodRangeRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.rangeFields {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 8px;
+}
+
 .periodPickerRow {
   display: grid;
   grid-template-columns: 1fr 120px auto;
@@ -593,6 +615,28 @@
   background: #c5cbd3;
 }
 
+.printButton {
+  border: 0;
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 170px;
+  background: #0b7b3a;
+  color: #fff;
+}
+
+.printButton:hover:not(:disabled) {
+  background: #096a31;
+}
+
+.printButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1180px) {
   .cardGrid {
     grid-template-columns: repeat(2, minmax(200px, 1fr));
@@ -622,6 +666,7 @@
   .detailsGrid {
     grid-template-columns: 1fr;
   }
+
 }
 
 @media (max-width: 760px) {
@@ -663,12 +708,19 @@
     flex-direction: column;
   }
 
-  .periodPickerRow {
+  .periodPickerRow,
+  .periodRangeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .rangeFields {
     grid-template-columns: 1fr;
   }
 
   .primaryButton,
-  .secondaryButton {
+  .secondaryButton,
+  .printButton {
     width: 100%;
   }
+
 }

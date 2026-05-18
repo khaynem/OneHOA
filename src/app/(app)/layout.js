@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDays } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
@@ -8,8 +9,8 @@ import styles from './layout.module.css'
 
 const BASE_APP_LINKS = [
   { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
-  { href: '/homeowner-management', label: 'Homeowner Management', Icon: HiOutlineUsers },
-  { href: '/payment-monitoring', label: 'Payment Monitoring', Icon: HiOutlineCreditCard },
+  { href: '/homeowner-management', label: 'Masterlist Record', Icon: HiOutlineUsers },
+  { href: '/payment-monitoring', label: 'Payment Tracker', Icon: HiOutlineCreditCard },
   { href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
 ]
 
@@ -25,10 +26,12 @@ function canAccessAccountManagement(role) {
 }
 
 export default function AppRouteGroupLayout({ children }) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [isMobileView, setIsMobileView] = useState(false)
-  const [currentUserRole, setCurrentUserRole] = useState('')
+  const [currentUser, setCurrentUser] = useState(null)
+  const pathname = usePathname()
 
+  const currentUserRole = currentUser?.role || ''
   const appLinks = canAccessAccountManagement(currentUserRole)
     ? [...BASE_APP_LINKS, ACCOUNT_MANAGEMENT_LINK]
     : BASE_APP_LINKS
@@ -39,12 +42,12 @@ export default function AppRouteGroupLayout({ children }) {
     const loadCurrentUser = async () => {
       try {
         const response = await apiClient.get('/auth/me')
-        if (isMounted && response?.user?.role) {
-          setCurrentUserRole(String(response.user.role))
+        if (isMounted && response?.user) {
+          setCurrentUser(response.user)
         }
       } catch {
         if (isMounted) {
-          setCurrentUserRole('')
+          setCurrentUser(null)
         }
       }
     }
@@ -57,7 +60,7 @@ export default function AppRouteGroupLayout({ children }) {
   }, [])
 
   useEffect(() => {
-    const mobileBreakpoint = 900
+    const mobileBreakpoint = 1024
 
     const handleResize = () => {
       const mobile = window.innerWidth <= mobileBreakpoint
@@ -65,6 +68,8 @@ export default function AppRouteGroupLayout({ children }) {
 
       if (mobile) {
         setIsSidebarCollapsed(true)
+      } else {
+        setIsSidebarCollapsed(false)
       }
     }
 
@@ -76,17 +81,33 @@ export default function AppRouteGroupLayout({ children }) {
     }
   }, [])
 
+  // Auto-close sidebar on navigation inside mobile/tablet viewport
+  useEffect(() => {
+    if (isMobileView) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsSidebarCollapsed(true)
+    }
+  }, [pathname, isMobileView])
+
   return (
     <div className={styles.shell}>
-      <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} />
+      <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} user={currentUser} />
+      
+      {/* Backdrop overlay for mobile/tablet when sidebar drawer is active */}
+      {isMobileView && !isSidebarCollapsed && (
+        <div
+          className={styles.mobileBackdrop}
+          onClick={() => setIsSidebarCollapsed(true)}
+          aria-hidden="true"
+        />
+      )}
+
       <div className={styles.mainColumn}>
         <Topnav
+          user={currentUser}
           isSidebarCollapsed={isSidebarCollapsed}
-          canToggleSidebar={!isMobileView}
+          canToggleSidebar={true}
           onToggleSidebar={() => {
-            if (isMobileView) {
-              return
-            }
             setIsSidebarCollapsed((prev) => !prev)
           }}
         />

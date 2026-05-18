@@ -269,7 +269,8 @@ const isThisWeek = (date, now) => {
 
 export default function PaymentMonitoringPage() {
   const [searchText, setSearchText] = useState('')
-  const [dateFilter, setDateFilter] = useState('all')
+  const [filterStartDate, setFilterStartDate] = useState('')
+  const [filterEndDate, setFilterEndDate] = useState('')
   const [records, setRecords] = useState([])
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -475,11 +476,17 @@ export default function PaymentMonitoringPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, dateFilter])
+  }, [searchText, filterStartDate, filterEndDate])
 
   const filteredRecords = useMemo(() => {
     const q = searchText.trim().toLowerCase()
-    const now = new Date()
+    const startObj = filterStartDate ? parseLocalDate(filterStartDate) : null
+    const endObj = filterEndDate ? parseLocalDate(filterEndDate) : null
+
+    // Ensure the end date covers the full day (set to end of day)
+    if (endObj) {
+      endObj.setHours(23, 59, 59, 999)
+    }
 
     return records
       .filter((record) => {
@@ -494,31 +501,34 @@ export default function PaymentMonitoringPage() {
         )
       })
       .filter((record) => {
-        if (dateFilter === 'all') {
-          return true
-        }
-
         const paidDate = parseLocalDate(record.datePaid)
         if (!paidDate || Number.isNaN(paidDate.getTime())) {
           return false
         }
 
-        if (dateFilter === 'today') {
-          return isToday(paidDate, now)
+        if (startObj && paidDate < startObj) {
+          return false
         }
 
-        if (dateFilter === 'thisWeek') {
-          return isThisWeek(paidDate, now)
+        if (endObj && paidDate > endObj) {
+          return false
         }
 
-        return isThisMonth(paidDate, now)
+        return true
       })
       .sort((a, b) => {
         const dateA = parseLocalDate(a.datePaid)
         const dateB = parseLocalDate(b.datePaid)
         return (dateB?.getTime() || 0) - (dateA?.getTime() || 0)
       })
-  }, [records, searchText, dateFilter])
+  }, [records, searchText, filterStartDate, filterEndDate])
+
+  const filteredTotalPayment = useMemo(() => {
+    return filteredRecords.reduce((sum, record) => {
+      // Sum all payment amounts matching the filter
+      return sum + (Number(record.amount) || 0)
+    }, 0)
+  }, [filteredRecords])
 
   const totalPages = Math.max(Math.ceil(filteredRecords.length / PAGE_SIZE), 1)
   const pagedRecords = useMemo(() => {
@@ -634,13 +644,93 @@ export default function PaymentMonitoringPage() {
     }
 
     if (printerPortRef.current && printerTypeRef.current === printerType) {
-      return { device: printerPortRef.current, type: printerType }
+      if (printerType === 'bluetooth' && !printerPortRef.current.device.gatt?.connected) {
+        // Drop through to reconnect
+      } else {
+        return { device: printerPortRef.current, type: printerType }
+      }
     }
 
     // Reset if switching types
     printerPortRef.current = null
 
-    if (printerType === 'serial') {
+    if (printerType === 'bluetooth') {
+      if (!('bluetooth' in navigator)) {
+        throw new Error('Web Bluetooth is not supported in this browser.')
+      }
+
+      let btDevice = null
+
+      // 1. Try to get already paired/permitted devices first for instant pairing without dialog
+      try {
+        if (navigator.bluetooth.getDevices) {
+          const pairedDevices = await navigator.bluetooth.getDevices()
+          btDevice = pairedDevices.find(dev => dev.name && (dev.name.startsWith('PT-210') || dev.name.startsWith('PT-')))
+        }
+      } catch (e) {
+        // Skip listing errors silently
+      }
+
+      // 2. If no pre-permitted device exists, request device from user
+      if (!btDevice) {
+        btDevice = await navigator.bluetooth.requestDevice({
+          filters: [
+            { namePrefix: 'PT-210' },
+            { namePrefix: 'PT-' }
+          ],
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+        })
+      }
+
+      const server = await btDevice.gatt.connect()
+
+      let writeCharacteristic = null
+      const knownServiceUuids = ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+
+      // 3. Fast-path: query the known service UUIDs directly (takes <500ms)
+      for (const uuid of knownServiceUuids) {
+        try {
+          const service = await server.getPrimaryService(uuid)
+          const characteristics = await service.getCharacteristics()
+          for (const char of characteristics) {
+            if (char.properties.write || char.properties.writeWithoutResponse) {
+              writeCharacteristic = char
+              break
+            }
+          }
+          if (writeCharacteristic) break
+        } catch (e) {
+          // Ignore service get errors for fallback
+        }
+      }
+
+      // 4. Slow-path fallback: query all primary services (takes 5-10s)
+      if (!writeCharacteristic) {
+        const services = await server.getPrimaryServices()
+        for (const service of services) {
+          try {
+            const characteristics = await service.getCharacteristics()
+            for (const char of characteristics) {
+              if (char.properties.write || char.properties.writeWithoutResponse) {
+                writeCharacteristic = char
+                break
+              }
+            }
+            if (writeCharacteristic) break
+          } catch (e) {
+            // Ignore characteristics fetch failures
+          }
+        }
+      }
+
+      if (!writeCharacteristic) {
+        throw new Error('Could not find a writable Bluetooth characteristic on this device.')
+      }
+
+      printerPortRef.current = { device: btDevice, server, writeCharacteristic }
+      printerTypeRef.current = 'bluetooth'
+      return { device: printerPortRef.current, type: 'bluetooth' }
+    } else if (printerType === 'serial') {
       if (!('serial' in navigator)) {
         throw new Error('Web Serial is not supported in this browser.')
       }
@@ -686,6 +776,20 @@ export default function PaymentMonitoringPage() {
         if (openedHere) {
           await device.close()
         }
+      }
+    } else if (type === 'bluetooth') {
+      const { writeCharacteristic } = device
+      if (!writeCharacteristic) throw new Error('Bluetooth connection lost.')
+
+      const CHUNK_SIZE = 250
+      for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+        const chunk = data.slice(i, i + CHUNK_SIZE)
+        if (writeCharacteristic.properties.write) {
+          await writeCharacteristic.writeValueWithResponse(chunk)
+        } else {
+          await writeCharacteristic.writeValueWithoutResponse(chunk)
+        }
+        await new Promise(r => setTimeout(r, 10))
       }
     } else if (type === 'usb') {
       let openedHere = false
@@ -889,7 +993,7 @@ export default function PaymentMonitoringPage() {
     <main className={styles.page}>
       <section className={styles.headerRow}>
         <div>
-          <h1 className={styles.title}>Payment Monitoring</h1>
+          <h1 className={styles.title}>Payment Tracker</h1>
           <p className={styles.subtitle}>Track and record monthly maintenance fee payments</p>
         </div>
 
@@ -931,8 +1035,10 @@ export default function PaymentMonitoringPage() {
       <section className={styles.cardGrid} aria-label="Payment monitoring stats">
         <article className={styles.statCard}>
           <div className={styles.statContent}>
-            <p className={styles.statLabel}>Total Collected (Current Month)</p>
-            <p className={styles.statValue}>{toPeso(stats.totalCollectedCurrentMonth)}</p>
+            <p className={styles.statLabel}>Total Collected (for Filtered Period)</p>
+            <p className={styles.statValue}>
+              {filterStartDate || filterEndDate || searchText.trim() ? toPeso(filteredTotalPayment) : '-'}
+            </p>
             <p className={styles.statSubtext}>From recorded payments</p>
           </div>
           <div className={styles.statIconWrap}>
@@ -974,17 +1080,37 @@ export default function PaymentMonitoringPage() {
             aria-label="Search payment records"
           />
 
-          <select
-            className={styles.filterSelect}
-            value={dateFilter}
-            onChange={(event) => setDateFilter(event.target.value)}
-            aria-label="Filter payment records by date"
-          >
-            <option value="all">All Dates</option>
-            <option value="today">Today</option>
-            <option value="thisWeek">This Week</option>
-            <option value="thisMonth">This Month</option>
-          </select>
+          <div className={styles.dateFilterGroup}>
+            <span className={styles.dateLabel}>From:</span>
+            <input
+              type="date"
+              value={filterStartDate}
+              onChange={(event) => setFilterStartDate(event.target.value)}
+              className={styles.dateInput}
+              aria-label="Filter payment records start date"
+            />
+            <span className={styles.dateLabel}>To:</span>
+            <input
+              type="date"
+              value={filterEndDate}
+              onChange={(event) => setFilterEndDate(event.target.value)}
+              className={styles.dateInput}
+              aria-label="Filter payment records end date"
+            />
+            {(filterStartDate || filterEndDate) && (
+              <button
+                type="button"
+                className={styles.viewButton}
+                onClick={() => {
+                  setFilterStartDate('')
+                  setFilterEndDate('')
+                }}
+                style={{ fontSize: '0.85rem', marginLeft: '4px' }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
@@ -1217,6 +1343,7 @@ export default function PaymentMonitoringPage() {
                 >
                   <option value="usb">USB</option>
                   <option value="serial">Serial</option>
+                  <option value="bluetooth">Bluetooth</option>
                 </select>
               </div>
               <button type="button" className={styles.secondaryButton} onClick={closeRecordModal}>
@@ -1287,15 +1414,6 @@ export default function PaymentMonitoringPage() {
                 </div>
               </div>
 
-              <div className={styles.fullSpan}>
-                <label className={styles.fieldLabel}>Payment Details</label>
-                <textarea
-                  className={`${styles.textarea} ${styles.readonlyField}`}
-                  value={selectedPaymentRecord.details}
-                  readOnly
-                />
-              </div>
-
               <div>
                 <label className={styles.fieldLabel}>Amount Paid</label>
                 <input
@@ -1328,6 +1446,7 @@ export default function PaymentMonitoringPage() {
                 >
                   <option value="usb">USB</option>
                   <option value="serial">Serial</option>
+                  <option value="bluetooth">Bluetooth</option>
                 </select>
               </div>
               <button type="button" className={styles.secondaryButton} onClick={closePaymentViewModal}>

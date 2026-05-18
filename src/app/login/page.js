@@ -109,7 +109,7 @@ export default function LoginPage() {
       <section className={styles.rightPane}>
         <div className={styles.brandContent}>
           <Image
-            src="/images/HOA Logo.png"
+            src="/images/HOA_Logo.png"
             alt="OneHOA Logo"
             width={170}
             height={170}

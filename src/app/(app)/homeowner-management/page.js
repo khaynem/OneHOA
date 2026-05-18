@@ -1017,11 +1017,11 @@ function HomeownerManagementInner() {
   const displayHomeownerName = selectedHomeowner
     ? isEditingHomeowner
       ?
-        formatDisplayName(
-          editForm?.firstName,
-          editForm?.middleName,
-          editForm?.lastName
-        ) || formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
+      formatDisplayName(
+        editForm?.firstName,
+        editForm?.middleName,
+        editForm?.lastName
+      ) || formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
       : formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
     : ''
 
@@ -1034,8 +1034,8 @@ function HomeownerManagementInner() {
   const ownerForSelected = selectedAddressKey ? ownerByAddress.get(selectedAddressKey) : null
   const relatedOccupants = selectedAddressKey
     ? (occupantsByAddress.get(selectedAddressKey) || []).filter(
-        (homeowner) => homeowner.id !== selectedHomeowner?.id && !isOwnerOccupant(homeowner.occupantStatus)
-      )
+      (homeowner) => homeowner.id !== selectedHomeowner?.id && !isOwnerOccupant(homeowner.occupantStatus)
+    )
     : []
 
   const generateAndPrintIdCard = (homeowner) => {
@@ -1102,7 +1102,7 @@ function HomeownerManagementInner() {
     <main className={styles.page}>
       <section className={styles.headerRow}>
         <div>
-          <h1 className={styles.title}>Homeowner Management</h1>
+          <h1 className={styles.title}>Masterlist Record</h1>
           <p className={styles.subtitle}>Register and manage homeowner records</p>
         </div>
 
@@ -1199,7 +1199,11 @@ function HomeownerManagementInner() {
                             className={styles.rowAvatar}
                           />
                         ) : (
-                          <span className={styles.rowAvatarPlaceholder}>No Photo</span>
+                          <img
+                            src="images/Default_pfp.jpg"
+                            alt={`${homeowner.firstName} ${homeowner.lastName}`}
+                            className={styles.rowAvatar}
+                          />
                         )}
                         <span>
                           {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
@@ -1798,11 +1802,11 @@ function HomeownerManagementInner() {
                       <p className={styles.detailValue}>
                         {ownerForSelected
                           ? `${formatDisplayName(
-                              ownerForSelected.firstName,
-                              ownerForSelected.middleName,
-                              ownerForSelected.lastName,
-                              { middleInitialOnly: true }
-                            )} (${ownerForSelected.unitNumber})`
+                            ownerForSelected.firstName,
+                            ownerForSelected.middleName,
+                            ownerForSelected.lastName,
+                            { middleInitialOnly: true }
+                          )} (${ownerForSelected.unitNumber})`
                           : 'Unassigned owner'}
                       </p>
                     )}
@@ -1823,82 +1827,82 @@ function HomeownerManagementInner() {
                 ) : (
                   <>
 
-                <div className={styles.paymentSummaryGrid}>
-                  <div className={styles.summaryCard}>
-                    <p className={styles.detailLabel}>Total Amount Paid</p>
-                    <p className={styles.detailValue}>
-                      {selectedHomeowner.totalPaid > 0 ? toPeso(selectedHomeowner.totalPaid) : '-'}
-                    </p>
-                  </div>
-                  <div className={styles.summaryCard}>
-                    <p className={styles.detailLabel}>Unpaid Dues</p>
-                    <p className={styles.detailValue}>
-                      {selectedHomeowner.unpaidPeriods.length}
-                      {selectedHomeowner.unpaidPeriods.length === 1 ? ' month' : ' months'}
-                    </p>
-                  </div>
-                  <div className={styles.summaryCard}>
-                    <p className={styles.detailLabel}>Monthly Dues</p>
-                    <p className={styles.detailValue}>{toPeso(monthlyDues)}</p>
-                  </div>
-                </div>
-                <div className={styles.paymentScroll}>
-                  <ul className={styles.paymentList}>
-                    <li className={`${styles.paymentRow} ${styles.paymentHeader}`}>
-                      <span>Month</span>
-                      <span>Date of Payment</span>
-                      <span>Amount Paid</span>
-                      <span>Remarks</span>
-                    </li>
-                    {isLoadingHomeownerPayments ? (
-                      <li className={styles.paymentRow}>
-                        <span>Loading...</span>
-                        <span>-</span>
-                        <span>-</span>
-                        <span>-</span>
-                      </li>
-                    ) : selectedHomeowner.paymentHistory.length === 0 ? (
-                      <li className={styles.paymentRow}>
-                        <span>No recorded payments</span>
-                        <span>-</span>
-                        <span>-</span>
-                        <span>-</span>
-                      </li>
-                    ) : selectedHomeowner.paymentHistory.map((payment) => (
-                      <li key={payment.id} className={styles.paymentRow}>
-                        <span>{payment.month}</span>
-                        <span>{payment.paidOn}</span>
-                        <span>{payment.amountPaid > 0 ? toPeso(payment.amountPaid) : '-'}</span>
-                        <span>{payment.status}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className={styles.unpaidSection}>
-                  <p className={styles.detailLabel}>Unpaid Months</p>
-                  {selectedHomeowner.unpaidPeriods.length === 0 ? (
-                    <p className={styles.detailValue}>No unpaid dues in the tracked period.</p>
-                  ) : (
-                    <ul className={styles.unpaidList}>
-                      {selectedHomeowner.unpaidPeriods.map((period) => (
-                        <li key={period} className={styles.unpaidItem}>
-                          {period}
+                    <div className={styles.paymentSummaryGrid}>
+                      <div className={styles.summaryCard}>
+                        <p className={styles.detailLabel}>Total Amount Paid</p>
+                        <p className={styles.detailValue}>
+                          {selectedHomeowner.totalPaid > 0 ? toPeso(selectedHomeowner.totalPaid) : '-'}
+                        </p>
+                      </div>
+                      <div className={styles.summaryCard}>
+                        <p className={styles.detailLabel}>Unpaid Dues</p>
+                        <p className={styles.detailValue}>
+                          {selectedHomeowner.unpaidPeriods.length}
+                          {selectedHomeowner.unpaidPeriods.length === 1 ? ' month' : ' months'}
+                        </p>
+                      </div>
+                      <div className={styles.summaryCard}>
+                        <p className={styles.detailLabel}>Monthly Dues</p>
+                        <p className={styles.detailValue}>{toPeso(monthlyDues)}</p>
+                      </div>
+                    </div>
+                    <div className={styles.paymentScroll}>
+                      <ul className={styles.paymentList}>
+                        <li className={`${styles.paymentRow} ${styles.paymentHeader}`}>
+                          <span>Month</span>
+                          <span>Date of Payment</span>
+                          <span>Amount Paid</span>
+                          <span>Remarks</span>
                         </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className={styles.summarySubtext}>Tracking unpaid months since January 2026.</p>
-                </div>
-                <div className={styles.paymentActions}>
-                  <button
-                    type="button"
-                    className={styles.reportButton}
-                    onClick={() => generatePaymentReport(selectedHomeowner)}
-                  >
-                    Generate Payment Report
-                  </button>
-                </div>
-                </>
+                        {isLoadingHomeownerPayments ? (
+                          <li className={styles.paymentRow}>
+                            <span>Loading...</span>
+                            <span>-</span>
+                            <span>-</span>
+                            <span>-</span>
+                          </li>
+                        ) : selectedHomeowner.paymentHistory.length === 0 ? (
+                          <li className={styles.paymentRow}>
+                            <span>No recorded payments</span>
+                            <span>-</span>
+                            <span>-</span>
+                            <span>-</span>
+                          </li>
+                        ) : selectedHomeowner.paymentHistory.map((payment) => (
+                          <li key={payment.id} className={styles.paymentRow}>
+                            <span>{payment.month}</span>
+                            <span>{payment.paidOn}</span>
+                            <span>{payment.amountPaid > 0 ? toPeso(payment.amountPaid) : '-'}</span>
+                            <span>{payment.status}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className={styles.unpaidSection}>
+                      <p className={styles.detailLabel}>Unpaid Months</p>
+                      {selectedHomeowner.unpaidPeriods.length === 0 ? (
+                        <p className={styles.detailValue}>No unpaid dues in the tracked period.</p>
+                      ) : (
+                        <ul className={styles.unpaidList}>
+                          {selectedHomeowner.unpaidPeriods.map((period) => (
+                            <li key={period} className={styles.unpaidItem}>
+                              {period}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className={styles.summarySubtext}>Tracking unpaid months since January 2026.</p>
+                    </div>
+                    <div className={styles.paymentActions}>
+                      <button
+                        type="button"
+                        className={styles.reportButton}
+                        onClick={() => generatePaymentReport(selectedHomeowner)}
+                      >
+                        Generate Payment Report
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             )}

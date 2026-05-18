@@ -204,14 +204,15 @@
 }
 
 .searchRow {
-  display: grid;
-  grid-template-columns: 1fr 210px;
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
 }
 
 .searchInput {
-  width: 100%;
+  flex: 2;
+  min-width: 250px;
   border: 1px solid #d7dce2;
   border-radius: 8px;
   padding: 10px 14px;
@@ -226,22 +227,57 @@
   box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.15);
 }
 
-.filterSelect {
-  width: 100%;
-  border: 1px solid #d7dce2;
-  border-radius: 8px;
-  min-height: 42px;
-  font-size: 0.94rem;
-  color: #1f2024;
-  outline: none;
-  padding: 9px 12px;
-  background: #fff;
-  font-family: poppins, sans-serif;
+.dateFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.filterSelect:focus {
+.dateLabel {
+  font-size: 0.88rem;
+  color: #4f4f4f;
+  font-weight: 500;
+}
+
+.dateInput {
+  border: 1px solid #d7dce2;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: #1f2024;
+  outline: none;
+  font-family: poppins, sans-serif;
+  background: #fff;
+}
+
+.dateInput:focus {
   border-color: #8cb6da;
   box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.15);
+}
+
+.totalDisplay {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #166534;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.totalLabel {
+  color: #15803d;
+}
+
+.totalValue {
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .tableCard {
@@ -654,11 +690,6 @@
     justify-content: center;
   }
 
-  .filterSelect {
-    max-width: 280px;
-    justify-self: end;
-  }
-
   .table {
     min-width: 620px;
   }
@@ -683,12 +714,24 @@
   }
 
   .searchRow {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .filterSelect {
-    max-width: none;
-    justify-self: stretch;
+  .dateFilterGroup {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dateInput {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .totalDisplay {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
   }
 
   .table {
@@ -721,6 +764,28 @@
   .secondaryButton,
   .printButton {
     width: 100%;
+  }
+
+  .duesCard {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .duesControls {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .duesInput {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .duesButton {
+    min-width: 100px;
   }
 
 }

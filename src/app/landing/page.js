@@ -31,7 +31,7 @@ export default function LandingPage() {
       <header className={styles.header}>
         <div className={styles.brand}>
           <Image
-            src="/images/HOA Logo.png"
+            src="/images/HOA_Logo.png"
             alt="OneHOA Logo"
             width={44}
             height={44}
@@ -78,7 +78,7 @@ export default function LandingPage() {
 
           <div className={styles.aboutLogo}>
             <Image
-              src="/images/HOA Logo.png"
+              src="/images/HOA_Logo.png"
               alt="HOA Logo"
               width={200}
               height={200}
@@ -126,7 +126,7 @@ export default function LandingPage() {
 
           <div className={styles.footerBrand}>
             <Image
-              src="/images/HOA Logo.png"
+              src="/images/HOA_Logo.png"
               alt="OneHOA Logo"
               width={72}
               height={72}

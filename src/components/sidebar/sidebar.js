@@ -83,6 +83,17 @@ export default function Sidebar({ isCollapsed = false, links = [], user }) {
 				</nav>
 
 				<div className={styles.bottomSection}>
+					{!isCollapsed && (
+						<div className={styles.sidebarLegal}>
+							<Link href="/terms-and-conditions" className={styles.legalLink}>
+								Terms
+							</Link>
+							<span className={styles.legalSeparator}>•</span>
+							<Link href="/privacy-policy" className={styles.legalLink}>
+								Privacy
+							</Link>
+						</div>
+					)}
 					<button
 						type="button"
 						className={styles.logoutBtn}

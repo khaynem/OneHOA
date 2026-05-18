@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { HiOutlineIdentification } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
@@ -1479,6 +1480,15 @@ function HomeownerManagementInner() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div className={styles.jitNotice}>
+                  <p>
+                    <strong>Data Privacy Notice:</strong> The collected personal data is stored securely and processed solely for record management purposes in compliance with the <strong>Data Privacy Act of 2012 (DPA 2012)</strong>.{' '}
+                    <Link href="/privacy-policy" className={styles.jitLink} target="_blank">
+                      Read our Privacy Policy
+                    </Link>.
+                  </p>
                 </div>
 
                 <div className={styles.modalActions}>

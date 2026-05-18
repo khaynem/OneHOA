@@ -103,6 +103,17 @@ export default function LoginPage() {
               {isLoading ? 'Logging in...' : 'Login'}
             </button>
           </form>
+
+          <p className={styles.disclaimer}>
+            By logging in, you agree to our{' '}
+            <Link href="/terms-and-conditions" className={styles.disclaimerLink}>
+              Terms & Conditions
+            </Link>{' '}
+            and acknowledge our{' '}
+            <Link href="/privacy-policy" className={styles.disclaimerLink}>
+              Privacy Policy
+            </Link>.
+          </p>
         </div>
       </section>
 

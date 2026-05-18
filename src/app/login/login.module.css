@@ -167,6 +167,25 @@
   cursor: not-allowed;
 }
 
+.disclaimer {
+  margin-top: 1.6rem;
+  font-size: clamp(0.72rem, 0.75vw, 0.8rem);
+  color: #767676;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.disclaimerLink {
+  color: #0067b5;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.disclaimerLink:hover {
+  text-decoration: underline;
+  color: #005ea6;
+}
+
 .errorMessage {
   margin-top: 0.15rem;
   margin-bottom: 0.85rem;

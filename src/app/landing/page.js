@@ -137,6 +137,15 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+
+        <div className={styles.footerBottom}>
+          <p className={styles.footerCopyright}>© 2026 Fiesta Community Hanjin Village Association. All rights reserved.</p>
+          <div className={styles.legalLinks}>
+            <Link href="/terms-and-conditions" className={styles.footerLink}>Terms & Conditions</Link>
+            <span className={styles.footerLinkSeparator}>•</span>
+            <Link href="/privacy-policy" className={styles.footerLink}>Privacy Policy</Link>
+          </div>
+        </div>
       </footer>
     </div>
   )

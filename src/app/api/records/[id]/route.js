@@ -133,6 +133,19 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ success: false, message: "Record not found." }, { status: 404 });
     }
 
+    if (String(user?.role || "").trim().toLowerCase() === "officer") {
+      const isFirstNameChanged = payload.first_name !== undefined && payload.first_name !== existingRecord.first_name;
+      const isMiddleNameChanged = payload.middle_name !== undefined && payload.middle_name !== existingRecord.middle_name;
+      const isLastNameChanged = payload.last_name !== undefined && payload.last_name !== existingRecord.last_name;
+
+      if (isFirstNameChanged || isMiddleNameChanged || isLastNameChanged) {
+        return NextResponse.json(
+          { success: false, message: "Officers are not allowed to edit name fields." },
+          { status: 403 }
+        );
+      }
+    }
+
     const existingAddressId = existingRecord["address._id"] || null;
     const resolvedAddressId = await resolveAddressIdFromPayload(body || {}, existingAddressId);
     if (resolvedAddressId) {

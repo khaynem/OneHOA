@@ -166,12 +166,17 @@ export async function GET() {
         upcomingPayments += 1;
       }
 
+      let isPending = false;
       let periodCursor = activeStartPeriod;
       while (periodCursor < currentPeriod) {
         if (!paidSet.has(periodCursor)) {
-          pendingPayments += 1;
+          isPending = true;
+          break;
         }
         periodCursor = nextPeriod(periodCursor);
+      }
+      if (isPending) {
+        pendingPayments += 1;
       }
     }
 

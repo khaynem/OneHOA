@@ -65,19 +65,22 @@ export default function DashboardPage() {
         label: 'Total Homeowners',
         value: stats.totalHomeowners || 0,
         Icon: HomeownerIcon,
-        href: '/homeowner-management'
+        href: '/homeowner-management?occupantFilter=owner',
+        description: 'Registered active owners'
       },
       {
-        label: 'Pending Payments (Since Jan, 2026)',
+        label: 'Pending Homeowners (Past Months)',
         value: stats.pendingPayments || 0,
         Icon: PaymentIcon,
-        href: '/homeowner-management?paymentFilter=past-due&occupantFilter=owner'
+        href: '/homeowner-management?paymentFilter=past-due&occupantFilter=owner',
+        description: 'Outstanding balances before current month'
       },
       {
         label: 'Upcoming Payments',
         value: stats.upcomingPayments || 0,
         Icon: ActivityIcon,
-        href: '/homeowner-management?paymentFilter=current-due&occupantFilter=owner'
+        href: '/homeowner-management?paymentFilter=current-due&occupantFilter=owner',
+        description: 'Due for the current month'
       },
     ]
   }, [dashboardData])
@@ -94,11 +97,12 @@ export default function DashboardPage() {
       {!isLoading && errorMessage && <p className={styles.errorText}>{errorMessage}</p>}
 
       <section className={styles.cardGrid} aria-label="Dashboard stats">
-        {statCards.map(({ label, value, Icon, href }) => (
+        {statCards.map(({ label, value, Icon, href, description }) => (
           <Link key={label} href={href} className={styles.statCard} aria-label={label}>
             <div>
               <p className={styles.statLabel}>{label}</p>
               <p className={styles.statValue}>{value}</p>
+              {description && <p className={styles.statSubtext}>{description}</p>}
             </div>
             <div className={styles.statIconWrap}>
               <Icon className={styles.statIcon} aria-hidden="true" />

@@ -373,6 +373,8 @@ function HomeownerManagementInner() {
   const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
   const [isSaving, setIsSaving] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false)
 
   const ownerByAddress = useMemo(() => {
     const map = new Map()
@@ -504,6 +506,24 @@ function HomeownerManagementInner() {
     }
   }, [])
 
+  useEffect(() => {
+    let isMounted = true
+    const loadCurrentUser = async () => {
+      try {
+        const response = await apiClient.get('/auth/me')
+        if (isMounted && response?.user) {
+          setCurrentUser(response.user)
+        }
+      } catch {
+        // Ignore auth fetch errors
+      }
+    }
+    loadCurrentUser()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
 
   const isStepOneValid =
     addForm.firstName.trim() &&
@@ -514,6 +534,7 @@ function HomeownerManagementInner() {
     addForm.jobDescription.trim()
 
   const currentYear = new Date().getFullYear()
+  const isOfficer = String(currentUser?.role || '').trim().toLowerCase() === 'officer'
   const isStepTwoValid =
     VALID_PHASES.includes(addForm.phase.trim()) &&
     /^\d{1,3}$/.test(addForm.block.trim()) &&
@@ -975,9 +996,6 @@ function HomeownerManagementInner() {
     try {
       setIsSaving(true)
       const payload = {
-        first_name: normalizedFirstName,
-        middle_name: normalizeName(editForm.middleName).trim(),
-        last_name: normalizedLastName,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
         entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
@@ -989,6 +1007,12 @@ function HomeownerManagementInner() {
           block: Number(normalizedBlock),
           lot: Number(normalizedLot)
         }
+      }
+
+      if (!isOfficer) {
+        payload.first_name = normalizedFirstName
+        payload.middle_name = normalizeName(editForm.middleName).trim()
+        payload.last_name = normalizedLastName
       }
 
       if (editForm.pictureId) {
@@ -1252,23 +1276,28 @@ function HomeownerManagementInner() {
 
       {filteredHomeowners.length > 0 ? (
         <div className={styles.pagination}>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
-          <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
+          <span className={styles.pageRange}>
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredHomeowners.length)} out of {filteredHomeowners.length}
+          </span>
+          <div className={styles.pageControls}>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -1633,6 +1662,9 @@ function HomeownerManagementInner() {
                         value={editForm?.firstName || ''}
                         onChange={(event) => handleEditChange('firstName', normalizeName(event.target.value))}
                         placeholder="First name"
+                        readOnly={isOfficer}
+                        disabled={isOfficer}
+                        style={isOfficer ? { backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : undefined}
                       />
                     ) : (
                       <p className={styles.detailValue}>{selectedHomeowner.firstName || '-'}</p>
@@ -1647,6 +1679,9 @@ function HomeownerManagementInner() {
                         value={editForm?.middleName || ''}
                         onChange={(event) => handleEditChange('middleName', normalizeName(event.target.value))}
                         placeholder="Middle name"
+                        readOnly={isOfficer}
+                        disabled={isOfficer}
+                        style={isOfficer ? { backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : undefined}
                       />
                     ) : (
                       <p className={styles.detailValue}>{selectedHomeowner.middleName || '-'}</p>
@@ -1661,6 +1696,9 @@ function HomeownerManagementInner() {
                         value={editForm?.lastName || ''}
                         onChange={(event) => handleEditChange('lastName', normalizeName(event.target.value))}
                         placeholder="Last name"
+                        readOnly={isOfficer}
+                        disabled={isOfficer}
+                        style={isOfficer ? { backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : undefined}
                       />
                     ) : (
                       <p className={styles.detailValue}>{selectedHomeowner.lastName || '-'}</p>
@@ -1956,7 +1994,7 @@ function HomeownerManagementInner() {
                   disabled={isUpdatingPhoto || isSaving}
                   onClick={() => {
                     if (isEditingHomeowner) {
-                      saveHomeownerEdits()
+                      setIsConfirmSaveOpen(true)
                       return
                     }
 
@@ -1967,6 +2005,38 @@ function HomeownerManagementInner() {
                 </button>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {isConfirmSaveOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 1100 }}>
+          <div className={styles.modal} style={{ maxWidth: '400px' }}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Confirm Changes</h2>
+            </div>
+            <div className={styles.modalBody} style={{ padding: '20px 0', color: '#4b5563' }}>
+              <p>Are you sure you want to save the changes made to this homeowner's record?</p>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setIsConfirmSaveOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => {
+                  setIsConfirmSaveOpen(false)
+                  saveHomeownerEdits()
+                }}
+              >
+                Yes, Save
+              </button>
+            </div>
           </div>
         </div>
       )}

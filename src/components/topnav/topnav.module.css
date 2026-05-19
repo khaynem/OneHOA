@@ -6,7 +6,9 @@
   background: #fff;
   border-bottom: 1px solid #d8d8d8;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .brandCenter {

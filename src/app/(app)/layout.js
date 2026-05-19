@@ -60,6 +60,27 @@ export default function AppRouteGroupLayout({ children }) {
   }, [])
 
   useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const modalActive = !!document.querySelector('[class*="modalOverlay"]')
+      if (modalActive) {
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = ''
+      }
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    })
+
+    return () => {
+      observer.disconnect()
+      document.body.style.overflow = ''
+    }
+  }, [])
+
+  useEffect(() => {
     const mobileBreakpoint = 1024
 
     const handleResize = () => {

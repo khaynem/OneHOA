@@ -19,10 +19,10 @@ const EMPTY_FORM = {
   date: '',
   receiptNo: '',
   paymentPeriods: [],
-  rangeStartYear: String(new Date().getFullYear()),
-  rangeStartMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
-  rangeEndYear: String(new Date().getFullYear()),
-  rangeEndMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
+  rangeStartYear: '2026',
+  rangeStartMonth: '01',
+  rangeEndYear: '2026',
+  rangeEndMonth: '01',
   paymentDetails: ''
 }
 
@@ -125,14 +125,14 @@ const generateReceiptNo = (existingReceipts) => {
 
   while (attempts < 8) {
     const randomPart = Math.floor(1000 + Math.random() * 9000)
-    receipt = `${Date.now()}${randomPart}`
+    receipt = `${Date.now().toString().slice(-4)}${randomPart}`
     if (!existing.has(receipt)) {
       return receipt
     }
     attempts += 1
   }
 
-  return `${Date.now()}${Math.floor(Math.random() * 10000)}`
+  return `${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 10000)}`
 }
 
 const buildPeriodRange = (startYear, startMonth, endYear, endMonth) => {
@@ -212,6 +212,7 @@ const buildReceiptElement = (receipt) => (
     <Line />
     <Row left="Periods" right={formatReceiptPeriods(receipt.coveredPeriods)} />
     <Row left="Amount" right={toPeso(receipt.amount)} />
+    {receipt.issuedBy && <Row left="Issued By" right={String(receipt.issuedBy)} />}
     <Br />
     <Text>Details:</Text>
     <Text>{String(receipt.details || 'Monthly Due Payments')}</Text>
@@ -282,11 +283,13 @@ export default function PaymentMonitoringPage() {
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
   const [monthlyDuesDraft, setMonthlyDuesDraft] = useState(String(DEFAULT_MONTHLY_DUES))
   const [currentUserRole, setCurrentUserRole] = useState('')
+  const [currentUser, setCurrentUser] = useState(null)
   const [isSavingDues, setIsSavingDues] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [isPrinting, setIsPrinting] = useState(false)
   const [isSavingPayment, setIsSavingPayment] = useState(false)
   const [printerType, setPrinterType] = useState('usb')
+  const [mounted, setMounted] = useState(false)
 
   const printerPortRef = useRef(null)
   const printerTypeRef = useRef(null)
@@ -383,6 +386,18 @@ export default function PaymentMonitoringPage() {
 
   useEffect(() => {
     loadPaymentMonitoringData()
+    setMounted(true)
+
+    const now = new Date()
+    const currentYear = String(now.getFullYear())
+    const currentMonth = String(now.getMonth() + 1).padStart(2, '0')
+    setForm((prev) => ({
+      ...prev,
+      rangeStartYear: currentYear,
+      rangeStartMonth: currentMonth,
+      rangeEndYear: currentYear,
+      rangeEndMonth: currentMonth
+    }))
   }, [])
 
 
@@ -408,7 +423,9 @@ export default function PaymentMonitoringPage() {
       }
 
       if (meResult.status === 'fulfilled') {
-        setCurrentUserRole(String(meResult.value?.user?.role || ''))
+        const userObj = meResult.value?.user
+        setCurrentUserRole(String(userObj?.role || ''))
+        setCurrentUser(userObj)
       }
     }
 
@@ -585,7 +602,28 @@ export default function PaymentMonitoringPage() {
   }
 
   const handleFormChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
+    setForm((prev) => {
+      let nextState = { ...prev, [field]: value }
+
+      if (['rangeStartYear', 'rangeStartMonth', 'rangeEndYear', 'rangeEndMonth'].includes(field)) {
+        const sYear = Number(nextState.rangeStartYear)
+        const sMonth = Number(nextState.rangeStartMonth)
+        const eYear = Number(nextState.rangeEndYear)
+        const eMonth = Number(nextState.rangeEndMonth)
+
+        if (Number.isInteger(sYear) && Number.isInteger(sMonth) && Number.isInteger(eYear) && Number.isInteger(eMonth)) {
+          const startPeriod = sYear * 100 + sMonth
+          const endPeriod = eYear * 100 + eMonth
+
+          if (startPeriod > endPeriod) {
+            nextState.rangeEndYear = nextState.rangeStartYear
+            nextState.rangeEndMonth = nextState.rangeStartMonth
+          }
+        }
+      }
+
+      return nextState
+    })
   }
 
   const homeownerSuggestions = useMemo(() => {
@@ -845,6 +883,201 @@ export default function PaymentMonitoringPage() {
     }
   }
 
+  const handleGenerateReport = () => {
+    const generatorName = currentUser
+      ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username
+      : 'Authorized Officer'
+    const generatorRole = currentUser ? String(currentUser.role || '').toUpperCase() : 'OFFICER'
+
+    const dateRangeLabel =
+      filterStartDate && filterEndDate
+        ? `Period: ${filterStartDate} to ${filterEndDate}`
+        : filterStartDate
+          ? `From: ${filterStartDate}`
+          : filterEndDate
+            ? `Until: ${filterEndDate}`
+            : 'All Time'
+
+    const popup = window.open('', '_blank')
+    if (!popup) {
+      notify.error({
+        title: 'Blocker Detected',
+        description: 'Please enable popups to download/print the payment report.'
+      })
+      return
+    }
+
+    const rowsHtml = filteredRecords
+      .map(
+        (record) => `
+        <tr>
+          <td>${formatDate(record.datePaid)}</td>
+          <td>${record.receiptNo}</td>
+          <td>${record.homeownerName}</td>
+          <td>${record.unitNumber}</td>
+          <td>${formatReceiptPeriods(record.coveredPeriods)}</td>
+          <td>${toPeso(record.amount)}</td>
+        </tr>
+      `
+      )
+      .join('')
+
+    popup.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>OneHOA - Payment Report</title>
+          <style>
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              margin: 40px;
+              color: #1f2937;
+              background-color: #fff;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #003b75;
+              padding-bottom: 20px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: 700;
+              color: #003b75;
+              margin: 0 0 5px;
+            }
+            .subtitle {
+              font-size: 14px;
+              color: #4b5563;
+              margin: 0;
+            }
+            .meta-section {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 30px;
+              font-size: 14px;
+            }
+            .meta-left p, .meta-right p {
+              margin: 4px 0;
+            }
+            .meta-label {
+              font-weight: bold;
+              color: #4b5563;
+            }
+            .meta-value {
+              color: #111827;
+            }
+            .total-banner {
+              background-color: #f3f4f6;
+              border-left: 4px solid #003b75;
+              padding: 12px 18px;
+              margin-bottom: 30px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .total-title {
+              font-size: 16px;
+              font-weight: bold;
+              color: #374151;
+              margin: 0;
+            }
+            .total-amount {
+              font-size: 20px;
+              font-weight: 800;
+              color: #003b75;
+              margin: 0;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+              font-size: 13px;
+            }
+            th, td {
+              border: 1px solid #e5e7eb;
+              padding: 10px 12px;
+              text-align: left;
+            }
+            th {
+              background-color: #f9fafb;
+              color: #374151;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f9fafb;
+            }
+            .footer {
+              margin-top: 50px;
+              font-size: 12px;
+              color: #6b7280;
+              text-align: center;
+              border-top: 1px solid #e5e7eb;
+              padding-top: 15px;
+            }
+            @media print {
+              body { margin: 20px; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">OneHOA Payment Collection Report</h1>
+            <p class="subtitle">Homeowners Association Operations Management Portal</p>
+          </div>
+
+          <div class="meta-section">
+            <div class="meta-left">
+              <p><span class="meta-label">Generated By:</span> <span class="meta-value">${generatorName} (${generatorRole})</span></p>
+              <p><span class="meta-label">Date Generated:</span> <span class="meta-value">${new Date().toLocaleString()}</span></p>
+            </div>
+            <div class="meta-right">
+              <p><span class="meta-label">Report Range:</span> <span class="meta-value">${dateRangeLabel}</span></p>
+              <p><span class="meta-label">Total Receipts:</span> <span class="meta-value">${filteredRecords.length}</span></p>
+            </div>
+          </div>
+
+          <div class="total-banner">
+            <h2 class="total-title">TOTAL AMOUNT COLLECTED</h2>
+            <p class="total-amount">${toPeso(filteredTotalPayment)}</p>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Date Paid</th>
+                <th>Receipt No.</th>
+                <th>Homeowner Name</th>
+                <th>Unit / Phase-Blk-Lot</th>
+                <th>Covered Period(s)</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml ||
+      '<tr><td colspan="6" style="text-align: center; color: #6b7280;">No transactions recorded in this date range.</td></tr>'
+      }
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <p>This is a system-generated document from the OneHOA-Hosted administrative panel.</p>
+          </div>
+        </body>
+      </html>
+    `)
+    popup.document.close()
+
+    popup.onload = () => {
+      popup.focus()
+      popup.onafterprint = () => {
+        popup.close()
+      }
+      popup.print()
+    }
+  }
+
   const handlePrintReceipt = async (receiptData) => {
     if (!receiptData) {
       return
@@ -877,25 +1110,33 @@ export default function PaymentMonitoringPage() {
     }
   }
 
-  const buildReceiptFromForm = (matchedHomeowner, amountPaid, numericReceiptNo, paymentForPeriods, paymentDate) => ({
-    homeownerName: matchedHomeowner?.name || '-',
-    unitNumber: matchedHomeowner?.unitNumber || '-',
-    amount: amountPaid,
-    datePaid: paymentDate,
-    receiptNo: String(numericReceiptNo || ''),
-    details: form.paymentDetails.trim() || 'Maintenance fee payment',
-    coveredPeriods: paymentForPeriods
-  })
+  const buildReceiptFromForm = (matchedHomeowner, amountPaid, numericReceiptNo, paymentForPeriods, paymentDate) => {
+    const officerName = currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username : ''
+    return {
+      homeownerName: matchedHomeowner?.name || '-',
+      unitNumber: matchedHomeowner?.unitNumber || '-',
+      amount: amountPaid,
+      datePaid: paymentDate,
+      receiptNo: String(numericReceiptNo || ''),
+      details: form.paymentDetails.trim() || 'Maintenance fee payment',
+      coveredPeriods: paymentForPeriods,
+      issuedBy: officerName || null
+    }
+  }
 
-  const buildReceiptFromRecord = (record) => ({
-    homeownerName: record?.homeownerName || '-',
-    unitNumber: record?.unitNumber || '-',
-    amount: record?.amount || 0,
-    datePaid: record?.datePaid,
-    receiptNo: record?.receiptNo || '-',
-    details: record?.details || 'Maintenance fee payment',
-    coveredPeriods: record?.coveredPeriods || []
-  })
+  const buildReceiptFromRecord = (record) => {
+    const officerName = currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username : ''
+    return {
+      homeownerName: record?.homeownerName || '-',
+      unitNumber: record?.unitNumber || '-',
+      amount: record?.amount || 0,
+      datePaid: record?.datePaid,
+      receiptNo: record?.receiptNo || '-',
+      details: record?.details || 'Maintenance fee payment',
+      coveredPeriods: record?.coveredPeriods || [],
+      issuedBy: officerName || null
+    }
+  }
 
   const savePaymentRecord = async ({ shouldPrint = false } = {}) => {
     if (isSavingPayment) return
@@ -995,15 +1236,18 @@ export default function PaymentMonitoringPage() {
 
     const paidHomeownerIds = new Set(currentMonthPaidRecords.map((record) => record.recordId).filter(Boolean))
     const totalHomeowners = monitoredHomeowners.length
-    const pendingPayments = Math.max(totalHomeowners - paidHomeownerIds.size, 0)
     const collectionRate = totalHomeowners > 0 ? Math.round((paidHomeownerIds.size / totalHomeowners) * 100) : 0
+
+    const upcomingPaymentsCount = monitoredHomeowners.filter(
+      (homeowner) => !paidHomeownerIds.has(String(homeowner._id))
+    ).length
 
     return {
       totalCollectedCurrentMonth,
-      pendingPayments,
+      upcomingPayments: upcomingPaymentsCount,
       collectionRate
     }
-  }, [monitoredHomeowners.length, records])
+  }, [monitoredHomeowners, records])
 
   const receiptDateLabel = formatDate(form.date)
 
@@ -1055,7 +1299,7 @@ export default function PaymentMonitoringPage() {
           <div className={styles.statContent}>
             <p className={styles.statLabel}>Total Collected (for Filtered Period)</p>
             <p className={styles.statValue}>
-              {filterStartDate || filterEndDate || searchText.trim() ? toPeso(filteredTotalPayment) : '-'}
+              {mounted && (filterStartDate || filterEndDate || searchText.trim()) ? toPeso(filteredTotalPayment) : '-'}
             </p>
             <p className={styles.statSubtext}>From recorded payments</p>
           </div>
@@ -1066,9 +1310,9 @@ export default function PaymentMonitoringPage() {
 
         <article className={styles.statCard}>
           <div className={styles.statContent}>
-            <p className={styles.statLabel}>Pending Payments (Current Month)</p>
-            <p className={styles.statValue}>{stats.pendingPayments}</p>
-            <p className={styles.statSubtext}>Outstanding balances</p>
+            <p className={styles.statLabel}>Upcoming Payments (Current Month)</p>
+            <p className={styles.statValue}>{mounted ? stats.upcomingPayments : '-'}</p>
+            <p className={styles.statSubtext}>Outstanding balances for current month</p>
           </div>
           <div className={styles.statIconWrap}>
             <PendingIcon className={styles.statIcon} aria-hidden="true" />
@@ -1078,7 +1322,7 @@ export default function PaymentMonitoringPage() {
         <article className={styles.statCard}>
           <div className={styles.statContent}>
             <p className={styles.statLabel}>Collection Rate</p>
-            <p className={styles.statValue}>{`${stats.collectionRate}%`}</p>
+            <p className={styles.statValue}>{mounted ? `${stats.collectionRate}%` : '-'}</p>
             <p className={styles.statSubtext}>Current month</p>
           </div>
           <div className={styles.statIconWrap}>
@@ -1105,6 +1349,7 @@ export default function PaymentMonitoringPage() {
               value={filterStartDate}
               onChange={(event) => setFilterStartDate(event.target.value)}
               className={styles.dateInput}
+              max={filterEndDate || (mounted ? toYmd(new Date()) : '')}
               aria-label="Filter payment records start date"
             />
             <span className={styles.dateLabel}>To:</span>
@@ -1113,21 +1358,32 @@ export default function PaymentMonitoringPage() {
               value={filterEndDate}
               onChange={(event) => setFilterEndDate(event.target.value)}
               className={styles.dateInput}
+              min={filterStartDate}
+              max={mounted ? toYmd(new Date()) : ''}
               aria-label="Filter payment records end date"
             />
             {(filterStartDate || filterEndDate) && (
               <button
                 type="button"
-                className={styles.viewButton}
+                className={styles.clearFilterButton}
                 onClick={() => {
                   setFilterStartDate('')
                   setFilterEndDate('')
                 }}
-                style={{ fontSize: '0.85rem', marginLeft: '4px' }}
+                style={{ marginLeft: '6px' }}
               >
-                Clear
+                Clear Filters
               </button>
             )}
+            <button
+              type="button"
+              className={styles.generateReportButton}
+              onClick={handleGenerateReport}
+              style={{ marginLeft: '10px' }}
+              disabled={filteredRecords.length === 0}
+            >
+              Generate Report
+            </button>
           </div>
         </div>
       </section>

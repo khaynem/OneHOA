@@ -132,15 +132,15 @@
 
 .logoutBtn {
   width: 100%;
-  display: center;
+  display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
   color: #ffffff;
   border: 1px solid #003b75;
   background: #003b75;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: 8px;
-  padding: 12px 12px;
+  padding: 11px 12px;
   font-size: 15px;
   white-space: nowrap;
   cursor: pointer;

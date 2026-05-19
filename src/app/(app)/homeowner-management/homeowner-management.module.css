@@ -19,12 +19,13 @@
   font-weight: 700;
   color: #1f2024;
 }
-  .paymentHeaderRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
+
+.paymentHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 
 .subtitle {
   margin: 8px 0 0;
@@ -126,9 +127,21 @@
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 10px;
   margin-top: 12px;
+}
+
+.pageControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pageRange {
+  color: #4b5563;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .pageButton {
@@ -261,11 +274,13 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.36);
+  background: rgba(15, 23, 42, 0.45);
   display: grid;
   place-items: center;
-  z-index: 70;
+  z-index: 1100;
   padding: 14px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .modal {
@@ -313,62 +328,63 @@
   object-fit: cover;
   border: 2px solid #d5e6f5;
 }
+
+.paymentSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summaryCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.summarySubtext {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.unpaidSection {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  margin-top: 2px;
+}
+
+.unpaidList {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.unpaidItem {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ffe4e4;
+  color: #a01414;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
   .paymentSummaryGrid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: 1fr;
   }
 
-  .summaryCard {
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #fff;
-    padding: 12px 14px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  .paymentHeaderRow {
+    flex-direction: column;
+    align-items: flex-start;
   }
-
-  .summarySubtext {
-    margin: 6px 0 0;
-    color: #6b7280;
-    font-size: 0.85rem;
-  }
-
-  .unpaidSection {
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #fff;
-    padding: 12px 14px;
-    margin-top: 2px;
-  }
-
-  .unpaidList {
-    list-style: none;
-    padding: 0;
-    margin: 8px 0 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .unpaidItem {
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: #ffe4e4;
-    color: #a01414;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  @media (max-width: 900px) {
-    .paymentSummaryGrid {
-      grid-template-columns: 1fr;
-    }
-
-    .paymentHeaderRow {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
+}
 
 .modalAvatarPlaceholder {
   display: grid;
@@ -724,7 +740,7 @@
   margin: 0 0 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  overflow-y: auto  ;
+  overflow-y: auto;
   overflow-x: hidden;
   height: 168px;
   max-height: 168px;
@@ -1053,4 +1069,3 @@
 .jitLink:hover {
   color: #095b9b;
 }
-

@@ -101,10 +101,24 @@ export async function PUT(request, { params }) {
 
     const body = await request.json();
     const payload = pickAllowedFields(body || {});
+    if (payload.occupant_status !== undefined) {
+      delete payload.occupant_status;
+    }
     const addressPayload = extractAddressPayload(body || {});
     const normalizedStatus = normalizeStatusInput(payload.status ?? body?.status);
     if (normalizedStatus !== undefined) {
       payload.status = normalizedStatus;
+    }
+
+    const entryDateVal = payload.entry_date ?? body?.entry_date;
+    if (entryDateVal) {
+      const parsedDate = new Date(entryDateVal);
+      if (!Number.isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > new Date().getFullYear()) {
+        return NextResponse.json(
+          { success: false, message: "Entry date cannot exceed the current year." },
+          { status: 400 }
+        );
+      }
     }
 
     if (payload.archived !== undefined) {

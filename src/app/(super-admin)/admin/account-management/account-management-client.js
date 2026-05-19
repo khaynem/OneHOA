@@ -64,6 +64,7 @@ export default function AccountManagementClient() {
   const [editForm, setEditForm] = useState(null)
   const [pendingDeleteUserId, setPendingDeleteUserId] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
 
   const temporaryPassword = useMemo(() => toTempPassword(form.lastName), [form.lastName])
 
@@ -126,11 +127,13 @@ export default function AccountManagementClient() {
     STATUS_OPTIONS.some((status) => status.value === editForm?.status)
 
   const addUser = async () => {
+    if (isSaving) return
     if (!canSubmit) {
       return
     }
 
     try {
+      setIsSaving(true)
       const response = await apiClient.post('/users', {
         first_name: normalizeNamePart(form.firstName),
         last_name: normalizeNamePart(form.lastName),
@@ -146,6 +149,8 @@ export default function AccountManagementClient() {
       closeModal()
     } catch (error) {
       notify.error(error.message || 'Unable to create user account.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -174,11 +179,13 @@ export default function AccountManagementClient() {
   }
 
   const saveUserEdits = async () => {
+    if (isSaving) return
     if (!selectedUser || !canSaveEdit) {
       return
     }
 
     try {
+      setIsSaving(true)
       const response = await apiClient.put(`/users/${selectedUser.id}`, {
         first_name: normalizeNamePart(editForm.firstName),
         last_name: normalizeNamePart(editForm.lastName),
@@ -204,6 +211,8 @@ export default function AccountManagementClient() {
       notify.success('User account updated successfully.')
     } catch (error) {
       notify.error(error.message || 'Unable to update user account.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -220,11 +229,13 @@ export default function AccountManagementClient() {
   }
 
   const confirmDeleteUser = async () => {
+    if (isSaving) return
     if (!pendingDeleteUserId) {
       return
     }
 
     try {
+      setIsSaving(true)
       await apiClient.delete(`/users/${pendingDeleteUserId}`)
       setUsers((prev) => prev.filter((user) => user.id !== pendingDeleteUserId))
 
@@ -236,6 +247,8 @@ export default function AccountManagementClient() {
       notify.success('User account deleted successfully.')
     } catch (error) {
       notify.error(error.message || 'Unable to delete user account.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -421,11 +434,11 @@ export default function AccountManagementClient() {
             </div>
 
             <div className={styles.modalActions}>
-              <button type="button" className={styles.cancelButton} onClick={closeModal}>
+              <button type="button" className={styles.cancelButton} onClick={closeModal} disabled={isSaving}>
                 Cancel
               </button>
-              <button type="button" className={styles.confirmButton} onClick={addUser} disabled={!canSubmit}>
-                Add User
+              <button type="button" className={styles.confirmButton} onClick={addUser} disabled={!canSubmit || isSaving}>
+                {isSaving ? 'Adding...' : 'Add User'}
               </button>
             </div>
           </div>
@@ -536,12 +549,12 @@ export default function AccountManagementClient() {
 
                   setIsEditingUser(true)
                 }}
-                disabled={isEditingUser && !canSaveEdit}
+                disabled={(isEditingUser && !canSaveEdit) || isSaving}
               >
                 <EditIcon className={styles.editIcon} aria-hidden="true" />
-                {isEditingUser ? 'Save Changes' : 'Edit'}
+                {isEditingUser ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit'}
               </button>
-              <button type="button" className={styles.viewDeleteButton} onClick={promptDeleteUser}>
+              <button type="button" className={styles.viewDeleteButton} onClick={promptDeleteUser} disabled={isSaving}>
                 Delete
               </button>
             </div>
@@ -558,11 +571,11 @@ export default function AccountManagementClient() {
             </p>
 
             <div className={styles.modalActions}>
-              <button type="button" className={styles.cancelButton} onClick={closeDeleteConfirmModal}>
+              <button type="button" className={styles.cancelButton} onClick={closeDeleteConfirmModal} disabled={isSaving}>
                 Cancel
               </button>
-              <button type="button" className={styles.deleteButton} onClick={confirmDeleteUser}>
-                Confirm Delete
+              <button type="button" className={styles.deleteButton} onClick={confirmDeleteUser} disabled={isSaving}>
+                {isSaving ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

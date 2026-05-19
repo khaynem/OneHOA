@@ -133,7 +133,18 @@ export async function POST(request) {
       payload["address._id"] = resolvedAddressId;
     }
 
-    const entryYear = resolveEntryYear(payload.entry_date ?? body?.entry_date);
+    const entryDateVal = payload.entry_date ?? body?.entry_date;
+    if (entryDateVal) {
+      const parsedDate = new Date(entryDateVal);
+      if (!Number.isNaN(parsedDate.getTime()) && parsedDate.getFullYear() > new Date().getFullYear()) {
+        return NextResponse.json(
+          { success: false, message: "Entry date cannot exceed the current year." },
+          { status: 400 }
+        );
+      }
+    }
+
+    const entryYear = resolveEntryYear(entryDateVal);
     payload.generated_id = await generateUniqueId(entryYear);
 
     const occupantStatus = payload.occupant_status ?? body?.occupant_status;

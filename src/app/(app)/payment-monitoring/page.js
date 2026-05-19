@@ -285,6 +285,7 @@ export default function PaymentMonitoringPage() {
   const [isSavingDues, setIsSavingDues] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [isPrinting, setIsPrinting] = useState(false)
+  const [isSavingPayment, setIsSavingPayment] = useState(false)
   const [printerType, setPrinterType] = useState('usb')
 
   const printerPortRef = useRef(null)
@@ -545,14 +546,27 @@ export default function PaymentMonitoringPage() {
   const openRecordModal = () => {
     const receiptNo = generateReceiptNo(records.map((record) => record.receiptNo))
     const today = toYmd(new Date())
+    const currentYear = new Date().getFullYear()
+    const currentMonth = new Date().getMonth() + 1
+    const startYear = String(currentYear)
+    const startMonth = String(currentMonth).padStart(2, '0')
+    const endYear = String(currentYear)
+    const endMonth = String(currentMonth).padStart(2, '0')
+
+    const range = buildPeriodRange(startYear, startMonth, endYear, endMonth)
+    const periods = range.periods.length > 0 ? range.periods : [currentYear * 100 + currentMonth]
+    const nextAmount = String(periods.length * monthlyDues)
+
     setForm({
       ...EMPTY_FORM,
       receiptNo,
       date: today,
-      rangeStartYear: String(new Date().getFullYear()),
-      rangeStartMonth: String(new Date().getMonth() + 1).padStart(2, '0'),
-      rangeEndYear: String(new Date().getFullYear()),
-      rangeEndMonth: String(new Date().getMonth() + 1).padStart(2, '0')
+      rangeStartYear: startYear,
+      rangeStartMonth: startMonth,
+      rangeEndYear: endYear,
+      rangeEndMonth: endMonth,
+      paymentPeriods: periods,
+      amount: nextAmount
     })
     setIsRecordModalOpen(true)
   }
@@ -884,6 +898,7 @@ export default function PaymentMonitoringPage() {
   })
 
   const savePaymentRecord = async ({ shouldPrint = false } = {}) => {
+    if (isSavingPayment) return
     const amountPaid = Number(form.amount)
     const safeReceiptNo = form.receiptNo || generateReceiptNo(records.map((record) => record.receiptNo))
     const numericReceiptNo = Number(String(safeReceiptNo).replace(/\D/g, ''))
@@ -930,6 +945,7 @@ export default function PaymentMonitoringPage() {
     }
 
     try {
+      setIsSavingPayment(true)
       await apiClient.post('/payments', {
         receipt_no: numericReceiptNo,
         amount: amountPaid,
@@ -960,6 +976,8 @@ export default function PaymentMonitoringPage() {
         title: 'Failed to Record Payment',
         description: error.message || 'Unable to save payment record.'
       })
+    } finally {
+      setIsSavingPayment(false)
     }
   }
 
@@ -1346,16 +1364,16 @@ export default function PaymentMonitoringPage() {
                   <option value="bluetooth">Bluetooth</option>
                 </select>
               </div>
-              <button type="button" className={styles.secondaryButton} onClick={closeRecordModal}>
+              <button type="button" className={styles.secondaryButton} onClick={closeRecordModal} disabled={isSavingPayment}>
                 Cancel
               </button>
               <button
                 type="button"
                 className={styles.printButton}
                 onClick={() => savePaymentRecord({ shouldPrint: true })}
-                disabled={isPrinting}
+                disabled={isPrinting || isSavingPayment}
               >
-                {isPrinting ? 'Printing...' : 'Add & Print Receipt'}
+                {isSavingPayment ? 'Saving...' : (isPrinting ? 'Printing...' : 'Add & Print Receipt')}
               </button>
             </div>
           </div>

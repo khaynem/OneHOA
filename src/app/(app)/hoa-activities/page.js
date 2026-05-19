@@ -85,6 +85,7 @@ export default function HOAActivitiesPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const sortedActivities = useMemo(
     () =>
@@ -243,6 +244,7 @@ export default function HOAActivitiesPage() {
   }
 
   const createActivity = async () => {
+    if (isSaving) return
     if (!form.title.trim() || !form.details.trim()) {
       notify.error({
         title: 'Missing Required Details',
@@ -252,6 +254,7 @@ export default function HOAActivitiesPage() {
     }
 
     try {
+      setIsSaving(true)
       const payload = {
         title: form.title.trim(),
         content: form.details.trim(),
@@ -276,10 +279,13 @@ export default function HOAActivitiesPage() {
         title: 'Post Failed',
         description: error.message || 'Unable to post activity.'
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
   const saveActivityEdits = async () => {
+    if (isSaving) return
     if (!selectedActivity || !editForm.title.trim() || !editForm.details.trim()) {
       notify.error({
         title: 'Missing Required Details',
@@ -289,6 +295,7 @@ export default function HOAActivitiesPage() {
     }
 
     try {
+      setIsSaving(true)
       const payload = {
         title: editForm.title.trim(),
         content: editForm.details.trim(),
@@ -312,6 +319,8 @@ export default function HOAActivitiesPage() {
         title: 'Update Failed',
         description: error.message || 'Unable to save activity changes.'
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -328,6 +337,7 @@ export default function HOAActivitiesPage() {
   }
 
   const runArchiveAction = async () => {
+    if (isSaving) return
     if (!confirmAction?.activity?.id) {
       return
     }
@@ -335,6 +345,7 @@ export default function HOAActivitiesPage() {
     const shouldArchive = confirmAction.type === 'archive'
 
     try {
+      setIsSaving(true)
       const response = await apiClient.put(`/activities/${confirmAction.activity.id}`, {
         archived: shouldArchive
       })
@@ -359,6 +370,8 @@ export default function HOAActivitiesPage() {
         title: shouldArchive ? 'Archive Failed' : 'Restore Failed',
         description: error.message || 'Unable to update activity archive status.'
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -491,11 +504,11 @@ export default function HOAActivitiesPage() {
             </label>
 
             <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryButton} onClick={closeCreateModal}>
+              <button type="button" className={styles.secondaryButton} onClick={closeCreateModal} disabled={isSaving}>
                 Cancel
               </button>
-              <button type="button" className={styles.primaryButton} onClick={createActivity}>
-                Post Activity
+              <button type="button" className={styles.primaryButton} onClick={createActivity} disabled={isSaving}>
+                {isSaving ? 'Posting...' : 'Post Activity'}
               </button>
             </div>
           </div>
@@ -559,11 +572,11 @@ export default function HOAActivitiesPage() {
                 </label>
 
                 <div className={styles.modalActions}>
-                  <button type="button" className={styles.secondaryButton} onClick={() => setIsEditingActivity(false)}>
+                  <button type="button" className={styles.secondaryButton} onClick={() => setIsEditingActivity(false)} disabled={isSaving}>
                     Cancel
                   </button>
-                  <button type="button" className={styles.primaryButton} onClick={saveActivityEdits}>
-                    Save Changes
+                  <button type="button" className={styles.primaryButton} onClick={saveActivityEdits} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </>
@@ -682,11 +695,11 @@ export default function HOAActivitiesPage() {
             </p>
 
             <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryButton} onClick={closeConfirmAction}>
+              <button type="button" className={styles.secondaryButton} onClick={closeConfirmAction} disabled={isSaving}>
                 Cancel
               </button>
-              <button type="button" className={styles.primaryButton} onClick={runArchiveAction}>
-                Confirm
+              <button type="button" className={styles.primaryButton} onClick={runArchiveAction} disabled={isSaving}>
+                {isSaving ? 'Confirming...' : 'Confirm'}
               </button>
             </div>
           </div>

@@ -372,6 +372,7 @@ function HomeownerManagementInner() {
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
   const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
+  const [isSaving, setIsSaving] = useState(false)
 
   const ownerByAddress = useMemo(() => {
     const map = new Map()
@@ -512,11 +513,13 @@ function HomeownerManagementInner() {
     /^\d{11}$/.test(addForm.phone.trim()) &&
     addForm.jobDescription.trim()
 
+  const currentYear = new Date().getFullYear()
   const isStepTwoValid =
     VALID_PHASES.includes(addForm.phase.trim()) &&
     /^\d{1,3}$/.test(addForm.block.trim()) &&
     /^\d{1,3}$/.test(addForm.lot.trim()) &&
     /^\d{4}$/.test(addForm.entryDate.trim()) &&
+    Number(addForm.entryDate.trim()) <= currentYear &&
     addForm.occupantStatus.trim()
 
   const filteredHomeowners = useMemo(() => {
@@ -655,15 +658,18 @@ function HomeownerManagementInner() {
   }
 
   const registerHomeowner = async () => {
-    if (!isStepTwoValid) {
+    if (isSaving) return
+    const currentYear = new Date().getFullYear()
+    if (!isStepTwoValid || Number(addForm.entryDate.trim()) > currentYear) {
       notify.error({
-        title: 'Invalid Address Details',
-        description: 'Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits.'
+        title: 'Invalid Address/Entry Details',
+        description: `Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits and not exceed ${currentYear}.`
       })
       return
     }
 
     try {
+      setIsSaving(true)
       const payload = {
         first_name: normalizeName(addForm.firstName).trim(),
         middle_name: normalizeName(addForm.middleName).trim(),
@@ -698,6 +704,8 @@ function HomeownerManagementInner() {
         title: 'Registration Failed',
         description: error.message || 'Unable to register homeowner.'
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -933,6 +941,7 @@ function HomeownerManagementInner() {
   }
 
   const saveHomeownerEdits = async () => {
+    if (isSaving) return
     if (!selectedHomeowner || !editForm) {
       return
     }
@@ -943,6 +952,7 @@ function HomeownerManagementInner() {
     const normalizedBlock = digitsOnly(editForm.block).slice(0, 3)
     const normalizedLot = digitsOnly(editForm.lot).slice(0, 3)
     const normalizedEntryYear = digitsOnly(editForm.entryDate).slice(0, 4)
+    const currentYear = new Date().getFullYear()
 
     if (
       !normalizedFirstName ||
@@ -952,16 +962,18 @@ function HomeownerManagementInner() {
       !VALID_PHASES.includes(normalizedPhase) ||
       !/^\d{1,3}$/.test(normalizedBlock) ||
       !/^\d{1,3}$/.test(normalizedLot) ||
-      !/^\d{4}$/.test(normalizedEntryYear)
+      !/^\d{4}$/.test(normalizedEntryYear) ||
+      Number(normalizedEntryYear) > currentYear
     ) {
       notify.error({
         title: 'Invalid Edit Values',
-        description: 'Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits.'
+        description: `Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits and not exceed ${currentYear}.`
       })
       return
     }
 
     try {
+      setIsSaving(true)
       const payload = {
         first_name: normalizedFirstName,
         middle_name: normalizeName(editForm.middleName).trim(),
@@ -1012,6 +1024,8 @@ function HomeownerManagementInner() {
         title: 'Update Failed',
         description: error.message || 'Unable to save homeowner changes.'
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -1499,9 +1513,9 @@ function HomeownerManagementInner() {
                     type="button"
                     className={styles.primaryButton}
                     onClick={registerHomeowner}
-                    disabled={!isStepTwoValid}
+                    disabled={!isStepTwoValid || isSaving}
                   >
-                    Register Homeowner
+                    {isSaving ? 'Registering...' : 'Register Homeowner'}
                   </button>
                 </div>
               </>
@@ -1737,6 +1751,7 @@ function HomeownerManagementInner() {
                       className={styles.input}
                       value={editForm?.occupantStatus || ''}
                       onChange={(event) => handleEditOccupantStatusChange(event.target.value)}
+                      disabled
                     >
                       <option value="" disabled>
                         Select occupant status
@@ -1938,7 +1953,7 @@ function HomeownerManagementInner() {
                 <button
                   type="button"
                   className={styles.primaryButton}
-                  disabled={isUpdatingPhoto}
+                  disabled={isUpdatingPhoto || isSaving}
                   onClick={() => {
                     if (isEditingHomeowner) {
                       saveHomeownerEdits()
@@ -1948,7 +1963,7 @@ function HomeownerManagementInner() {
                     setIsEditingHomeowner(true)
                   }}
                 >
-                  {isEditingHomeowner ? 'Save Changes' : 'Edit'}
+                  {isEditingHomeowner ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit'}
                 </button>
               </div>
             ) : null}

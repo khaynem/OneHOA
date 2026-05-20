@@ -1,0 +1,366 @@
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  padding: 24px 16px;
+  background: #003b75;
+  min-height: 100dvh;
+  height: 100dvh;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+  transition: width 0.28s ease, padding 0.28s ease;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.profileCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.05);
+  transition: all 0.25s ease;
+}
+
+.avatarCircle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #0070c4;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
+  flex-shrink: 0;
+}
+
+.profileDetails {
+  min-width: 0;
+  flex: 1;
+}
+
+.profileName {
+  margin: 0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profileRole {
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navigation {
+  flex: 1;
+}
+
+.navList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.item {
+  margin-bottom: 6px;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 15px;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.active {
+  background: #0070c4;
+}
+
+.active:hover {
+  background: #0060aa;
+}
+
+.label {
+  display: inline-block;
+  align-items: center;
+}
+
+.link:hover .label {
+  text-decoration: underline;
+}
+
+.icon {
+  width: 20px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.bottomSection {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.logoutBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #ffffff;
+  border: 1px solid #003b75;
+  background: #003b75;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.logoutBtn:hover {
+  background: #ffffff;
+  color: #dd1515;
+  border: 1px solid #dd1515;
+}
+
+.logoutBtn:hover .icon {
+  color: #dd1515;
+}
+
+.sidebarLegal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.legalLink {
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 150ms ease;
+}
+
+.legalLink:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.legalSeparator {
+  user-select: none;
+  opacity: 0.5;
+}
+
+.collapsed {
+  width: 86px;
+  padding: 24px 10px;
+}
+
+.collapsed .profileCard {
+  justify-content: center;
+  padding: 12px 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.collapsed .avatarCircle {
+  margin: 0 auto;
+}
+
+.collapsed .link {
+  justify-content: center;
+  padding: 11px 0;
+}
+
+.collapsed .label {
+  display: none;
+}
+
+.collapsed .logoutBtn {
+  justify-content: center;
+  padding: 11px 0;
+}
+
+@media (max-height: 760px) {
+  .sidebar {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .profileCard {
+    margin-bottom: 16px;
+  }
+
+  .link {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+}
+
+/* Modal Confirmation Dialog inside Sidebar */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  display: grid;
+  place-items: center;
+  z-index: 999;
+}
+
+.modal {
+  width: min(92vw, 420px);
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modalTitle {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: #111827;
+  font-weight: 700;
+}
+
+.modalText {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.errorText {
+  margin-top: 10px;
+  color: #b42318;
+  font-size: 14px;
+}
+
+.modalActions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancelBtn,
+.confirmBtn {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.cancelBtn {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.cancelBtn:hover {
+  background: #e5e7eb;
+}
+
+.confirmBtn {
+  background: #dc2626;
+  color: #fff;
+}
+
+.confirmBtn:hover {
+  background: #b91c1c;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    z-index: 200;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+    width: 260px;
+    padding: 24px 16px;
+  }
+
+  .sidebar.collapsed .profileCard {
+    justify-content: flex-start;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.05);
+  }
+
+  .sidebar.collapsed .profileDetails {
+    display: block;
+  }
+
+  .sidebar.collapsed .profileName {
+    display: block;
+  }
+
+  .sidebar.collapsed .profileRole {
+    display: block;
+  }
+
+  .sidebar.collapsed .link {
+    justify-content: flex-start;
+    padding: 11px 12px;
+  }
+
+  .sidebar.collapsed .label {
+    display: inline-block;
+  }
+
+  .sidebar.collapsed .logoutBtn {
+    justify-content: flex-start;
+    padding: 12px 12px;
+  }
+
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.25);
+  }
+}

@@ -1,0 +1,195 @@
+.page {
+  padding: 8px 6px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.8rem, 2vw, 2.2rem);
+  font-weight: 700;
+  color: #1f2024;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #4f4f4f;
+  font-size: 1rem;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.unreadBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #1f2937;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.secondaryButton {
+  border: 1px solid #d2d7df;
+  background: #f9fafb;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryButton:hover {
+  background: #f1f5f9;
+}
+
+.listCard {
+  background: #fff;
+  border: 1px solid #d4d8dd;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  border-bottom: 1px solid #edf0f3;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.itemRead {
+  opacity: 0.7;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.itemTitle {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.itemMessage {
+  margin: 0 0 6px;
+  color: #374151;
+  font-size: 0.93rem;
+}
+
+.itemSummary {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.86rem;
+}
+
+.itemMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  color: #6b7280;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.linkButton {
+  border: none;
+  background: transparent;
+  color: #0a68b2;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.linkButton:hover {
+  text-decoration: underline;
+}
+
+.emptyState {
+  margin: 0;
+  padding: 18px 16px;
+  color: #6b7280;
+}
+
+.error {
+  margin: 0 0 12px;
+  color: #b42318;
+  font-weight: 600;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.pageButton {
+  border: 1px solid #d2d7df;
+  background: #f9fafb;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pageButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  color: #4b5563;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    justify-content: space-between;
+  }
+
+  .itemHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .itemMeta {
+    align-items: flex-start;
+  }
+}

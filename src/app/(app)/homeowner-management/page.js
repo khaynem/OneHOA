@@ -780,7 +780,7 @@ function HomeownerManagementInner() {
         last_name: normalizeName(addForm.lastName).trim(),
         phone_number: addForm.phone.trim(),
         household_members: addForm.householdMembers,
-        job_description: addForm.jobDescription.trim(),
+        job_title: addForm.jobDescription.trim(),
         work_status: addForm.workStatus.trim(),
         entry_date: toEntryDateValue(addForm.entryDate),
         occupant_status: addForm.occupantStatus.trim(),
@@ -1084,7 +1084,7 @@ function HomeownerManagementInner() {
         entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
         household_members: editForm.householdMembers,
-        job_description: editForm.jobDescription,
+        job_title: editForm.jobDescription,
         work_status: editForm.workStatus,
         status: normalizeStatusList(getStatusForOccupant(statusDraft, editForm.occupantStatus)),
         address: {
@@ -2390,7 +2390,7 @@ function HomeownerManagementInner() {
                 <button
                   type="button"
                   className={styles.primaryButton}
-                  disabled={isUpdatingPhoto || isSaving || isArchiving || isDeleting}
+                  disabled={isOfficer || isUpdatingPhoto || isSaving || isArchiving || isDeleting}
                   onClick={() => {
                     if (isEditingHomeowner) {
                       setIsConfirmSaveOpen(true)
@@ -2399,6 +2399,7 @@ function HomeownerManagementInner() {
 
                     setIsEditingHomeowner(true)
                   }}
+                  title={isOfficer ? 'Officers are not authorized to edit records.' : undefined}
                 >
                   {isEditingHomeowner ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit'}
                 </button>

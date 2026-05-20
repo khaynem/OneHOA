@@ -27,6 +27,30 @@ const axiosClient = axios.create({
   withCredentials: true,
 });
 
+// Simple in-memory client-side cache for GET requests
+const getCache = new Map();
+const DEFAULT_TTL = 30000; // 30 seconds default TTL
+
+// Paths that should not be cached (like live notifications)
+const DYNAMIC_PATHS = ["/notifications"];
+
+// Clear all cached GET requests
+export function clearCache() {
+  getCache.clear();
+}
+
+function getCacheKey(path, query) {
+  const normalizedQuery = stripUndefinedParams(query) || {};
+  // Sort keys to ensure consistent cache keys regardless of query param ordering
+  const sortedQuery = Object.keys(normalizedQuery)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = normalizedQuery[key];
+      return acc;
+    }, {});
+  return JSON.stringify({ path, query: sortedQuery });
+}
+
 async function request(path, options = {}) {
   const {
     method = "GET",
@@ -34,8 +58,30 @@ async function request(path, options = {}) {
     body,
     headers = {},
     withCredentials = true,
+    cache: useCache = true, // By default caching is enabled for GET requests
+    forceRefresh = false,   // Set true to skip reading from cache (will still populate it)
+    ttl = DEFAULT_TTL,      // Cache duration in ms
     ...rest
   } = options;
+
+  const methodUpper = method.toUpperCase();
+  const isGet = methodUpper === "GET";
+
+  // If a mutation is initiated, invalidate all cache entries
+  if (!isGet) {
+    clearCache();
+  }
+
+  // Check cache for eligible GET requests
+  const canCache = isGet && useCache && !DYNAMIC_PATHS.some(dp => path.includes(dp));
+  const cacheKey = canCache ? getCacheKey(path, query) : null;
+
+  if (canCache && !forceRefresh) {
+    const cachedEntry = getCache.get(cacheKey);
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < ttl) {
+      return cachedEntry.data;
+    }
+  }
 
   try {
     const response = await axiosClient.request({
@@ -48,7 +94,17 @@ async function request(path, options = {}) {
       ...rest,
     });
 
-    return response.data;
+    const responseData = response.data;
+
+    // Cache successful GET requests
+    if (canCache) {
+      getCache.set(cacheKey, {
+        data: responseData,
+        timestamp: Date.now(),
+      });
+    }
+
+    return responseData;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
@@ -74,6 +130,7 @@ export const apiClient = {
   put: (path, body, options = {}) => request(path, { ...options, method: "PUT", body }),
   patch: (path, body, options = {}) => request(path, { ...options, method: "PATCH", body }),
   delete: (path, options = {}) => request(path, { ...options, method: "DELETE" }),
+  clearCache,
 };
 
 export { API_BASE_URL };

@@ -355,6 +355,7 @@ function HomeownerManagementInner() {
   const [tableFilter, setTableFilter] = useState('recent')
   const [paymentFilter, setPaymentFilter] = useState('all')
   const [occupantFilter, setOccupantFilter] = useState('all')
+  const [phaseFilter, setPhaseFilter] = useState('all')
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -480,7 +481,7 @@ function HomeownerManagementInner() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, tableFilter, paymentFilter, occupantFilter])
+  }, [searchText, tableFilter, paymentFilter, occupantFilter, phaseFilter])
 
   useEffect(() => {
     let isMounted = true
@@ -560,6 +561,10 @@ function HomeownerManagementInner() {
       })
     }
 
+    if (phaseFilter !== 'all') {
+      results = results.filter((homeowner) => String(homeowner.phase) === phaseFilter)
+    }
+
     if (occupantFilter === 'owner') {
       results = results.filter((homeowner) => isOwnerOccupant(homeowner.occupantStatus))
     }
@@ -594,7 +599,7 @@ function HomeownerManagementInner() {
     }
 
     return [...results].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-  }, [homeowners, searchText, tableFilter, paymentFilter, occupantFilter])
+  }, [homeowners, searchText, tableFilter, paymentFilter, occupantFilter, phaseFilter])
 
   const totalPages = Math.max(Math.ceil(filteredHomeowners.length / PAGE_SIZE), 1)
   const pagedHomeowners = useMemo(() => {
@@ -1118,12 +1123,19 @@ function HomeownerManagementInner() {
       return
     }
 
+    const generatorName = currentUser
+      ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username
+      : 'Authorized Officer'
+    const generatorRole = currentUser ? String(currentUser.role || '').toUpperCase() : 'OFFICER'
+    const generatedBy = `${generatorName} (${generatorRole})`
+
     popup.document.open()
     popup.document.write(
       buildHomeownerPaymentReportHtml({
         homeowner,
         monthlyDues,
-        generatedAt: new Date()
+        generatedAt: new Date(),
+        generatedBy
       })
     )
     popup.document.close()
@@ -1137,6 +1149,99 @@ function HomeownerManagementInner() {
     }
   }
 
+  const exportToCsv = () => {
+    if (filteredHomeowners.length === 0) {
+      notify.error({
+        title: 'No Data to Export',
+        description: 'There are no homeowners matching the current filters to export.'
+      })
+      return
+    }
+
+    const headers = [
+      'Resident ID',
+      'First Name',
+      'Middle Name',
+      'Last Name',
+      'Phase',
+      'Block',
+      'Lot',
+      'Unit Number',
+      'Phone Number',
+      'Occupant Status',
+      'Status',
+      'Entry Year',
+      'Household Members',
+      'Relatives',
+      'Work Status',
+      'Job Description'
+    ]
+
+    const rows = filteredHomeowners.map((homeowner) => {
+      const addrKey = buildAddressKey(homeowner)
+      const relativesList = addrKey
+        ? (occupantsByAddress.get(addrKey) || [])
+            .filter((occ) => occ.id !== homeowner.id)
+            .map((occ) => {
+              const occName = formatDisplayName(occ.firstName, occ.middleName, occ.lastName, { middleInitialOnly: true })
+              return `${occName} (${occ.occupantStatus})`
+            })
+            .join('; ')
+        : ''
+
+      return [
+        homeowner.displayId || homeowner.residentId || '-',
+        homeowner.firstName || '',
+        homeowner.middleName || '',
+        homeowner.lastName || '',
+        homeowner.phase || '',
+        homeowner.block || '',
+        homeowner.lot || '',
+        homeowner.unitNumber || '',
+        homeowner.phone || '',
+        homeowner.occupantStatus || '',
+        statusListToSingleOption(homeowner.status),
+        homeowner.entryDate || '',
+        homeowner.householdMembers || '',
+        relativesList || '-',
+        homeowner.workStatus || '',
+        homeowner.jobDescription || ''
+      ]
+    })
+
+    const escapeCsvValue = (val) => {
+      const stringVal = String(val === null || val === undefined ? '' : val).trim()
+      if (stringVal.includes(',') || stringVal.includes('"') || stringVal.includes('\n')) {
+        return `"${stringVal.replace(/"/g, '""')}"`
+      }
+      return stringVal
+    }
+
+    const csvContent = [
+      headers.map(escapeCsvValue).join(','),
+      ...rows.map((row) => row.map(escapeCsvValue).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    const phaseLabel = phaseFilter === 'all' ? 'AllPhases' : `Phase_${phaseFilter}`
+    const dateStr = new Date().toISOString().slice(0, 10)
+    link.setAttribute('download', `OneHOA_Masterlist_${phaseLabel}_${dateStr}.csv`)
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    notify.success({
+      title: 'Export Successful',
+      description: `Exported ${filteredHomeowners.length} homeowner records to CSV.`
+    })
+  }
+
   return (
     <main className={styles.page}>
       <section className={styles.headerRow}>
@@ -1145,10 +1250,15 @@ function HomeownerManagementInner() {
           <p className={styles.subtitle}>Register and manage homeowner records</p>
         </div>
 
-        <button type="button" className={styles.addButton} onClick={openAddModal}>
-          <span className={styles.addIcon}>+</span>
-          Add Homeowner
-        </button>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.exportButton} onClick={exportToCsv}>
+            Export Masterlist (CSV)
+          </button>
+          <button type="button" className={styles.addButton} onClick={openAddModal}>
+            <span className={styles.addIcon}>+</span>
+            Add Homeowner
+          </button>
+        </div>
       </section>
 
       <section className={styles.searchWrap}>
@@ -1161,6 +1271,17 @@ function HomeownerManagementInner() {
             placeholder="Search homeowners by name or unit number"
             aria-label="Search homeowners"
           />
+          <select
+            className={styles.filterSelect}
+            value={phaseFilter}
+            onChange={(event) => setPhaseFilter(event.target.value)}
+            aria-label="Filter by phase"
+          >
+            <option value="all">All Phases</option>
+            <option value="1">Phase 1</option>
+            <option value="2">Phase 2</option>
+            <option value="3">Phase 3</option>
+          </select>
           <select
             className={styles.filterSelect}
             value={paymentFilter}
@@ -2016,7 +2137,7 @@ function HomeownerManagementInner() {
               <h2 className={styles.modalTitle}>Confirm Changes</h2>
             </div>
             <div className={styles.modalBody} style={{ padding: '20px 0', color: '#4b5563' }}>
-              <p>Are you sure you want to save the changes made to this homeowner's record?</p>
+              <p>Are you sure you want to save the changes made to this homeowner&apos;s record?</p>
             </div>
             <div className={styles.modalActions}>
               <button

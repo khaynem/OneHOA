@@ -11,7 +11,7 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-export const buildHomeownerPaymentReportHtml = ({ homeowner, monthlyDues, generatedAt }) => {
+export const buildHomeownerPaymentReportHtml = ({ homeowner, monthlyDues, generatedAt, generatedBy }) => {
   const name = `${homeowner.firstName || ""} ${homeowner.lastName || ""}`.trim() || "Homeowner";
   const unitNumber = homeowner.unitNumber || "-";
   const totalPaid = formatPeso(homeowner.totalPaid || 0);
@@ -49,7 +49,7 @@ export const buildHomeownerPaymentReportHtml = ({ homeowner, monthlyDues, genera
 <body>
   <h1>Homeowner Payment Report</h1>
   <p><strong>${escapeHtml(name)}</strong> &mdash; Unit ${escapeHtml(unitNumber)}</p>
-  <p class="meta">Generated ${escapeHtml(generatedLabel)}</p>
+  <p class="meta">Generated ${escapeHtml(generatedLabel)}${generatedBy ? ` by ${escapeHtml(generatedBy)}` : ""}</p>
 
   <div class="summary">
     <div class="card">

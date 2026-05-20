@@ -11,33 +11,38 @@ export default function PwaInstallPrompt() {
   const [showIOSGuide, setShowIOSGuide] = useState(false)
 
   useEffect(() => {
-    // 1. Detect if already running in standalone mode (installed app)
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches || 
-      (window.navigator.standalone === true);
+    const checkPwaStatus = () => {
+      // 1. Detect if already running in standalone mode (installed app)
+      const isStandalone = 
+        window.matchMedia('(display-mode: standalone)').matches || 
+        (window.navigator.standalone === true);
 
-    if (isStandalone) {
-      return; // Already installed, do not show any prompt
-    }
+      if (isStandalone) {
+        return; // Already installed, do not show any prompt
+      }
 
-    // 2. Check if user previously dismissed this prompt
-    const dismissed = localStorage.getItem('pwa-prompt-dismissed') === 'true';
-    setIsDismissed(dismissed);
+      // 2. Check if user previously dismissed this prompt
+      const dismissed = localStorage.getItem('pwa-prompt-dismissed') === 'true';
+      setIsDismissed(dismissed);
 
-    // 3. Detect iOS and Safari (since iOS Safari has no native 'beforeinstallprompt' event)
-    const ua = window.navigator.userAgent.toLowerCase();
-    const isIosDevice = /iphone|ipad|ipod/.test(ua);
-    const isSafari = /safari/.test(ua) && !/crios/.test(ua) && !/fxios/.test(ua); // Exclude Chrome/Firefox on iOS
-    
-    if (isIosDevice && isSafari && !dismissed) {
-      setIsIOS(true);
-      setIsInstallable(true);
-    }
+      // 3. Detect iOS and Safari (since iOS Safari has no native 'beforeinstallprompt' event)
+      const ua = window.navigator.userAgent.toLowerCase();
+      const isIosDevice = /iphone|ipad|ipod/.test(ua);
+      const isSafari = /safari/.test(ua) && !/crios/.test(ua) && !/fxios/.test(ua); // Exclude Chrome/Firefox on iOS
+      
+      if (isIosDevice && isSafari && !dismissed) {
+        setIsIOS(true);
+        setIsInstallable(true);
+      }
+    };
+
+    setTimeout(checkPwaStatus, 0);
 
     // 4. Listen for Chrome/Android's native beforeinstallprompt event
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setInstallPromptEvent(e);
+      const dismissed = localStorage.getItem('pwa-prompt-dismissed') === 'true';
       if (!dismissed) {
         setIsInstallable(true);
       }

@@ -1343,26 +1343,19 @@ function HomeownerManagementInner() {
       'Phase',
       'Block',
       'Lot',
-      'Unit Number',
       'Phone Number',
       'Occupant Status',
-      'Status',
+      'Membership Status',
       'Entry Year',
       'Household Members',
-      'Relatives',
       'Work Status',
-      'Job Description'
+      'Job Title'
     ]
 
     const rows = filteredHomeowners.map((homeowner) => {
-      const addrKey = buildAddressKey(homeowner)
-      const relativesList = addrKey
-        ? (occupantsByAddress.get(addrKey) || [])
-            .filter((occ) => occ.id !== homeowner.id)
-            .map((occ) => {
-              const occName = formatDisplayName(occ.firstName, occ.middleName, occ.lastName, { middleInitialOnly: true })
-              return `${occName} (${occ.occupantStatus})`
-            })
+      const householdMembersStr = Array.isArray(homeowner.householdMembers)
+        ? homeowner.householdMembers
+            .map((member) => `${member.name || 'Unknown'} (${member.relationship || 'Unspecified'})`)
             .join('; ')
         : ''
 
@@ -1374,13 +1367,11 @@ function HomeownerManagementInner() {
         homeowner.phase || '',
         homeowner.block || '',
         homeowner.lot || '',
-        homeowner.unitNumber || '',
         homeowner.phone || '',
         homeowner.occupantStatus || '',
         statusListToSingleOption(homeowner.status),
         homeowner.entryDate || '',
-        homeowner.householdMembers || '',
-        relativesList || '-',
+        householdMembersStr || '',
         homeowner.workStatus || '',
         homeowner.jobDescription || ''
       ]

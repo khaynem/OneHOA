@@ -51,3 +51,54 @@ export async function sendPasswordResetCode({ toEmail, code, expiresInMinutes })
 
   return { delivered: true };
 }
+
+export async function sendRegistrationStatusEmail({ toEmail, status, fullName, declineReason }) {
+  const smtpConfig = getSmtpConfig();
+
+  if (!smtpConfig || !toEmail) {
+    console.warn("[EmailService] SMTP is not configured or email is missing. Registration status delivery skipped.");
+    return { delivered: false };
+  }
+
+  const transporter = nodemailer.createTransport(smtpConfig);
+  const from = process.env.EMAIL_FROM || smtpConfig.auth.user;
+
+  let subject = "";
+  let html = "";
+  let text = "";
+
+  if (status === "approved") {
+    subject = "OneHOA Registration Approved";
+    text = `Hello ${fullName},\n\nYour registration request has been approved. You are now officially a part of OneHOA.\n\nThank you!`;
+    html = [
+      `<p>Hello ${fullName},</p>`,
+      `<p>Your registration request has been <strong>approved</strong>. Your details have been recorded in the masterlist record of OneHOA.</p>`,
+      `<p>Thank you!</p>`,
+    ].join("");
+  } else if (status === "declined") {
+    subject = "OneHOA Registration Declined";
+    text = `Hello ${fullName},\n\nYour registration request has been declined.\nReason: ${declineReason}\n\nPlease contact the administrator for more information.`;
+    html = [
+      `<p>Hello ${fullName},</p>`,
+      `<p>Your registration request has been <strong>declined</strong>.</p>`,
+      `<p><strong>Reason:</strong> ${declineReason}</p>`,
+      `<p>Please contact the administrator for more information.</p>`,
+    ].join("");
+  }
+
+  if (!subject) return { delivered: false };
+
+  try {
+    await transporter.sendMail({
+      from,
+      to: toEmail,
+      subject,
+      text,
+      html,
+    });
+    return { delivered: true };
+  } catch (err) {
+    console.error("[EmailService] Failed to send registration status email:", err);
+    return { delivered: false };
+  }
+}

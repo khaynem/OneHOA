@@ -111,6 +111,7 @@
 
 .label {
   display: inline-block;
+  align-items: center;
 }
 
 .link:hover .label {
@@ -134,6 +135,7 @@
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   color: #ffffff;
   border: 1px solid #003b75;

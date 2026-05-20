@@ -1,13 +1,13 @@
 import mongoose from "mongoose";
 
-const recordsSchema = new mongoose.Schema(
+const pendingRegistrationSchema = new mongoose.Schema(
   {
-    last_name: {
+    first_name: {
       type: String,
       required: true,
       trim: true,
     },
-    first_name: {
+    last_name: {
       type: String,
       required: true,
       trim: true,
@@ -15,43 +15,35 @@ const recordsSchema = new mongoose.Schema(
     middle_name: {
       type: String,
       trim: true,
+      default: "",
     },
     email: {
       type: String,
       trim: true,
+      default: "",
     },
     phone_number: {
       type: String,
       trim: true,
+      default: "",
     },
     job_title: {
       type: String,
       trim: true,
-    },
-    work_address: {
-      type: String,
-      trim: true,
+      default: "",
     },
     work_status: {
       type: String,
       trim: true,
+      default: "",
     },
     entry_date: {
-      type: Date,
-    },
-    archived: {
-      type: Boolean,
-      default: false,
-    },
-    archived_at: {
       type: Date,
     },
     occupant_status: {
       type: String,
       trim: true,
-    },
-    household_no: {
-      type: Number,
+      default: "",
     },
     household_members: {
       type: [
@@ -62,32 +54,45 @@ const recordsSchema = new mongoose.Schema(
       ],
       default: []
     },
-    "address._id": {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Address",
+    phase: {
+      type: Number,
     },
-    "pictures._id": {
+    block: {
+      type: Number,
+    },
+    lot: {
+      type: Number,
+    },
+    picture_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Picture",
     },
-    status: {
-      type: [String],
+    valid_id_picture_ids: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Picture",
+        }
+      ],
       default: [],
+      validate: [v => v.length > 0 && v.length <= 4, 'Must have at least 1 and up to 4 valid ID pictures']
     },
-    generated_id: {
+    status: {
+      type: String,
+      enum: ["pending", "approved", "declined"],
+      default: "pending",
+    },
+    decline_reason: {
       type: String,
       trim: true,
-      unique: true,
-      sparse: true,
+      default: "",
     },
   },
   {
     timestamps: true,
     versionKey: false,
-    collection: "records",
+    collection: "pending_registrations",
   }
 );
 
-recordsSchema.index({ "address._id": 1 });
-
-export default mongoose.models.Record || mongoose.model("Record", recordsSchema);
+export default mongoose.models.PendingRegistration || mongoose.model("PendingRegistration", pendingRegistrationSchema);

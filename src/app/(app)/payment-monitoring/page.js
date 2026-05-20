@@ -63,7 +63,7 @@ const toUnitNumberFromAddress = (address) => {
 
 const getHomeownerName = (record = {}) => `${record.first_name || ''} ${record.last_name || ''}`.trim()
 
-const isPaymentMonitored = (record = {}) => isOwnerOccupant(record.occupant_status)
+const isPaymentMonitored = (record = {}) => isOwnerOccupant(record.occupant_status) && !record.archived
 
 const parseCoveredPeriods = (record) => {
   if (Array.isArray(record.payment_for_periods) && record.payment_for_periods.length > 0) {
@@ -898,15 +898,6 @@ export default function PaymentMonitoringPage() {
             ? `Until: ${filterEndDate}`
             : 'All Time'
 
-    const popup = window.open('', '_blank')
-    if (!popup) {
-      notify.error({
-        title: 'Blocker Detected',
-        description: 'Please enable popups to download/print the payment report.'
-      })
-      return
-    }
-
     const rowsHtml = filteredRecords
       .map(
         (record) => `
@@ -922,7 +913,7 @@ export default function PaymentMonitoringPage() {
       )
       .join('')
 
-    popup.document.write(`
+    const html = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -1066,7 +1057,52 @@ export default function PaymentMonitoringPage() {
           </div>
         </body>
       </html>
-    `)
+
+    `
+
+    const isMobileOrTablet = () => {
+      if (typeof window === 'undefined') return false
+      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+        window.navigator.userAgent.toLowerCase()
+      )
+    }
+
+    const printViaIframe = (contentHtml) => {
+      let iframe = document.getElementById('print-iframe')
+      if (!iframe) {
+        iframe = document.createElement('iframe')
+        iframe.id = 'print-iframe'
+        iframe.style.position = 'fixed'
+        iframe.style.right = '0'
+        iframe.style.bottom = '0'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.style.border = '0'
+        iframe.style.zIndex = '-9999'
+        document.body.appendChild(iframe)
+      }
+      const doc = iframe.contentDocument || iframe.contentWindow.document
+      doc.open()
+      doc.write(contentHtml)
+      doc.close()
+      setTimeout(() => {
+        iframe.contentWindow.focus()
+        iframe.contentWindow.print()
+      }, 500)
+    }
+
+    if (isMobileOrTablet()) {
+      printViaIframe(html)
+      return
+    }
+
+    const popup = window.open('', '_blank')
+    if (!popup) {
+      printViaIframe(html)
+      return
+    }
+
+    popup.document.write(html)
     popup.document.close()
 
     popup.onload = () => {

@@ -8,10 +8,14 @@ const protectedRoutes = [
   "/payment-monitoring",
   "/hoa-activities",
   "/admin/account-management",
+  "/pending-registrations",
+  "/admin/pending-registrations",
 ];
 
 const routeRoleRules = {
   "/admin/account-management": ["admin"],
+  "/pending-registrations": ["admin", "president"],
+  "/admin/pending-registrations": ["admin", "president"],
 };
 
 function matchesRoute(pathname, routes) {
@@ -91,5 +95,7 @@ export const config = {
     "/payment-monitoring/:path*",
     "/hoa-activities/:path*",
     "/admin/account-management/:path*",
+    "/pending-registrations/:path*",
+    "/admin/pending-registrations/:path*",
   ],
 };

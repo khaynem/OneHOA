@@ -48,6 +48,7 @@ export default function LandingPage() {
         </nav>
 
         <div className={styles.headerActions}>
+          <Link href="/register-homeowner" className={styles.registerBtn}>Homeowner Registration</Link>
           <Link href="/login" className={styles.loginBtn}>Login</Link>
         </div>
       </header>
@@ -56,7 +57,7 @@ export default function LandingPage() {
         <div className={styles.heroInner}>
           <h1 className={styles.heroTitle}>Welcome to OneHOA</h1>
           <p className={styles.heroSubtitle}>FC Hanjin Village&apos;s comprehensive Homeowners Association Management System</p>
-          <p className={styles.heroLead}>Stay informed, stay connected, and keep your community organized.</p>
+          <p className={styles.heroLead}>Simplify your HOA management with our intuitive platform designed for efficiency and transparency.</p>
           <div className={styles.cta}>
             <Link href="/login" className={`${styles.btn} ${styles.btnPrimary}`}>Login</Link>
             <a href="#about" className={`${styles.btn} ${styles.btnGhost}`}>Learn More →</a>
@@ -73,7 +74,7 @@ export default function LandingPage() {
         <div className={styles.aboutInner}>
           <div className={styles.aboutText}>
             <p><strong>FC Hanjin Village Homeowners Association (FVHOA)</strong> is committed to maintaining a safe, organized, and thriving community. The association manages homeowner records, oversees maintenance fees, coordinates community activities, and issues important documents like residency certificates and IDs.</p>
-            <p><strong>OneHOA</strong> is a web-based platform designed to support HVHOA officers in these tasks. It centralizes homeowner information, tracks payments, generates documents, and posts community announcements, making administrative processes faster, more accurate, and transparent for everyone.</p>
+            <p><strong>OneHOA</strong> is a web-based platform designed to support HVHOA officers in these tasks. It centralizes homeowner information, tracks payments, and generates documents making administrative processes faster, more accurate, and transparent for everyone.</p>
           </div>
 
           <div className={styles.aboutLogo}>
@@ -84,6 +85,16 @@ export default function LandingPage() {
               height={200}
             />
           </div>
+        </div>
+      </section>
+
+      
+
+      <section id="registration" className={styles.registrationSection}>
+        <div className={styles.registrationInner}>
+          <h2>Join Our Community</h2>
+          <p>Register as a homeowner</p>
+          <Link href="/register-homeowner" className={`${styles.btn} ${styles.btnPrimary}`}>Homeowner Registration</Link>
         </div>
       </section>
 
@@ -121,7 +132,7 @@ export default function LandingPage() {
           <div className={styles.contact}>
             <div><FaMapMarkerAlt /> Castillejos, Zambales</div>
             <div><FaPhoneAlt /> 0900 XXX XXXX</div>
-            <div><FaEnvelope /> vinalacentrohvhoa11@gmail.com</div>
+            <div><FaEnvelope /> onehoa22@gmail.com</div>
           </div>
 
           <div className={styles.footerBrand}>

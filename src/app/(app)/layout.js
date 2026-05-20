@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDays } from 'react-icons/hi2'
+import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDays, HiOutlineIdentification } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
 import Topnav from '../../components/topnav/topnav'
@@ -32,9 +32,19 @@ export default function AppRouteGroupLayout({ children }) {
   const pathname = usePathname()
 
   const currentUserRole = currentUser?.role || ''
-  const appLinks = canAccessAccountManagement(currentUserRole)
-    ? [...BASE_APP_LINKS, ACCOUNT_MANAGEMENT_LINK]
-    : BASE_APP_LINKS
+  const normalizedRole = String(currentUserRole).trim().toLowerCase()
+  
+  const appLinks = [...BASE_APP_LINKS]
+  if (normalizedRole === 'admin' || normalizedRole === 'president') {
+    appLinks.splice(2, 0, {
+      href: '/pending-registrations',
+      label: 'Pending Registrations',
+      Icon: HiOutlineIdentification,
+    })
+  }
+  if (normalizedRole === 'admin') {
+    appLinks.push(ACCOUNT_MANAGEMENT_LINK)
+  }
 
   useEffect(() => {
     let isMounted = true

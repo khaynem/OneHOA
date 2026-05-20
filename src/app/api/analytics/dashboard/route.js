@@ -95,7 +95,7 @@ export async function GET() {
 
     const [homeownersRaw, trackedPayments, recentPaymentsRaw, previousActivitiesRaw] =
       await Promise.all([
-        Record.find().select("_id occupant_status").lean(),
+        Record.find({ archived: { $ne: true } }).select("_id occupant_status").lean(),
         Payment.find({
           $or: [
             { payment_for_periods: { $elemMatch: { $gte: pendingStartPeriod, $lte: currentPeriod } } },

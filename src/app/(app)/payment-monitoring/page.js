@@ -29,7 +29,7 @@ const EMPTY_FORM = {
 const DEFAULT_MONTHLY_DUES = 100
 const PAGE_SIZE = 10
 const PRINTER_TYPE = 'epson'
-const PRINTER_WIDTH = 50
+const PRINTER_WIDTH = 32
 const PRINTER_BAUD_RATE = 115200
 
 const MONTH_OPTIONS = [
@@ -204,19 +204,18 @@ const buildReceiptElement = (receipt) => (
     <Text align="center" bold={true}>OneHOA</Text>
     <Text align="center">Payment Receipt</Text>
     <Br />
-    <Line />
-    <Row left="Receipt No" right={String(receipt.receiptNo || '-')} />
-    <Row left="Date Paid" right={formatDate(receipt.datePaid)} />
-    <Row left="Homeowner" right={String(receipt.homeownerName || '-')} />
-    <Row left="Ph-Blk-Lot" right={String(receipt.unitNumber || '-')} />
-    <Line />
-    <Row left="Periods" right={formatReceiptPeriods(receipt.coveredPeriods)} />
-    <Row left="Amount" right={toPeso(receipt.amount)} />
-    {receipt.issuedBy && <Row left="Issued By" right={String(receipt.issuedBy)} />}
+    <Text align="center">--------------------------------</Text>
+    <Text>Receipt No: {String(receipt.receiptNo || '-')}</Text>
+    <Text>Date Paid: {formatDate(receipt.datePaid)}</Text>
+    <Text>Homeowner: {String(receipt.homeownerName || '-')}</Text>
+    <Text>Ph-Blk-Lot: {String(receipt.unitNumber || '-')}</Text>
+    <Text align="center">--------------------------------</Text>
+    <Text>Periods: {formatReceiptPeriods(receipt.coveredPeriods)}</Text>
+    <Text>Amount: Php {Number(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+    {receipt.issuedBy && <Text>Issued By: {String(receipt.issuedBy)}</Text>}
     <Br />
-    <Text>Details:</Text>
-    <Text>{String(receipt.details || 'Monthly Due Payments')}</Text>
-    <Line />
+    <Text>Details: {String(receipt.details || 'Monthly Due Payments')}</Text>
+    <Text align="center">--------------------------------</Text>
     <Text align="center">Thank you</Text>
     <Cut />
   </Printer>

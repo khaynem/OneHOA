@@ -15,12 +15,32 @@ export async function PUT(request, { params }) {
     user = await requireAuth();
     await connectToDatabase();
 
-    const { id } = params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ success: false, message: "Invalid activity ID." }, { status: 400 });
+    const { id } = await params;
+
+    // Read request body early so we can fall back to any id-like fields if params.id is malformed
+    const body = await request.json();
+
+    // Normalize and validate the activity id. Some clients may accidentally pass non-string
+    // or wrapped values as the path param; try to sanitize common cases before rejecting.
+    let activityId = String(id || '');
+
+    if (!mongoose.Types.ObjectId.isValid(activityId)) {
+      // Try to extract a 24-hex substring (common when an object was stringified)
+      const match = String(activityId).match(/[a-fA-F0-9]{24}/);
+      if (match) {
+        activityId = match[0];
+      } else {
+        // Fall back to body fields that may contain the id
+        const candidate = body && (body.id || body._id || body.activityId || body.activity_id);
+        if (candidate) {
+          activityId = String(candidate);
+        }
+      }
     }
 
-    const body = await request.json();
+    if (!mongoose.Types.ObjectId.isValid(activityId)) {
+      return NextResponse.json({ success: false, message: "Invalid activity ID." }, { status: 400 });
+    }
     const { title, content, date, archived, "pictures._id": pictureId } = body || {};
 
     const payload = {};
@@ -54,7 +74,7 @@ export async function PUT(request, { params }) {
       payload["pictures._id"] = pictureId || null;
     }
 
-    const updated = await Activity.findByIdAndUpdate(id, payload, {
+    const updated = await Activity.findByIdAndUpdate(activityId, payload, {
       new: true,
       runValidators: true,
     })

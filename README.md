@@ -169,5 +169,5 @@ This project is licensed under the **ISC License**. Feel free to use, modify, an
 
 ## 👥 Authors & Contributions
 
-* Developed by **Kyu020** & contributors.
+* Developed by **Kyu020** & **khaynem**.
 * Contributions, bug reports, and pull requests are welcome! For major design shifts, please open an issue first to discuss what you'd like to modify.

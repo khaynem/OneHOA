@@ -80,7 +80,7 @@ export default function NotificationsPage() {
       )
       setUnreadCount((prev) => Math.max(prev - 1, 0))
     } catch {
-      // Ignore read-state failures in the UI.
+      // Silently ignore read-state update failures.
     }
   }
 
@@ -90,7 +90,7 @@ export default function NotificationsPage() {
       setNotifications((prev) => prev.map((item) => ({ ...item, read: true, read_at: new Date().toISOString() })))
       setUnreadCount(0)
     } catch {
-      // Ignore read-state failures in the UI.
+      // Silently ignore read-state update failures.
     }
   }
 
@@ -98,83 +98,111 @@ export default function NotificationsPage() {
   const canGoNext = useMemo(() => page < totalPages, [page, totalPages])
 
   return (
-    <main className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Notifications</h1>
-          <p className={styles.subtitle}>Officer activity updates and audit details</p>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Notifications</h1>
+            <p className={styles.bannerSubtitle}>
+              Officer activity updates, audit logs, and system event alerts.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
-        <div className={styles.headerActions}>
-          <span className={styles.unreadBadge}>{unreadCount} unread</span>
-          <button type="button" className={styles.secondaryButton} onClick={handleMarkAllRead}>
-            Mark all read
+
+        <div className={styles.toolbar}>
+          <div className={styles.toolbarLeft}>
+            {unreadCount > 0 && (
+              <span className={styles.unreadBadge}>{unreadCount} unread</span>
+            )}
+          </div>
+          <button type="button" className={styles.markAllBtn} onClick={handleMarkAllRead}>
+            Mark all as read
           </button>
         </div>
-      </header>
 
-      {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
+        {errorMessage ? <p className={styles.error}>{errorMessage}</p> : null}
 
-      <section className={styles.listCard}>
-        {isLoading ? (
-          <p className={styles.emptyState}>Loading notifications...</p>
-        ) : notifications.length === 0 ? (
-          <p className={styles.emptyState}>No notifications to show.</p>
-        ) : (
-          <ul className={styles.list}>
-            {notifications.map((item) => {
-              const summary = getSummaryText(item)
-              const message = String(item.message || '')
-              const showSummary = summary && summary !== message
+        <div className={styles.listCard}>
+          {isLoading ? (
+            <div className={styles.emptyState}>
+              <div className={styles.emptySpinner} />
+              <p>Loading notifications...</p>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p>No notifications to show.</p>
+            </div>
+          ) : (
+            <ul className={styles.list}>
+              {notifications.map((item) => {
+                const summary = getSummaryText(item)
+                const message = String(item.message || '')
+                const showSummary = summary && summary !== message
 
-              return (
-                <li key={item._id} className={`${styles.item} ${item.read ? styles.itemRead : ''}`}>
-                  <div className={styles.itemHeader}>
-                    <div>
-                      <p className={styles.itemTitle}>{item.title}</p>
-                      <p className={styles.itemMessage}>{message}</p>
-                      {showSummary ? <p className={styles.itemSummary}>{summary}</p> : null}
+                return (
+                  <li key={item._id} className={`${styles.item} ${item.read ? styles.itemRead : styles.itemUnread}`}>
+                    {!item.read && <span className={styles.unreadDot} aria-hidden="true" />}
+                    <div className={styles.itemBody}>
+                      <div className={styles.itemContent}>
+                        <p className={styles.itemTitle}>{item.title}</p>
+                        <p className={styles.itemMessage}>{message}</p>
+                        {showSummary ? <p className={styles.itemSummary}>{summary}</p> : null}
+                      </div>
+                      <div className={styles.itemMeta}>
+                        <span className={styles.itemTimestamp}>{formatTimestamp(item.createdAt)}</span>
+                        {!item.read ? (
+                          <button
+                            type="button"
+                            className={styles.markReadBtn}
+                            onClick={() => handleMarkRead(item._id)}
+                          >
+                            Mark read
+                          </button>
+                        ) : (
+                          <span className={styles.readLabel}>Read</span>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.itemMeta}>
-                      <span>{formatTimestamp(item.createdAt)}</span>
-                      {!item.read ? (
-                        <button
-                          type="button"
-                          className={styles.linkButton}
-                          onClick={() => handleMarkRead(item._id)}
-                        >
-                          Mark read
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
-
-      {totalPages > 1 ? (
-        <div className={styles.pagination}>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => loadNotifications(page - 1)}
-            disabled={!canGoPrev || isLoading}
-          >
-            Prev
-          </button>
-          <span className={styles.pageInfo}>Page {page} of {totalPages}</span>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => loadNotifications(page + 1)}
-            disabled={!canGoNext || isLoading}
-          >
-            Next
-          </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
-      ) : null}
-    </main>
+
+        {totalPages > 1 ? (
+          <div className={styles.pagination}>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => loadNotifications(page - 1)}
+              disabled={!canGoPrev || isLoading}
+            >
+              ← Prev
+            </button>
+            <span className={styles.pageInfo}>Page {page} of {totalPages}</span>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => loadNotifications(page + 1)}
+              disabled={!canGoNext || isLoading}
+            >
+              Next →
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </>
   )
 }

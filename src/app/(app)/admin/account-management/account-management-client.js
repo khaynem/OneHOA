@@ -255,97 +255,114 @@ export default function AccountManagementClient() {
   const pendingDeleteUser = users.find((user) => user.id === pendingDeleteUserId)
 
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>Account Management</h1>
-          <p className={styles.subtitle}>Create and view user accounts for the HOA system</p>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Account Management</h1>
+            <p className={styles.bannerSubtitle}>
+              Create, edit, and manage user accounts for the HOA system officers and administrators.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
 
-        <button type="button" className={styles.addButton} onClick={() => setIsAddModalOpen(true)}>
-          <span className={styles.addIcon}>+</span>
-          Add User
-        </button>
-      </section>
-
-      <section className={styles.searchWrap}>
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            className={styles.searchInput}
-            placeholder="Search users by name or email"
-            aria-label="Search users"
-          />
-          <select
-            className={styles.filterSelect}
-            value={roleFilter}
-            onChange={(event) => setRoleFilter(event.target.value)}
-            aria-label="Filter by role"
-          >
-            <option value="all">All Roles</option>
-            {ROLE_OPTIONS.map((role) => (
-              <option key={role.value} value={role.value}>
-                {role.label}
-              </option>
-            ))}
-          </select>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.addButton} onClick={() => setIsAddModalOpen(true)}>
+            <span className={styles.addIcon}>+</span>
+            Add User
+          </button>
         </div>
-      </section>
 
-      <section className={styles.tableCard}>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        <section className={styles.searchWrap}>
+          <div className={styles.searchRow}>
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              className={styles.searchInput}
+              placeholder="Search users by name or email"
+              aria-label="Search users"
+            />
+            <select
+              className={styles.filterSelect}
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+              aria-label="Filter by role"
+            >
+              <option value="all">All Roles</option>
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        <section className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead>
                 <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
-                    Loading users...
-                  </td>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
-                    No users found.
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>{`${user.firstName} ${user.lastName}`}</td>
-                    <td>{user.email}</td>
-                    <td>{roleLabel(user.role)}</td>
-                    <td>
-                      <span
-                        className={`${styles.statusPill} ${
-                          user.status === 'active' ? styles.statusActive : styles.statusInactive
-                        }`}
-                      >
-                        {statusLabel(user.status)}
-                      </span>
-                    </td>
-                    <td>
-                      <button type="button" className={styles.viewButton} onClick={() => openViewModal(user)}>
-                        View
-                      </button>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className={styles.emptyRow}>
+                      Loading users...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={styles.emptyRow}>
+                      No users found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td>{`${user.firstName} ${user.lastName}`}</td>
+                      <td>{user.email}</td>
+                      <td>{roleLabel(user.role)}</td>
+                      <td>
+                        <span
+                          className={`${styles.statusPill} ${user.status === 'active' ? styles.statusActive : styles.statusInactive
+                            }`}
+                        >
+                          {statusLabel(user.status)}
+                        </span>
+                      </td>
+                      <td>
+                        <button type="button" className={styles.viewButton} onClick={() => openViewModal(user)}>
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
 
       {isAddModalOpen && (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Add user">
@@ -581,6 +598,6 @@ export default function AccountManagementClient() {
           </div>
         </div>
       )}
-    </main>
+    </>
   )
 }

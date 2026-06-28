@@ -1,29 +1,190 @@
-.page {
-  padding: 8px 6px;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
+.backgroundContainer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.headerRow {
+.backgroundContainer::before {
+  content: '';
+  position: absolute;
+  top: 18%;
+  right: 15%;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  border: 2.5px solid rgba(0, 112, 196, 0.35);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(1px);
+  box-shadow: 0 4px 12px rgba(0, 112, 196, 0.08);
+  pointer-events: none;
+  z-index: 4;
+  animation: floatSquare1 10s ease-in-out infinite;
+}
+
+.backgroundContainer::after {
+  content: '';
+  position: absolute;
+  bottom: 22%;
+  left: 28%;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2.5px solid rgba(255, 202, 40, 0.45);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(1px);
+  box-shadow: 0 4px 12px rgba(255, 202, 40, 0.1);
+  pointer-events: none;
+  z-index: 4;
+  animation: floatSquare2 14s ease-in-out infinite;
+}
+
+.movingGradient {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(224, 242, 254, 0.75) 100%);
+  background-color: #ffffff;
+  animation: bgPulse 10s ease-in-out infinite alternate;
+  opacity: 1;
+  z-index: 1;
+}
+
+@keyframes bgPulse {
+  0% { background-color: #ffffff; }
+  100% { background-color: #bae6fd; }
+}
+
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(0, 112, 196, 0.04) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.blob1 {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  background: rgba(255, 220, 30, 0.32);
+  border-radius: 50%;
+  filter: blur(100px);
+  top: -80px;
+  right: -80px;
+  pointer-events: none;
+  z-index: 3;
+  mix-blend-mode: multiply;
+}
+
+.blob2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  background: rgba(60, 150, 255, 0.28);
+  border-radius: 50%;
+  filter: blur(110px);
+  bottom: -100px;
+  left: 10%;
+  pointer-events: none;
+  z-index: 3;
+  mix-blend-mode: multiply;
+}
+
+@keyframes floatSquare1 {
+  0%, 100% { transform: rotate(20deg) translateY(0px); }
+  50% { transform: rotate(20deg) translateY(-10px); }
+}
+
+@keyframes floatSquare2 {
+  0%, 100% { transform: rotate(-12deg) translateY(0px); }
+  50% { transform: rotate(-12deg) translateY(-8px); }
+}
+
+.pageContent {
+  position: relative;
+  z-index: 1;
+}
+
+.welcomeBanner {
+  background: linear-gradient(135deg, #003B75 0%, #0070C4 100%);
+  border-radius: 14px;
+  padding: 36px 44px;
+  color: #ffffff;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 20px;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 28px;
+  box-shadow: 0 10px 30px rgba(0, 59, 117, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1;
 }
 
-.title {
-  margin: 0;
-  font-size: clamp(1.9rem, 2vw, 2.2rem);
+.bannerContent {
+  position: relative;
+  z-index: 2;
+  max-width: 75%;
+}
+
+.bannerBadge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffca28;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #1f2024;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
 }
 
-.subtitle {
-  margin: 8px 0 0;
-  color: #4f4f4f;
-  font-size: 1.03rem;
+.bannerTitle {
+  font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.bannerSubtitle {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 620px;
+}
+
+.bannerVisual {
+  position: absolute;
+  right: -10px;
+  bottom: -20px;
+  width: 260px;
+  height: 260px;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bannerLogoBg {
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/HOA_Logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: brightness(0) invert(1);
+}
+
+.headerActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
 }
 
 .addButton {
@@ -33,7 +194,7 @@
   font-weight: 600;
   font-size: 0.98rem;
   border-radius: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   min-height: 42px;
   display: inline-flex;
   align-items: center;
@@ -41,6 +202,7 @@
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
   transition: background 0.2s ease, transform 0.2s ease;
+  font-family: poppins, sans-serif;
 }
 
 .addButton:hover {
@@ -55,11 +217,11 @@
 
 .searchWrap {
   background: #fff;
-  border: 1px solid #d4d8dd;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-  padding: 10px;
-  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  padding: 20px;
+  margin-bottom: 24px;
 }
 
 .searchRow {
@@ -71,12 +233,15 @@
 
 .searchInput {
   width: 100%;
+  height: 42px;
   border: 1px solid #d7dce2;
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 0 14px;
   font-size: 0.96rem;
   color: #1f2024;
   outline: none;
+  font-family: poppins, sans-serif;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .searchInput:focus {
@@ -95,6 +260,7 @@
   padding: 9px 12px;
   background: #fff;
   font-family: poppins, sans-serif;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .filterSelect:focus {
@@ -104,9 +270,9 @@
 
 .tableCard {
   background: #fff;
-  border: 1px solid #d4d8dd;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   overflow: hidden;
   max-width: 100%;
 }
@@ -125,58 +291,69 @@
 
 .table thead th {
   text-align: left;
-  background: #9cc7e8;
-  color: #111827;
+  background: #0070C4;
+  color: #ffffff;
   font-weight: 700;
-  font-size: 0.97rem;
-  padding: 12px 18px;
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 18px;
   position: sticky;
   top: 0;
   z-index: 2;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .table tbody td {
-  border-top: 1px solid #e7eaee;
-  color: #1f2024;
+  border-top: 1px solid #e2e8f0;
+  color: #334155;
   font-size: 0.95rem;
-  padding: 12px 18px;
+  padding: 14px 18px;
+}
+
+.table tbody tr:hover td {
+  background-color: #f8fafc;
 }
 
 .statusPill {
   border-radius: 999px;
-  padding: 3px 12px;
-  font-size: 0.86rem;
+  padding: 4px 12px;
+  font-size: 0.82rem;
   font-weight: 600;
   display: inline-block;
 }
 
 .statusActive {
-  background: #d8ead2;
-  color: #437a3f;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .statusInactive {
-  background: #ffe4e4;
-  color: #a01414;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .viewButton {
-  border: 0;
-  background: transparent;
+  border: 1px solid #0a68b2;
+  background: #e9f3fb;
   color: #0a68b2;
+  font-size: 0.88rem;
   font-weight: 600;
+  border-radius: 8px;
+  padding: 6px 14px;
   cursor: pointer;
-  padding: 0;
+  transition: background 0.2s ease;
+  font-family: poppins, sans-serif;
 }
 
 .viewButton:hover {
-  text-decoration: underline;
+  background: #d8e9f7;
 }
 
 .emptyRow {
   text-align: center;
   color: #6b7280;
-  padding: 20px 16px;
+  padding: 24px 16px;
 }
 
 .modalOverlay {
@@ -194,10 +371,10 @@
 .modal {
   width: min(96vw, 620px);
   background: #fdfdfd;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 22px 56px rgba(15, 23, 42, 0.24);
-  padding: 24px 28px;
+  padding: 30px 32px;
   max-height: 92dvh;
   max-width: 100%;
   overflow-y: auto;
@@ -209,7 +386,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
 }
 
 .modalTitle {
@@ -220,7 +397,7 @@
 }
 
 .closeButton {
-  border: 1px solid #d2d7df;
+  border: 1px solid #d7dce2;
   background: #f9fafb;
   color: #4b5563;
   width: 34px;
@@ -233,17 +410,20 @@
   cursor: pointer;
   font-size: 1rem;
   font-weight: 600;
-  margin-top: 2px;
+  font-family: poppins, sans-serif;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .closeButton:hover {
-  background: #f3f4f6;
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 12px 14px;
 }
 
 .fieldLabel {
@@ -255,7 +435,7 @@
 }
 
 .requiredMark {
-  color: #d92929;
+  color: #ef4444;
   font-weight: 700;
 }
 
@@ -264,12 +444,14 @@
   border: 1px solid #d5dae0;
   background: #fff;
   border-radius: 8px;
-  min-height: 38px;
+  min-height: 42px;
   font-size: 0.95rem;
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin: 0;
   outline: none;
   font-family: poppins, sans-serif;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input:focus {
@@ -279,21 +461,23 @@
 
 .detailValue {
   margin: 0;
-  min-height: 38px;
+  min-height: 42px;
   display: flex;
   align-items: center;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 8px 10px;
-  color: #1f2937;
-  background: #f9fafb;
+  padding: 10px 12px;
+  color: #1e293b;
+  background: #f8fafc;
+  font-weight: 600;
+  word-break: break-all;
 }
 
 .modalActions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 24px;
 }
 
 .viewActions {
@@ -304,16 +488,22 @@
 .confirmButton {
   border: 0;
   border-radius: 8px;
-  min-height: 40px;
-  padding: 0 16px;
-  font-size: 0.94rem;
+  min-height: 42px;
+  padding: 0 18px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+  font-family: poppins, sans-serif;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .cancelButton {
-  background: #e8edf3;
+  background: #e3e6eb;
   color: #1f2937;
+}
+
+.cancelButton:hover {
+  background: #c5cbd3;
 }
 
 .confirmButton {
@@ -324,41 +514,54 @@
   gap: 8px;
 }
 
+.confirmButton:hover:not(:disabled) {
+  background: #095b9b;
+  transform: translateY(-1px);
+}
+
 .confirmButton:disabled {
   background: #97b8d4;
   cursor: not-allowed;
+  transform: none;
 }
 
 .deleteButton {
   border: 0;
   border-radius: 8px;
   min-height: 40px;
-  padding: 0 16px;
-  font-size: 0.94rem;
+  padding: 0 18px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  background: #b42318;
+  background: #dc2626;
   color: #fff;
+  font-family: poppins, sans-serif;
+  transition: background 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.2);
 }
 
 .deleteButton:hover {
-  background: #9e1b12;
+  background: #b91c1c;
+  transform: translateY(-1px);
 }
 
 .viewDeleteButton {
-  border: 1px solid #f2a8a8;
+  border: 1px solid #fca5a5;
   border-radius: 8px;
-  min-height: 40px;
-  padding: 0 16px;
-  font-size: 0.94rem;
+  min-height: 42px;
+  padding: 0 18px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  background: #fff3f3;
-  color: #b42318;
+  background: #fee2e2;
+  color: #991b1b;
+  font-family: poppins, sans-serif;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .viewDeleteButton:hover {
-  background: #ffe8e8;
+  background: #fecdd3;
+  border-color: #f87171;
 }
 
 .editIcon {
@@ -371,15 +574,23 @@
 }
 
 .confirmMessage {
-  margin: 10px 0 0;
-  color: #4b5563;
+  margin: 14px 0 0;
+  color: #475569;
   font-size: 1rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 860px) {
-  .headerRow {
-    flex-direction: column;
-    align-items: stretch;
+  .welcomeBanner {
+    padding: 24px 20px;
+  }
+
+  .bannerContent {
+    max-width: 100%;
+  }
+
+  .headerActions {
+    justify-content: stretch;
   }
 
   .addButton {
@@ -397,5 +608,17 @@
 
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .confirmButton,
+  .viewDeleteButton,
+  .deleteButton {
+    width: 100%;
+    justify-content: center;
   }
 }

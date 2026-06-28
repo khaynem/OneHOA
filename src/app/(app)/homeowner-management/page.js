@@ -389,6 +389,8 @@ function HomeownerManagementInner() {
   const [paymentFilter, setPaymentFilter] = useState('all')
   const [occupantFilter, setOccupantFilter] = useState('all')
   const [phaseFilter, setPhaseFilter] = useState('all')
+  const [entryMonthFilter, setEntryMonthFilter] = useState('all')
+  const [entryYearFilter, setEntryYearFilter] = useState('all')
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -523,7 +525,7 @@ function HomeownerManagementInner() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter])
+  }, [searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter, entryMonthFilter, entryYearFilter])
 
   useEffect(() => {
     let isMounted = true
@@ -633,6 +635,24 @@ function HomeownerManagementInner() {
       results = results.filter((homeowner) => !homeowner.archived)
     }
 
+    if (entryMonthFilter !== 'all' || entryYearFilter !== 'all') {
+      results = results.filter((homeowner) => {
+        const raw = String(homeowner.entryDate || '')
+        const year = raw.slice(0, 4)
+        if (entryYearFilter !== 'all' && year !== entryYearFilter) return false
+        if (entryMonthFilter !== 'all') {
+          // entryDate is stored as a year only (YYYY), so month filter only applies when a full date is stored
+          // If entryDate has month info (YYYY-MM or ISO), extract it; otherwise skip month filter
+          const isoMatch = raw.match(/^(\d{4})-(\d{2})/)
+          if (isoMatch) {
+            const month = parseInt(isoMatch[2], 10)
+            if (String(month) !== entryMonthFilter) return false
+          }
+        }
+        return true
+      })
+    }
+
     const filterOption = STATUS_FILTER_OPTIONS.find((option) => option.value === tableFilter)
 
     if (filterOption?.type === 'status') {
@@ -643,7 +663,7 @@ function HomeownerManagementInner() {
     }
 
     return [...results].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-  }, [homeowners, searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter])
+  }, [homeowners, searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter, entryMonthFilter, entryYearFilter])
 
   const totalPages = Math.max(Math.ceil(filteredHomeowners.length / PAGE_SIZE), 1)
   const pagedHomeowners = useMemo(() => {
@@ -1355,8 +1375,8 @@ function HomeownerManagementInner() {
     const rows = filteredHomeowners.map((homeowner) => {
       const householdMembersStr = Array.isArray(homeowner.householdMembers)
         ? homeowner.householdMembers
-            .map((member) => `${member.name || 'Unknown'} (${member.relationship || 'Unspecified'})`)
-            .join('; ')
+          .map((member) => `${member.name || 'Unknown'} (${member.relationship || 'Unspecified'})`)
+          .join('; ')
         : ''
 
       return [
@@ -1394,11 +1414,11 @@ function HomeownerManagementInner() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    
+
     const phaseLabel = phaseFilter === 'all' ? 'AllPhases' : `Phase_${phaseFilter}`
     const dateStr = new Date().toISOString().slice(0, 10)
     link.setAttribute('download', `OneHOA_Masterlist_${phaseLabel}_${dateStr}.csv`)
-    
+
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -1410,264 +1430,343 @@ function HomeownerManagementInner() {
     })
   }
 
+  const hasActiveFilters =
+    phaseFilter !== 'all' ||
+    paymentFilter !== 'all' ||
+    occupantFilter !== 'all' ||
+    tableFilter !== 'all' ||
+    entryMonthFilter !== 'all' ||
+    entryYearFilter !== 'all'
+
+  const clearAllFilters = () => {
+    setPhaseFilter('all')
+    setPaymentFilter('all')
+    setOccupantFilter('all')
+    setTableFilter('all')
+    setEntryMonthFilter('all')
+    setEntryYearFilter('all')
+  }
+
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>Masterlist Record</h1>
-          <p className={styles.subtitle}>Register and manage homeowner records</p>
-        </div>
-      </section>
-
-      <div className={styles.controlsRow}>
-        <div className={styles.tabsContainer}>
-          <button
-            type="button"
-            className={`${styles.tabButton} ${viewMode === 'active' ? styles.activeTab : ''}`}
-            onClick={() => setViewMode('active')}
-          >
-            <HiOutlineUsers className={styles.tabIcon} />
-            <span>Active Records</span>
-          </button>
-          <button
-            type="button"
-            className={`${styles.tabButton} ${viewMode === 'archived' ? styles.activeTab : ''}`}
-            onClick={() => setViewMode('archived')}
-          >
-            <HiOutlineArchiveBox className={styles.tabIcon} />
-            <span>Archived Records</span>
-          </button>
-        </div>
-
-        <div className={styles.headerActions}>
-          <button type="button" className={styles.exportButton} onClick={exportToCsv}>
-            Export Masterlist (CSV)
-          </button>
-          <button type="button" className={styles.addButton} onClick={openAddModal}>
-            <span className={styles.addIcon}>+</span>
-            Add Homeowner
-          </button>
-        </div>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
       </div>
 
-      <section className={styles.searchWrap}>
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            className={styles.searchInput}
-            placeholder="Search homeowners by name or unit number"
-            aria-label="Search homeowners"
-          />
-          <select
-            className={styles.filterSelect}
-            value={phaseFilter}
-            onChange={(event) => setPhaseFilter(event.target.value)}
-            aria-label="Filter by phase"
-          >
-            <option value="all">All Phases</option>
-            <option value="1">Phase 1</option>
-            <option value="2">Phase 2</option>
-            <option value="3">Phase 3</option>
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={paymentFilter}
-            onChange={(event) => setPaymentFilter(event.target.value)}
-            aria-label="Filter by payment status"
-          >
-            {PAYMENT_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={occupantFilter}
-            onChange={(event) => setOccupantFilter(event.target.value)}
-            aria-label="Filter by occupant status"
-          >
-            {OCCUPANT_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={tableFilter}
-            onChange={(event) => setTableFilter(event.target.value)}
-            aria-label="Filter homeowners"
-          >
-            {STATUS_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Masterlist Record</h1>
+            <p className={styles.bannerSubtitle}>
+              Register, search, filter, and manage homeowner records and membership statuses.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
-      </section>
 
-      <section className={styles.tableCard}>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>User ID</th>
-                <th>Unit Number</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className={styles.emptyRow}>
-                    Loading homeowners...
-                  </td>
-                </tr>
-              ) : filteredHomeowners.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className={styles.emptyRow}>
-                    No homeowners found for your search.
-                  </td>
-                </tr>
-              ) : (
-                pagedHomeowners.map((homeowner) => (
-                  <tr key={homeowner.id}>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
-                      <div className={styles.nameCell}>
-                        {homeowner.photoUrl ? (
-                          <img
-                            src={homeowner.photoUrl}
-                            alt={`${homeowner.firstName} ${homeowner.lastName}`}
-                            className={styles.rowAvatar}
-                          />
-                        ) : (
-                          <img
-                            src="images/Default_pfp.jpg"
-                            alt={`${homeowner.firstName} ${homeowner.lastName}`}
-                            className={styles.rowAvatar}
-                          />
-                        )}
-                        <span>
-                          {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
-                            middleInitialOnly: true
-                          })}
-                        </span>
-                      </div>
-                    </td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.displayId || '-'}</td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.unitNumber}</td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{formatPhone(homeowner.phone)}</td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
-                      <span
-                        className={`${styles.statusPill} ${getStatusPillClass(statusListToSingleOption(homeowner.status))}`}
-                      >
-                        {statusListToSingleOption(homeowner.status)}
-                      </span>
-                    </td>
-                    <td>
-                      {isOfficer ? (
-                        <div className={styles.actionGroup}>
-                          <button
-                            type="button"
-                            className={styles.viewIconButton}
-                            onClick={() => openViewModal(homeowner)}
-                            title="View details"
-                          >
-                            <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
-                          </button>
-                        </div>
-                      ) : homeowner.archived ? (
-                        <div className={styles.actionGroup}>
-                          <button
-                            type="button"
-                            className={styles.restoreButton}
-                            onClick={() => {
-                              setArchiveTarget(homeowner)
-                              setArchiveNext(false)
-                              setIsArchiveConfirmOpen(true)
-                            }}
-                          >
-                            <HiOutlineArrowUturnLeft className={styles.actionIcon} aria-hidden="true" />
-                            Restore
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.deleteButton}
-                            onClick={() => {
-                              setDeleteTarget(homeowner)
-                              setIsDeleteConfirmOpen(true)
-                            }}
-                          >
-                            <HiOutlineTrash className={styles.actionIcon} aria-hidden="true" />
-                            Delete
-                          </button>
-                        </div>
-                      ) : (
-                        <div className={styles.actionGroup}>
-                          <button
-                            type="button"
-                            className={styles.viewIconButton}
-                            onClick={() => openViewModal(homeowner)}
-                            title="View details"
-                          >
-                            <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.archiveIconButton}
-                            onClick={() => {
-                              setArchiveTarget(homeowner)
-                              setArchiveNext(true)
-                              setIsArchiveConfirmOpen(true)
-                            }}
-                            title="Archive record"
-                          >
-                            <HiOutlineArchiveBox className={styles.actionIcon} aria-hidden="true" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {filteredHomeowners.length > 0 ? (
-        <div className={styles.pagination}>
-          <span className={styles.pageRange}>
-            Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredHomeowners.length)} out of {filteredHomeowners.length}
-          </span>
-          <div className={styles.pageControls}>
+        <div className={styles.controlsRow}>
+          <div className={styles.tabsContainer}>
             <button
               type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              className={`${styles.tabButton} ${viewMode === 'active' ? styles.activeTab : ''}`}
+              onClick={() => setViewMode('active')}
             >
-              Prev
+              <HiOutlineUsers className={styles.tabIcon} />
+              <span>Active Records</span>
             </button>
-            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
             <button
               type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              className={`${styles.tabButton} ${viewMode === 'archived' ? styles.activeTab : ''}`}
+              onClick={() => setViewMode('archived')}
             >
-              Next
+              <HiOutlineArchiveBox className={styles.tabIcon} />
+              <span>Archived Records</span>
+            </button>
+          </div>
+
+          <div className={styles.headerActions}>
+            <button type="button" className={styles.exportButton} onClick={exportToCsv}>
+              Export Masterlist (CSV)
+            </button>
+            <button type="button" className={styles.addButton} onClick={openAddModal}>
+              <span className={styles.addIcon}>+</span>
+              Add Homeowner
             </button>
           </div>
         </div>
-      ) : null}
+
+        <section className={styles.searchWrap}>
+          <div className={styles.searchBarRow}>
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              className={styles.searchInput}
+              placeholder="Search homeowners by name or unit number"
+              aria-label="Search homeowners"
+            />
+          </div>
+
+          <div className={styles.filtersRow}>
+            <select
+              className={styles.filterSelect}
+              value={phaseFilter}
+              onChange={(event) => setPhaseFilter(event.target.value)}
+              aria-label="Filter by phase"
+            >
+              <option value="all">All Phases</option>
+              <option value="1">Phase 1</option>
+              <option value="2">Phase 2</option>
+              <option value="3">Phase 3</option>
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={paymentFilter}
+              onChange={(event) => setPaymentFilter(event.target.value)}
+              aria-label="Filter by payment status"
+            >
+              {PAYMENT_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={occupantFilter}
+              onChange={(event) => setOccupantFilter(event.target.value)}
+              aria-label="Filter by occupant status"
+            >
+              {OCCUPANT_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={tableFilter}
+              onChange={(event) => setTableFilter(event.target.value)}
+              aria-label="Filter homeowners"
+            >
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={entryMonthFilter}
+              onChange={(event) => setEntryMonthFilter(event.target.value)}
+              aria-label="Filter by entry month"
+            >
+              <option value="all">All Months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={entryYearFilter}
+              onChange={(event) => setEntryYearFilter(event.target.value)}
+              aria-label="Filter by entry year"
+            >
+              <option value="all">All Years</option>
+              {Array.from({ length: new Date().getFullYear() - 2000 + 1 }, (_, i) => 2000 + i)
+                .reverse()
+                .map((year) => (
+                  <option key={year} value={String(year)}>{year}</option>
+                ))}
+            </select>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className={styles.clearFiltersBtn}
+                onClick={clearAllFilters}
+                aria-label="Clear all filters"
+              >
+                ✕ Clear Filters
+              </button>
+            )}
+          </div>
+        </section>
+
+        <section className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>User ID</th>
+                  <th>Unit Number</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className={styles.emptyRow}>
+                      Loading homeowners...
+                    </td>
+                  </tr>
+                ) : filteredHomeowners.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className={styles.emptyRow}>
+                      No homeowners found for your search.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedHomeowners.map((homeowner) => (
+                    <tr key={homeowner.id}>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
+                        <div className={styles.nameCell}>
+                          {homeowner.photoUrl ? (
+                            <img
+                              src={homeowner.photoUrl}
+                              alt={`${homeowner.firstName} ${homeowner.lastName}`}
+                              className={styles.rowAvatar}
+                            />
+                          ) : (
+                            <img
+                              src="images/Default_pfp.jpg"
+                              alt={`${homeowner.firstName} ${homeowner.lastName}`}
+                              className={styles.rowAvatar}
+                            />
+                          )}
+                          <span>
+                            {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
+                              middleInitialOnly: true
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.displayId || '-'}</td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.unitNumber}</td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{formatPhone(homeowner.phone)}</td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
+                        <span
+                          className={`${styles.statusPill} ${getStatusPillClass(statusListToSingleOption(homeowner.status))}`}
+                        >
+                          {statusListToSingleOption(homeowner.status)}
+                        </span>
+                      </td>
+                      <td>
+                        {isOfficer ? (
+                          <div className={styles.actionGroup}>
+                            <button
+                              type="button"
+                              className={styles.viewIconButton}
+                              onClick={() => openViewModal(homeowner)}
+                              title="View details"
+                            >
+                              <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
+                            </button>
+                          </div>
+                        ) : homeowner.archived ? (
+                          <div className={styles.actionGroup}>
+                            <button
+                              type="button"
+                              className={styles.restoreButton}
+                              onClick={() => {
+                                setArchiveTarget(homeowner)
+                                setArchiveNext(false)
+                                setIsArchiveConfirmOpen(true)
+                              }}
+                            >
+                              <HiOutlineArrowUturnLeft className={styles.actionIcon} aria-hidden="true" />
+                              Restore
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.deleteButton}
+                              onClick={() => {
+                                setDeleteTarget(homeowner)
+                                setIsDeleteConfirmOpen(true)
+                              }}
+                            >
+                              <HiOutlineTrash className={styles.actionIcon} aria-hidden="true" />
+                              Delete
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={styles.actionGroup}>
+                            <button
+                              type="button"
+                              className={styles.viewIconButton}
+                              onClick={() => openViewModal(homeowner)}
+                              title="View details"
+                            >
+                              <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.archiveIconButton}
+                              onClick={() => {
+                                setArchiveTarget(homeowner)
+                                setArchiveNext(true)
+                                setIsArchiveConfirmOpen(true)
+                              }}
+                              title="Archive record"
+                            >
+                              <HiOutlineArchiveBox className={styles.actionIcon} aria-hidden="true" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {filteredHomeowners.length > 0 ? (
+          <div className={styles.pagination}>
+            <span className={styles.pageRange}>
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredHomeowners.length)} out of {filteredHomeowners.length}
+            </span>
+            <div className={styles.pageControls}>
+              <button
+                type="button"
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+              <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+      </div>
 
       {isAddModalOpen && (
         <div className={styles.modalOverlay}>
@@ -2013,14 +2112,14 @@ function HomeownerManagementInner() {
               <div className={styles.tabGroup}>
                 <button
                   type="button"
-                  className={`${styles.tabButton} ${activeViewTab === 'info' ? styles.tabActive : ''}`}
+                  className={`${styles.modalTabButton} ${activeViewTab === 'info' ? styles.modalTabActive : ''}`}
                   onClick={() => setActiveViewTab('info')}
                 >
                   Homeowner Info
                 </button>
                 <button
                   type="button"
-                  className={`${styles.tabButton} ${activeViewTab === 'payments' ? styles.tabActive : ''}`}
+                  className={`${styles.modalTabButton} ${activeViewTab === 'payments' ? styles.modalTabActive : ''}`}
                   onClick={() => setActiveViewTab('payments')}
                 >
                   Payments
@@ -2509,13 +2608,13 @@ function HomeownerManagementInner() {
         </div>
       )}
 
-    </main>
+    </>
   )
 }
 
 export default function HomeownerManagementPage() {
   return (
-    <Suspense fallback={<div className={styles.page}>Loading homeowner management...</div>}>
+    <Suspense fallback={<p className={styles.stateText}>Loading homeowner management...</p>}>
       <HomeownerManagementInner />
     </Suspense>
   )

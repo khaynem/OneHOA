@@ -914,122 +914,194 @@ export default function PaymentMonitoringPage() {
 
     const html = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
         <head>
-          <title>OneHOA - Payment Report</title>
+          <meta charset="utf-8" />
+          <title>Payment Collection Report</title>
           <style>
+            * { box-sizing: border-box; }
             body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
               margin: 40px;
-              color: #1f2937;
-              background-color: #fff;
+              color: #0f172a;
+              line-height: 1.5;
+              background: #ffffff;
             }
             .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 2px solid #003b75;
-              padding-bottom: 20px;
+              display: flex;
+              align-items: center;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 16px;
+              margin-bottom: 24px;
             }
-            .title {
-              font-size: 24px;
+            .logo {
+              height: 52px;
+              width: 52px;
+              object-fit: contain;
+              margin-right: 14px;
+            }
+            .header-text {
+              flex: 1;
+            }
+            .org-name {
+              font-size: 18px;
               font-weight: 700;
-              color: #003b75;
-              margin: 0 0 5px;
-            }
-            .subtitle {
-              font-size: 14px;
-              color: #4b5563;
+              color: #0f172a;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
               margin: 0;
             }
+            .org-sub {
+              font-size: 12px;
+              color: #475569;
+              margin: 2px 0 0 0;
+            }
+            .report-title {
+              font-size: 22px;
+              font-weight: 700;
+              color: #0f172a;
+              margin: 0 0 20px 0;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 8px;
+              text-align: center;
+            }
             .meta-section {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 30px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              padding: 16px;
+              margin-bottom: 24px;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
               font-size: 14px;
             }
-            .meta-left p, .meta-right p {
+            .meta-section p {
               margin: 4px 0;
             }
             .meta-label {
-              font-weight: bold;
-              color: #4b5563;
+              font-weight: 600;
+              color: #475569;
             }
             .meta-value {
-              color: #111827;
+              color: #0f172a;
+              font-weight: 500;
             }
             .total-banner {
-              background-color: #f3f4f6;
-              border-left: 4px solid #003b75;
-              padding: 12px 18px;
-              margin-bottom: 30px;
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-left: 4px solid #0a68b2;
+              border-radius: 6px;
+              padding: 16px;
+              margin-bottom: 24px;
               display: flex;
               justify-content: space-between;
               align-items: center;
             }
             .total-title {
-              font-size: 16px;
-              font-weight: bold;
-              color: #374151;
+              font-size: 14px;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #64748b;
               margin: 0;
             }
             .total-amount {
               font-size: 20px;
-              font-weight: 800;
-              color: #003b75;
+              font-weight: 700;
+              color: #0f172a;
               margin: 0;
             }
             table {
               width: 100%;
               border-collapse: collapse;
               margin-bottom: 30px;
-              font-size: 13px;
-            }
-            th, td {
-              border: 1px solid #e5e7eb;
-              padding: 10px 12px;
-              text-align: left;
             }
             th {
-              background-color: #f9fafb;
-              color: #374151;
-              font-weight: bold;
+              background: #0a68b2;
+              color: #ffffff;
+              font-weight: 600;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              padding: 10px 14px;
+              text-align: left;
+              border-bottom: 2px solid #095b9b;
             }
-            tr:nth-child(even) {
-              background-color: #f9fafb;
+            td {
+              padding: 10px 14px;
+              font-size: 13px;
+              color: #334155;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            tr:nth-child(even) td {
+              background: #f8fafc;
             }
             .footer {
               margin-top: 50px;
-              font-size: 12px;
-              color: #6b7280;
-              text-align: center;
-              border-top: 1px solid #e5e7eb;
-              padding-top: 15px;
+              padding-top: 16px;
+              border-top: 1px solid #e2e8f0;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              font-size: 13px;
+              color: #64748b;
+            }
+            .footer-meta div {
+              margin-bottom: 4px;
+            }
+            .footer-note {
+              font-style: italic;
+              text-align: right;
             }
             @media print {
               body { margin: 20px; }
-              .no-print { display: none; }
+              th {
+                background: #0a68b2 !important;
+                color: #ffffff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .meta-section {
+                background: #f8fafc !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .total-banner {
+                background-color: #f8fafc !important;
+                border-left: 4px solid #0a68b2 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
             }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1 class="title">OneHOA Payment Collection Report</h1>
-            <p class="subtitle">Homeowners Association Operations Management Portal</p>
+            <img src="/images/HOA_Logo.png" alt="FC Hanjin Village HOA Logo" class="logo" />
+            <div class="header-text">
+              <h2 class="org-name">FC Hanjin Village Homeowners Association</h2>
+              <p class="org-sub">Brgy. Nagbunga, Castillejos, Zambales</p>
+            </div>
           </div>
 
+          <h1 class="report-title">Payment Collection Report</h1>
+
           <div class="meta-section">
-            <div class="meta-left">
+            <div>
               <p><span class="meta-label">Generated By:</span> <span class="meta-value">${generatorName} (${generatorRole})</span></p>
-              <p><span class="meta-label">Date Generated:</span> <span class="meta-value">${new Date().toLocaleString()}</span></p>
+              <p><span class="meta-label">Date Generated:</span> <span class="meta-value">${new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</span></p>
             </div>
-            <div class="meta-right">
+            <div>
               <p><span class="meta-label">Report Range:</span> <span class="meta-value">${dateRangeLabel}</span></p>
               <p><span class="meta-label">Total Receipts:</span> <span class="meta-value">${filteredRecords.length}</span></p>
             </div>
           </div>
 
           <div class="total-banner">
-            <h2 class="total-title">TOTAL AMOUNT COLLECTED</h2>
+            <h2 class="total-title">Total Amount Collected</h2>
             <p class="total-amount">${toPeso(filteredTotalPayment)}</p>
           </div>
 
@@ -1052,11 +1124,17 @@ export default function PaymentMonitoringPage() {
           </table>
 
           <div class="footer">
-            <p>This is a system-generated document from the OneHOA-Hosted administrative panel.</p>
+            <div class="footer-meta">
+              <div>Generated at: ${new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              <div>Generated by: ${generatorName} (${generatorRole})</div>
+            </div>
+            <div class="footer-note">
+              This is a system-generated document.<br />
+              OneHOA Portal Services
+            </div>
           </div>
         </body>
       </html>
-
     `
 
     const isMobileOrTablet = () => {
@@ -1287,213 +1365,231 @@ export default function PaymentMonitoringPage() {
   const receiptDateLabel = formatDate(form.date)
 
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>Payment Tracker</h1>
-          <p className={styles.subtitle}>Track and record monthly maintenance fee payments</p>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Payment Tracker</h1>
+            <p className={styles.bannerSubtitle}>
+              Track, record, and generate reports for monthly maintenance fee payments.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
 
-        <button type="button" className={styles.recordButton} onClick={openRecordModal}>
-          <PaymentIcon className={styles.recordButtonIcon} aria-hidden="true" />
-          Add Record Payment
-        </button>
-      </section>
-
-      <section className={styles.duesCard} aria-label="Monthly dues">
-        <div>
-          <p className={styles.duesLabel}>Monthly Dues</p>
-          <p className={styles.duesValue}>{toPeso(monthlyDues)}</p>
-          <p className={styles.duesHint}>Used to calculate payment totals for new records.</p>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.recordButton} onClick={openRecordModal}>
+            <PaymentIcon className={styles.recordButtonIcon} aria-hidden="true" />
+            Add Record Payment
+          </button>
         </div>
-        {['admin', 'president'].includes(String(currentUserRole || '').toLowerCase()) ? (
-          <div className={styles.duesControls}>
+
+        <section className={styles.duesCard} aria-label="Monthly dues">
+          <div>
+            <p className={styles.duesLabel}>Monthly Dues</p>
+            <p className={styles.duesValue}>{toPeso(monthlyDues)}</p>
+            <p className={styles.duesHint}>Used to calculate payment totals for new records.</p>
+          </div>
+          {['admin', 'president'].includes(String(currentUserRole || '').toLowerCase()) ? (
+            <div className={styles.duesControls}>
+              <input
+                type="text"
+                inputMode="decimal"
+                className={styles.duesInput}
+                value={monthlyDuesDraft}
+                onChange={(event) => setMonthlyDuesDraft(event.target.value)}
+                placeholder="Enter amount"
+                aria-label="Monthly dues amount"
+              />
+              <button
+                type="button"
+                className={styles.duesButton}
+                onClick={saveMonthlyDues}
+                disabled={isSavingDues}
+              >
+                {isSavingDues ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          ) : null}
+        </section>
+
+        <section className={styles.cardGrid} aria-label="Payment monitoring stats">
+          <article className={styles.statCard}>
+            <div className={styles.statContent}>
+              <p className={styles.statLabel}>Total Collected (for Filtered Period)</p>
+              <p className={styles.statValue}>
+                {mounted && (filterStartDate || filterEndDate || searchText.trim()) ? toPeso(filteredTotalPayment) : '-'}
+              </p>
+              <p className={styles.statSubtext}>From recorded payments</p>
+            </div>
+            <div className={styles.statIconWrap}>
+              <CollectedIcon className={styles.statIcon} aria-hidden="true" />
+            </div>
+          </article>
+
+          <article className={styles.statCard}>
+            <div className={styles.statContent}>
+              <p className={styles.statLabel}>Upcoming Payments (Current Month)</p>
+              <p className={styles.statValue}>{mounted ? stats.upcomingPayments : '-'}</p>
+              <p className={styles.statSubtext}>Outstanding balances for current month</p>
+            </div>
+            <div className={styles.statIconWrap}>
+              <PendingIcon className={styles.statIcon} aria-hidden="true" />
+            </div>
+          </article>
+
+          <article className={styles.statCard}>
+            <div className={styles.statContent}>
+              <p className={styles.statLabel}>Collection Rate</p>
+              <p className={styles.statValue}>{mounted ? `${stats.collectionRate}%` : '-'}</p>
+              <p className={styles.statSubtext}>Current month</p>
+            </div>
+            <div className={styles.statIconWrap}>
+              <RateIcon className={styles.statIcon} aria-hidden="true" />
+            </div>
+          </article>
+        </section>
+
+        <section className={styles.searchWrap}>
+          <div className={styles.searchRow}>
             <input
-              type="text"
-              inputMode="decimal"
-              className={styles.duesInput}
-              value={monthlyDuesDraft}
-              onChange={(event) => setMonthlyDuesDraft(event.target.value)}
-              placeholder="Enter amount"
-              aria-label="Monthly dues amount"
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              className={styles.searchInput}
+              placeholder="Search by homeowner, unit number, or receipt number"
+              aria-label="Search payment records"
             />
+
+            <div className={styles.dateFilterGroup}>
+              <span className={styles.dateLabel}>From:</span>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(event) => setFilterStartDate(event.target.value)}
+                className={styles.dateInput}
+                max={filterEndDate || (mounted ? toYmd(new Date()) : '')}
+                aria-label="Filter payment records start date"
+              />
+              <span className={styles.dateLabel}>To:</span>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(event) => setFilterEndDate(event.target.value)}
+                className={styles.dateInput}
+                min={filterStartDate}
+                max={mounted ? toYmd(new Date()) : ''}
+                aria-label="Filter payment records end date"
+              />
+              {(filterStartDate || filterEndDate) && (
+                <button
+                  type="button"
+                  className={styles.clearFilterButton}
+                  onClick={() => {
+                    setFilterStartDate('')
+                    setFilterEndDate('')
+                  }}
+                  style={{ marginLeft: '6px' }}
+                >
+                  Clear Filters
+                </button>
+              )}
+              <button
+                type="button"
+                className={styles.generateReportButton}
+                onClick={handleGenerateReport}
+                style={{ marginLeft: '10px' }}
+                disabled={filteredRecords.length === 0}
+              >
+                Generate Report
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.tableCard}>
+          <h2 className={styles.tableTitle}>Recent Payment Records</h2>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Homeowner</th>
+                  <th>Receipt No.</th>
+                  <th>Amount</th>
+                  <th>Date Paid</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className={styles.emptyRow}>
+                      Loading payment records...
+                    </td>
+                  </tr>
+                ) : filteredRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={styles.emptyRow}>
+                      No payment records found.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedRecords.map((record) => (
+                    <tr key={record.id}>
+                      <td>{record.homeownerName}</td>
+                      <td>{record.receiptNo}</td>
+                      <td>{toPeso(record.amount)}</td>
+                      <td>{formatDate(record.datePaid)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.viewButton}
+                          onClick={() => openPaymentViewModal(record)}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {filteredRecords.length > 0 ? (
+          <div className={styles.pagination}>
             <button
               type="button"
-              className={styles.duesButton}
-              onClick={saveMonthlyDues}
-              disabled={isSavingDues}
+              className={styles.pageButton}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
             >
-              {isSavingDues ? 'Saving...' : 'Save'}
+              Prev
+            </button>
+            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
             </button>
           </div>
         ) : null}
-      </section>
 
-      <section className={styles.cardGrid} aria-label="Payment monitoring stats">
-        <article className={styles.statCard}>
-          <div className={styles.statContent}>
-            <p className={styles.statLabel}>Total Collected (for Filtered Period)</p>
-            <p className={styles.statValue}>
-              {mounted && (filterStartDate || filterEndDate || searchText.trim()) ? toPeso(filteredTotalPayment) : '-'}
-            </p>
-            <p className={styles.statSubtext}>From recorded payments</p>
-          </div>
-          <div className={styles.statIconWrap}>
-            <CollectedIcon className={styles.statIcon} aria-hidden="true" />
-          </div>
-        </article>
-
-        <article className={styles.statCard}>
-          <div className={styles.statContent}>
-            <p className={styles.statLabel}>Upcoming Payments (Current Month)</p>
-            <p className={styles.statValue}>{mounted ? stats.upcomingPayments : '-'}</p>
-            <p className={styles.statSubtext}>Outstanding balances for current month</p>
-          </div>
-          <div className={styles.statIconWrap}>
-            <PendingIcon className={styles.statIcon} aria-hidden="true" />
-          </div>
-        </article>
-
-        <article className={styles.statCard}>
-          <div className={styles.statContent}>
-            <p className={styles.statLabel}>Collection Rate</p>
-            <p className={styles.statValue}>{mounted ? `${stats.collectionRate}%` : '-'}</p>
-            <p className={styles.statSubtext}>Current month</p>
-          </div>
-          <div className={styles.statIconWrap}>
-            <RateIcon className={styles.statIcon} aria-hidden="true" />
-          </div>
-        </article>
-      </section>
-
-      <section className={styles.searchWrap}>
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            className={styles.searchInput}
-            placeholder="Search by homeowner, unit number, or receipt number"
-            aria-label="Search payment records"
-          />
-
-          <div className={styles.dateFilterGroup}>
-            <span className={styles.dateLabel}>From:</span>
-            <input
-              type="date"
-              value={filterStartDate}
-              onChange={(event) => setFilterStartDate(event.target.value)}
-              className={styles.dateInput}
-              max={filterEndDate || (mounted ? toYmd(new Date()) : '')}
-              aria-label="Filter payment records start date"
-            />
-            <span className={styles.dateLabel}>To:</span>
-            <input
-              type="date"
-              value={filterEndDate}
-              onChange={(event) => setFilterEndDate(event.target.value)}
-              className={styles.dateInput}
-              min={filterStartDate}
-              max={mounted ? toYmd(new Date()) : ''}
-              aria-label="Filter payment records end date"
-            />
-            {(filterStartDate || filterEndDate) && (
-              <button
-                type="button"
-                className={styles.clearFilterButton}
-                onClick={() => {
-                  setFilterStartDate('')
-                  setFilterEndDate('')
-                }}
-                style={{ marginLeft: '6px' }}
-              >
-                Clear Filters
-              </button>
-            )}
-            <button
-              type="button"
-              className={styles.generateReportButton}
-              onClick={handleGenerateReport}
-              style={{ marginLeft: '10px' }}
-              disabled={filteredRecords.length === 0}
-            >
-              Generate Report
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.tableCard}>
-        <h2 className={styles.tableTitle}>Recent Payment Records</h2>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Homeowner</th>
-                <th>Receipt No.</th>
-                <th>Amount</th>
-                <th>Date Paid</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
-                    Loading payment records...
-                  </td>
-                </tr>
-              ) : filteredRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
-                    No payment records found.
-                  </td>
-                </tr>
-              ) : (
-                pagedRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.homeownerName}</td>
-                    <td>{record.receiptNo}</td>
-                    <td>{toPeso(record.amount)}</td>
-                    <td>{formatDate(record.datePaid)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.viewButton}
-                        onClick={() => openPaymentViewModal(record)}
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {filteredRecords.length > 0 ? (
-        <div className={styles.pagination}>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
-          <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
-          <button
-            type="button"
-            className={styles.pageButton}
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
-      ) : null}
+      </div>
 
       {isRecordModalOpen && (
         <div className={styles.modalOverlay}>
@@ -1773,6 +1869,6 @@ export default function PaymentMonitoringPage() {
           </div>
         </div>
       )}
-    </main>
+    </>
   )
 }

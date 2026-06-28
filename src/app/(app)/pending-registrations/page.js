@@ -17,12 +17,10 @@ export default function PendingRegistrationsPage() {
   const [registrations, setRegistrations] = useState([])
   const [isLoadingRegs, setIsLoadingRegs] = useState(true)
   const [selectedReg, setSelectedReg] = useState(null)
-  
-  // Search & Filter state
-  const [searchText, setSearchText] = useState('')
-  const [statusFilter, setStatusFilter] = useState('pending') // 'pending', 'approved', 'declined', 'all'
 
-  // Action states
+  const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState('pending')
+
   const [declineReason, setDeclineReason] = useState('')
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [showApproveModal, setShowApproveModal] = useState(false)
@@ -50,19 +48,17 @@ export default function PendingRegistrationsPage() {
     fetchRegistrations()
   }, [])
 
-  // Filter registrations
   const filteredRegs = registrations.filter((reg) => {
     const q = searchText.trim().toLowerCase()
     const fullName = `${reg.first_name || ''} ${reg.middle_name || ''} ${reg.last_name || ''}`.toLowerCase()
     const phaseBlockLot = `phase ${reg.phase || ''} block ${reg.block || ''} lot ${reg.lot || ''}`.toLowerCase()
-    
+
     const matchesSearch = fullName.includes(q) || phaseBlockLot.includes(q)
     const matchesStatus = statusFilter === 'all' ? true : reg.status === statusFilter
 
     return matchesSearch && matchesStatus
   })
 
-  // Handle Approve Action
   const handleApprove = async () => {
     if (!selectedReg || isProcessingAction) return
     setIsProcessingAction(true)
@@ -91,7 +87,6 @@ export default function PendingRegistrationsPage() {
     }
   }
 
-  // Handle Decline Action
   const handleDecline = async () => {
     if (!selectedReg || isProcessingAction) return
     if (!declineReason.trim()) {
@@ -131,313 +126,321 @@ export default function PendingRegistrationsPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Pending Homeowner Registrations</h1>
-          <p className={styles.subtitle}>
-            Review residency credentials, verify Valid IDs, and approve homeowners.
-          </p>
-        </div>
-      </header>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
 
-      <div className={styles.dashboardContainer}>
-        {/* Left panel: List & Controls */}
-        <div className={styles.listSection}>
-          <div className={styles.controlsWrap}>
-            <div className={styles.searchBox}>
-              <FaSearch className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search by name, phase, block..."
-                className={styles.searchInput}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Pending Registrations</h1>
+            <p className={styles.bannerSubtitle}>
+              Review residency credentials, verify Valid IDs, and approve homeowners.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
+        </div>
+
+        <div className={styles.dashboardContainer}>
+          <div className={styles.listSection}>
+            <div className={styles.controlsWrap}>
+              <div className={styles.searchBox}>
+                <FaSearch className={styles.searchIcon} />
+                <input
+                  type="text"
+                  placeholder="Search by name, phase, block..."
+                  className={styles.searchInput}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                />
+              </div>
+
+              <select
+                className={styles.filterSelect}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="pending">Show Pending Verification</option>
+                <option value="approved">Show Approved</option>
+                <option value="declined">Show Declined</option>
+                <option value="all">Show All Requests</option>
+              </select>
             </div>
 
-            <select
-              className={styles.filterSelect}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="pending">Show Pending Verification</option>
-              <option value="approved">Show Approved</option>
-              <option value="declined">Show Declined</option>
-              <option value="all">Show All Requests</option>
-            </select>
+            <div className={styles.tableWrap}>
+              {isLoadingRegs ? (
+                <div className={styles.loadingSpinner}>
+                  <FaSpinner className={styles.spinner} />
+                  <p>Retrieving registration requests...</p>
+                </div>
+              ) : filteredRegs.length === 0 ? (
+                <div className={styles.emptyWrap}>
+                  <p>No homeowner registration requests matching your filters.</p>
+                </div>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Registrant</th>
+                      <th>Address</th>
+                      <th>Occupant Status</th>
+                      <th>Submission Date</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRegs.map((reg) => {
+                      const fullName = `${reg.first_name} ${reg.last_name}`
+                      const addressStr = reg.phase ? `P${reg.phase} B${reg.block} L${reg.lot}` : '-'
+                      const dateStr = new Date(reg.createdAt).toLocaleDateString('en-PH', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })
+
+                      return (
+                        <tr
+                          key={reg._id}
+                          className={`${styles.row} ${selectedReg?._id === reg._id ? styles.rowSelected : ''}`}
+                          onClick={() => setSelectedReg(reg)}
+                        >
+                          <td>
+                            <div className={styles.userCell}>
+                              {reg.picture_id?.path ? (
+                                <img src={reg.picture_id.path} alt="Avatar" className={styles.rowAvatar} />
+                              ) : (
+                                <div className={styles.rowAvatarPlaceholder}>
+                                  {fullName.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div className={styles.rowName}>{fullName}</div>
+                                <div className={styles.rowPhone}>{reg.phone_number || 'No Phone'}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>{addressStr}</td>
+                          <td>{reg.occupant_status || 'Owner'}</td>
+                          <td>{dateStr}</td>
+                          <td>
+                            <span
+                              className={`${styles.statusPill} ${reg.status === 'approved'
+                                  ? styles.statusApproved
+                                  : reg.status === 'declined'
+                                    ? styles.statusDeclined
+                                    : styles.statusPending
+                                }`}
+                            >
+                              {reg.status}
+                            </span>
+                          </td>
+                          <td>
+                            <button className={styles.viewBtn}>
+                              <FaEye /> View details
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
 
-          <div className={styles.tableWrap}>
-            {isLoadingRegs ? (
-              <div className={styles.loadingSpinner}>
-                <FaSpinner className={styles.spinner} />
-                <p>Retrieving registration requests...</p>
-              </div>
-            ) : filteredRegs.length === 0 ? (
-              <div className={styles.emptyWrap}>
-                <p>No homeowner registration requests matching your filters.</p>
+          <div className={`${styles.detailsSection} ${selectedReg ? styles.detailsActive : ''}`}>
+            {selectedReg ? (
+              <div className={styles.detailsCard}>
+                <div className={styles.detailsHeader}>
+                  <div className={styles.detailsAvatarWrap}>
+                    {selectedReg.picture_id?.path ? (
+                      <img src={selectedReg.picture_id.path} alt="Avatar" className={styles.detailAvatar} />
+                    ) : (
+                      <div className={styles.detailAvatarPlaceholder}>
+                        {selectedReg.first_name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <h2 className={styles.detailName}>
+                        {selectedReg.first_name} {selectedReg.middle_name ? `${selectedReg.middle_name} ` : ''}{selectedReg.last_name}
+                      </h2>
+                      <span className={styles.detailRole}>Registrant Applicant</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.detailsHeaderRight}>
+                    <span
+                      className={`${styles.statusBadge} ${selectedReg.status === 'approved'
+                          ? styles.statusApproved
+                          : selectedReg.status === 'declined'
+                            ? styles.statusDeclined
+                            : styles.statusPending
+                        }`}
+                    >
+                      {selectedReg.status.toUpperCase()}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.closeDetailsBtn}
+                      onClick={() => setSelectedReg(null)}
+                      aria-label="Close details"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.detailsBody}>
+                  {selectedReg.status === 'declined' && (
+                    <div className={styles.declineBanner}>
+                      <FaExclamationCircle />
+                      <div>
+                        <strong>Decline Reason:</strong> {selectedReg.decline_reason}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.infoSectionTitle}>Residency Details</div>
+                  <div className={styles.detailsGrid}>
+                    <div>
+                      <span className={styles.detailLabel}>Address</span>
+                      <span className={styles.detailValue}>
+                        {selectedReg.phase ? `Phase ${selectedReg.phase}, Block ${selectedReg.block}, Lot ${selectedReg.lot}` : '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className={styles.detailLabel}>Occupant Status</span>
+                      <span className={styles.detailValue}>{selectedReg.occupant_status || '-'}</span>
+                    </div>
+                    <div>
+                      <span className={styles.detailLabel}>Entry Year</span>
+                      <span className={styles.detailValue}>
+                        {selectedReg.entry_date ? new Date(selectedReg.entry_date).getFullYear() : '-'}
+                      </span>
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <span className={styles.detailLabel}>Household Members</span>
+                      <div className={styles.detailValue}>
+                        {Array.isArray(selectedReg.household_members) ? (
+                          selectedReg.household_members.length > 0 ? (
+                            <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                              {selectedReg.household_members.map((member, i) => (
+                                <li key={i}>
+                                  <strong>{member.name || 'Unknown'}</strong> ({member.relationship || 'Unspecified'})
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            'None listed'
+                          )
+                        ) : (
+                          selectedReg.household_members || 'None listed'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.infoSectionTitle}>Contact & Work</div>
+                  <div className={styles.detailsGrid}>
+                    <div>
+                      <span className={styles.detailLabel}>Phone Number</span>
+                      <span className={styles.detailValue}>{selectedReg.phone_number || '-'}</span>
+                    </div>
+                    <div>
+                      <span className={styles.detailLabel}>Email Address</span>
+                      <span className={styles.detailValue}>{selectedReg.email || '-'}</span>
+                    </div>
+                    <div>
+                      <span className={styles.detailLabel}>Work Status</span>
+                      <span className={styles.detailValue}>{selectedReg.work_status || '-'}</span>
+                    </div>
+                    <div>
+                      <span className={styles.detailLabel}>Job Title</span>
+                      <span className={styles.detailValue}>{selectedReg.job_title || '-'}</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.infoSectionTitle}>Uploaded Government ID Reference</div>
+                  <div className={styles.idContainer} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    {Array.isArray(selectedReg.valid_id_picture_ids) && selectedReg.valid_id_picture_ids.length > 0 ? (
+                      selectedReg.valid_id_picture_ids.map((pic, index) => (
+                        <div
+                          key={index}
+                          className={styles.idWrapper}
+                          onClick={() => setActiveLightboxImage(pic.path)}
+                        >
+                          <img
+                            src={pic.path}
+                            alt={`Government Valid ID ${index + 1}`}
+                            className={styles.idImage}
+                          />
+                          <div className={styles.idOverlay}>
+                            <FaEye /> Click to expand ID
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      selectedReg.valid_id_picture_id?.path ? (
+                        <div
+                          className={styles.idWrapper}
+                          onClick={() => setActiveLightboxImage(selectedReg.valid_id_picture_id.path)}
+                        >
+                          <img
+                            src={selectedReg.valid_id_picture_id.path}
+                            alt="Government Valid ID"
+                            className={styles.idImage}
+                          />
+                          <div className={styles.idOverlay}>
+                            <FaEye /> Click to expand ID
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={styles.noIdBox}>
+                          <FaIdCard />
+                          <p>No Valid ID uploaded or reference missing.</p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {selectedReg.status === 'pending' && (
+                  <div className={styles.detailsActions}>
+                    <button
+                      className={`${styles.actionBtn} ${styles.declineBtn}`}
+                      onClick={() => setShowDeclineModal(true)}
+                    >
+                      <FaTimes /> Decline Request
+                    </button>
+                    <button
+                      className={`${styles.actionBtn} ${styles.approveBtn}`}
+                      onClick={() => setShowApproveModal(true)}
+                    >
+                      <FaCheck /> Approve & Add Homeowner
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Registrant</th>
-                    <th>Address</th>
-                    <th>Occupant Status</th>
-                    <th>Submission Date</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRegs.map((reg) => {
-                    const fullName = `${reg.first_name} ${reg.last_name}`
-                    const addressStr = reg.phase ? `P${reg.phase} B${reg.block} L${reg.lot}` : '-'
-                    const dateStr = new Date(reg.createdAt).toLocaleDateString('en-PH', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })
-
-                    return (
-                      <tr
-                        key={reg._id}
-                        className={`${styles.row} ${selectedReg?._id === reg._id ? styles.rowSelected : ''}`}
-                        onClick={() => setSelectedReg(reg)}
-                      >
-                        <td>
-                          <div className={styles.userCell}>
-                            {reg.picture_id?.path ? (
-                              <img src={reg.picture_id.path} alt="Avatar" className={styles.rowAvatar} />
-                            ) : (
-                              <div className={styles.rowAvatarPlaceholder}>
-                                {fullName.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <div>
-                              <div className={styles.rowName}>{fullName}</div>
-                              <div className={styles.rowPhone}>{reg.phone_number || 'No Phone'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{addressStr}</td>
-                        <td>{reg.occupant_status || 'Owner'}</td>
-                        <td>{dateStr}</td>
-                        <td>
-                          <span
-                            className={`${styles.statusPill} ${
-                              reg.status === 'approved'
-                                ? styles.statusApproved
-                                : reg.status === 'declined'
-                                ? styles.statusDeclined
-                                : styles.statusPending
-                            }`}
-                          >
-                            {reg.status}
-                          </span>
-                        </td>
-                        <td>
-                          <button className={styles.viewBtn}>
-                            <FaEye /> View details
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <div className={styles.emptyDetails}>
+                <FaIdCard className={styles.emptyDetailsIcon} />
+                <h3>Select a request from the list to review credentials.</h3>
+                <p>Verify provided identity documents and address credentials before adding them to the HOA Masterlist.</p>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Right panel: Request Details */}
-        <div className={`${styles.detailsSection} ${selectedReg ? styles.detailsActive : ''}`}>
-          {selectedReg ? (
-            <div className={styles.detailsCard}>
-              <div className={styles.detailsHeader}>
-                <div className={styles.detailsAvatarWrap}>
-                  {selectedReg.picture_id?.path ? (
-                    <img src={selectedReg.picture_id.path} alt="Avatar" className={styles.detailAvatar} />
-                  ) : (
-                    <div className={styles.detailAvatarPlaceholder}>
-                      {selectedReg.first_name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <h2 className={styles.detailName}>
-                      {selectedReg.first_name} {selectedReg.middle_name ? `${selectedReg.middle_name} ` : ''}{selectedReg.last_name}
-                    </h2>
-                    <span className={styles.detailRole}>Registrant Applicant</span>
-                  </div>
-                </div>
-
-                <div className={styles.detailsHeaderRight}>
-                  <span
-                    className={`${styles.statusBadge} ${
-                      selectedReg.status === 'approved'
-                        ? styles.statusApproved
-                        : selectedReg.status === 'declined'
-                        ? styles.statusDeclined
-                        : styles.statusPending
-                    }`}
-                  >
-                    {selectedReg.status.toUpperCase()}
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.closeDetailsBtn}
-                    onClick={() => setSelectedReg(null)}
-                    aria-label="Close details"
-                  >
-                    &times;
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.detailsBody}>
-                {selectedReg.status === 'declined' && (
-                  <div className={styles.declineBanner}>
-                    <FaExclamationCircle />
-                    <div>
-                      <strong>Decline Reason:</strong> {selectedReg.decline_reason}
-                    </div>
-                  </div>
-                )}
-
-                <div className={styles.infoSectionTitle}>Residency Details</div>
-                <div className={styles.detailsGrid}>
-                  <div>
-                    <span className={styles.detailLabel}>Address</span>
-                    <span className={styles.detailValue}>
-                      {selectedReg.phase ? `Phase ${selectedReg.phase}, Block ${selectedReg.block}, Lot ${selectedReg.lot}` : '-'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className={styles.detailLabel}>Occupant Status</span>
-                    <span className={styles.detailValue}>{selectedReg.occupant_status || '-'}</span>
-                  </div>
-                  <div>
-                    <span className={styles.detailLabel}>Entry Year</span>
-                    <span className={styles.detailValue}>
-                      {selectedReg.entry_date ? new Date(selectedReg.entry_date).getFullYear() : '-'}
-                    </span>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <span className={styles.detailLabel}>Household Members</span>
-                    <div className={styles.detailValue}>
-                      {Array.isArray(selectedReg.household_members) ? (
-                        selectedReg.household_members.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                            {selectedReg.household_members.map((member, i) => (
-                              <li key={i}>
-                                <strong>{member.name || 'Unknown'}</strong> ({member.relationship || 'Unspecified'})
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          'None listed'
-                        )
-                      ) : (
-                        selectedReg.household_members || 'None listed'
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.infoSectionTitle}>Contact & Work</div>
-                <div className={styles.detailsGrid}>
-                  <div>
-                    <span className={styles.detailLabel}>Phone Number</span>
-                    <span className={styles.detailValue}>{selectedReg.phone_number || '-'}</span>
-                  </div>
-                  <div>
-                    <span className={styles.detailLabel}>Email Address</span>
-                    <span className={styles.detailValue}>{selectedReg.email || '-'}</span>
-                  </div>
-                  <div>
-                    <span className={styles.detailLabel}>Work Status</span>
-                    <span className={styles.detailValue}>{selectedReg.work_status || '-'}</span>
-                  </div>
-                  <div>
-                    <span className={styles.detailLabel}>Job Title</span>
-                    <span className={styles.detailValue}>{selectedReg.job_title || '-'}</span>
-                  </div>
-                </div>
-
-                {/* Valid ID Reference */}
-                <div className={styles.infoSectionTitle}>Uploaded Government ID Reference</div>
-                <div className={styles.idContainer} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  {Array.isArray(selectedReg.valid_id_picture_ids) && selectedReg.valid_id_picture_ids.length > 0 ? (
-                    selectedReg.valid_id_picture_ids.map((pic, index) => (
-                      <div
-                        key={index}
-                        className={styles.idWrapper}
-                        onClick={() => setActiveLightboxImage(pic.path)}
-                      >
-                        <img
-                          src={pic.path}
-                          alt={`Government Valid ID ${index + 1}`}
-                          className={styles.idImage}
-                        />
-                        <div className={styles.idOverlay}>
-                          <FaEye /> Click to expand ID
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    selectedReg.valid_id_picture_id?.path ? (
-                      <div
-                        className={styles.idWrapper}
-                        onClick={() => setActiveLightboxImage(selectedReg.valid_id_picture_id.path)}
-                      >
-                        <img
-                          src={selectedReg.valid_id_picture_id.path}
-                          alt="Government Valid ID"
-                          className={styles.idImage}
-                        />
-                        <div className={styles.idOverlay}>
-                          <FaEye /> Click to expand ID
-                        </div>
-                      </div>
-                    ) : (
-                      <div className={styles.noIdBox}>
-                        <FaIdCard />
-                        <p>No Valid ID uploaded or reference missing.</p>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-
-              {selectedReg.status === 'pending' && (
-                <div className={styles.detailsActions}>
-                  <button
-                    className={`${styles.actionBtn} ${styles.declineBtn}`}
-                    onClick={() => setShowDeclineModal(true)}
-                  >
-                    <FaTimes /> Decline Request
-                  </button>
-                  <button
-                    className={`${styles.actionBtn} ${styles.approveBtn}`}
-                    onClick={() => setShowApproveModal(true)}
-                  >
-                    <FaCheck /> Approve & Add Homeowner
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className={styles.emptyDetails}>
-              <FaIdCard className={styles.emptyDetailsIcon} />
-              <h3>Select a request from the list to review credentials.</h3>
-              <p>Verify provided identity documents and address credentials before adding them to the HOA Masterlist.</p>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Lightbox / Zoom Overlay */}
       {activeLightboxImage && (
         <div className={styles.lightbox} onClick={() => setActiveLightboxImage(null)}>
           <div className={styles.lightboxContent}>
@@ -449,7 +452,6 @@ export default function PendingRegistrationsPage() {
         </div>
       )}
 
-      {/* Decline Confirmation Modal */}
       {showDeclineModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
@@ -496,7 +498,6 @@ export default function PendingRegistrationsPage() {
         </div>
       )}
 
-      {/* Approve Confirmation Modal */}
       {showApproveModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
@@ -531,6 +532,6 @@ export default function PendingRegistrationsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

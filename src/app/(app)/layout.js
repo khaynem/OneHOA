@@ -33,7 +33,7 @@ export default function AppRouteGroupLayout({ children }) {
 
   const currentUserRole = currentUser?.role || ''
   const normalizedRole = String(currentUserRole).trim().toLowerCase()
-  
+
   const appLinks = [...BASE_APP_LINKS]
   if (normalizedRole === 'admin' || normalizedRole === 'president') {
     appLinks.splice(2, 0, {
@@ -112,10 +112,8 @@ export default function AppRouteGroupLayout({ children }) {
     }
   }, [])
 
-  // Auto-close sidebar on navigation inside mobile/tablet viewport
   useEffect(() => {
     if (isMobileView) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsSidebarCollapsed(true)
     }
   }, [pathname, isMobileView])
@@ -123,8 +121,7 @@ export default function AppRouteGroupLayout({ children }) {
   return (
     <div className={styles.shell}>
       <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} user={currentUser} />
-      
-      {/* Backdrop overlay for mobile/tablet when sidebar drawer is active */}
+
       {isMobileView && !isSidebarCollapsed && (
         <div
           className={styles.mobileBackdrop}

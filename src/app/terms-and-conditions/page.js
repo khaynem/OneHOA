@@ -56,6 +56,13 @@ export default function TermsAndConditionsPage() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
       <header className={styles.header}>
         <Link href="/" className={styles.brand}>
           <Image

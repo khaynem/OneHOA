@@ -376,11 +376,26 @@ export default function HOAActivitiesPage() {
   }
 
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>HOA Activities</h1>
-          <p className={styles.subtitle}>Post and track community activities and events</p>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>HOA Activities</h1>
+            <p className={styles.bannerSubtitle}>
+              Post, track, and manage community activities and events.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
 
         <div className={styles.headerActions}>
@@ -393,65 +408,66 @@ export default function HOAActivitiesPage() {
             Archived
           </button>
         </div>
-      </section>
 
-      <section className={styles.listModal}>
-        <div className={styles.listModalHeader}>
-          <h2 className={styles.listTitle}>Recent HOA Activities</h2>
-          <p className={styles.listSubtitle}>Tap any activity card to view full details and edit information.</p>
-        </div>
+        <section className={styles.listModal}>
+          <div className={styles.listModalHeader}>
+            <h2 className={styles.listTitle}>Recent HOA Activities</h2>
+            <p className={styles.listSubtitle}>Tap any activity card to view full details and edit information.</p>
+          </div>
 
-        <div className={styles.activityList}>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading activities...</div>
-          ) : sortedActivities.length === 0 ? (
-            <div className={styles.emptyState}>No activities posted yet.</div>
-          ) : (
-            pagedActivities.map((activity) => (
+          <div className={styles.activityList}>
+            {isLoading ? (
+              <div className={styles.emptyState}>Loading activities...</div>
+            ) : sortedActivities.length === 0 ? (
+              <div className={styles.emptyState}>No activities posted yet.</div>
+            ) : (
+              pagedActivities.map((activity) => (
+                <button
+                  type="button"
+                  key={activity.id}
+                  className={styles.activityMiniModal}
+                  onClick={() => openActivityModal(activity)}
+                >
+                  <div className={styles.activityTopRow}>
+                    <h3 className={styles.activityTitle}>{activity.title}</h3>
+                  </div>
+
+                  <p className={styles.activityDetails}>{activity.details}</p>
+                  <p className={styles.activityMetaLine}>
+                    <span className={styles.metaLabel}>Date Posted:</span> {formatDate(activity.postedDate)}
+                  </p>
+                  <p className={styles.activityMetaLine}>
+                    <span className={styles.metaLabel}>Posted By:</span> {activity.reporter || '-'}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+
+          {sortedActivities.length > 0 ? (
+            <div className={styles.pagination}>
               <button
                 type="button"
-                key={activity.id}
-                className={styles.activityMiniModal}
-                onClick={() => openActivityModal(activity)}
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
               >
-                <div className={styles.activityTopRow}>
-                  <h3 className={styles.activityTitle}>{activity.title}</h3>
-                </div>
-
-                <p className={styles.activityDetails}>{activity.details}</p>
-                <p className={styles.activityMetaLine}>
-                  <span className={styles.metaLabel}>Date Posted:</span> {formatDate(activity.postedDate)}
-                </p>
-                <p className={styles.activityMetaLine}>
-                  <span className={styles.metaLabel}>Posted By:</span> {activity.reporter || '-'}
-                </p>
+                Prev
               </button>
-            ))
-          )}
-        </div>
+              <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </section>
 
-        {sortedActivities.length > 0 ? (
-          <div className={styles.pagination}>
-            <button
-              type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Prev
-            </button>
-            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
-            <button
-              type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
-        ) : null}
-      </section>
+      </div>
 
       {isCreateModalOpen && (
         <div className={styles.modalOverlay}>
@@ -705,6 +721,6 @@ export default function HOAActivitiesPage() {
           </div>
         </div>
       )}
-    </main>
+    </>
   )
 }

@@ -92,6 +92,9 @@ export default function VerifyResetCodePage() {
   return (
     <main className={styles.container}>
       <section className={styles.leftPane}>
+        <div className={styles.dotGrid} aria-hidden="true" />
+        <div className={styles.square1} aria-hidden="true" />
+        <div className={styles.square2} aria-hidden="true" />
         <div className={styles.formCard}>
           <div className={styles.stepHeader}>
             <span className={styles.stepPill}>1</span>

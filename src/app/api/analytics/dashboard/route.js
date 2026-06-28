@@ -4,6 +4,7 @@ import Record from "@/lib/server/models/records";
 import Payment from "@/lib/server/models/payments";
 import Activity from "@/lib/server/models/activities";
 import { requireAuth } from "@/lib/server/auth";
+import Picture from "@/lib/server/models/pictures";
 
 export const runtime = "nodejs";
 
@@ -120,7 +121,14 @@ export async function GET() {
           )
           .lean(),
         Payment.find()
-          .populate("records._id", "first_name middle_name last_name generated_id")
+          .populate({
+            path: "records._id",
+            select: "first_name middle_name last_name generated_id pictures._id",
+            populate: {
+              path: "pictures._id",
+              select: "path"
+            }
+          })
           .sort({ createdAt: -1 })
           .limit(5),
         Activity.find().sort({ createdAt: -1 }).limit(5),
@@ -193,12 +201,15 @@ export async function GET() {
 
       const idText = homeownerRecord?.generated_id ? `#${homeownerRecord.generated_id}` : "";
 
+      const photoUrl = homeownerRecord?.pictures?._id?.path || "";
+
       return {
         id: payment._id,
         homeowner: idText ? `${homeownerName} (${idText})` : homeownerName,
         details: payment.payment_details || payment.payment_method || "Payment",
         amount: formatPaymentAmount(payment.amount),
         date: payment.createdAt,
+        photoUrl,
       };
     });
 

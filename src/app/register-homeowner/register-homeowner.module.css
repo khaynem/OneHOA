@@ -1,11 +1,105 @@
 .page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e1ebf5 100%);
+  background: linear-gradient(145deg, #d8e8f5 0%, #e8f1fa 35%, #f2f7fd 65%, #dde9f5 100%);
   color: #1f2937;
   font-family: 'Poppins', sans-serif;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
 }
+
+.page::before,
+.page::after {
+  content: none;
+}
+
+.glowYellow {
+  position: fixed;
+  width: 400px;
+  height: 400px;
+  background: rgba(255, 220, 30, 0.42);
+  border-radius: 50%;
+  filter: blur(100px);
+  top: -100px;
+  right: -100px;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: multiply;
+}
+
+.glowBlue {
+  position: fixed;
+  width: 450px;
+  height: 450px;
+  background: rgba(60, 150, 255, 0.35);
+  border-radius: 50%;
+  filter: blur(110px);
+  bottom: -120px;
+  left: -120px;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: multiply;
+}
+
+.square1 {
+  position: fixed;
+  top: 15%;
+  left: 8%;
+  width: 48px;
+  height: 48px;
+  border-radius: 9px;
+  border: 2.5px solid rgba(0, 112, 196, 0.12);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatSquare1 9s ease-in-out infinite;
+}
+
+.square2 {
+  position: fixed;
+  bottom: 20%;
+  right: 10%;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 2.5px solid rgba(255, 202, 40, 0.18);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatSquare2 12s ease-in-out infinite;
+}
+
+.square3 {
+  position: fixed;
+  bottom: 12%;
+  left: 15%;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid rgba(0, 112, 196, 0.1);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatSquare1 7s ease-in-out infinite reverse;
+}
+
+@keyframes floatSquare1 {
+  0%, 100% { transform: rotate(25deg) translateY(0px); }
+  50% { transform: rotate(25deg) translateY(-12px); }
+}
+
+@keyframes floatSquare2 {
+  0%, 100% { transform: rotate(-15deg) translateY(0px); }
+  50% { transform: rotate(-15deg) translateY(-10px); }
+}
+
+.bgDots {
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(0, 59, 117, 0.09) 1px, transparent 1px);
+  background-size: 30px 30px;
+  pointer-events: none;
+  z-index: 0;
+}
+
 
 .header {
   background: #ffffff;
@@ -24,6 +118,25 @@
   justify-content: space-between;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.brandText {
+  font-weight: 900;
+  color: #003B75;
+  font-size: 1.25rem;
+  letter-spacing: 0.05em;
+}
+
 .backLink {
   color: #003B75;
   font-weight: 600;
@@ -39,30 +152,43 @@
   transform: translateX(-2px);
 }
 
-.brandText {
-  font-weight: 800;
-  color: #003B75;
-  font-size: 1.1rem;
-  letter-spacing: 0.05em;
-}
-
 .main {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2.5rem 1rem;
+  position: relative;
+  z-index: 1;
 }
 
 .formContainer {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #d4deee;
-  border-radius: 18px;
-  box-shadow: 0 20px 50px rgba(0, 59, 117, 0.12);
+  background: rgba(255, 255, 255, 0.90);
+  border: 1px solid rgba(0, 112, 196, 0.12);
+  border-radius: 22px;
+  box-shadow: 0 30px 70px rgba(0, 59, 117, 0.14), 0 4px 20px rgba(0, 112, 196, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   width: 100%;
   max-width: 900px;
+  padding: 0;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  position: relative;
+}
+
+.formContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #003B75 0%, #0070C4 50%, #38bdf8 100%);
+  z-index: 10;
+}
+
+.formInner {
   padding: 2.5rem 3rem;
-  backdrop-filter: blur(10px);
 }
 
 .formHeader {
@@ -70,14 +196,23 @@
   margin-bottom: 2rem;
   border-bottom: 1px solid #e5effd;
   padding-bottom: 1.5rem;
+  position: relative;
+  background: radial-gradient(ellipse at 50% 120%, rgba(0, 112, 196, 0.06) 0%, transparent 70%);
+  border-radius: 8px 8px 0 0;
+  padding-top: 1rem;
 }
 
+
 .title {
-  color: #003B75;
+  background: linear-gradient(135deg, #003B75 0%, #0070C4 60%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-size: clamp(1.8rem, 3.2vw, 2.3rem);
   font-weight: 800;
   margin-bottom: 0.6rem;
 }
+
 
 .subtitle {
   color: #55606e;
@@ -91,14 +226,20 @@
   gap: 1.8rem;
 }
 
-/* Sections */
 .formSection {
   background: #ffffff;
   border: 1px solid #e2e8f0;
+  border-left: 3px solid #0070C4;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 12px rgba(0, 59, 117, 0.05);
+  transition: box-shadow 0.2s ease;
 }
+
+.formSection:hover {
+  box-shadow: 0 6px 20px rgba(0, 59, 117, 0.09);
+}
+
 
 .sectionTitle {
   font-size: 1.25rem;
@@ -120,7 +261,6 @@
   border: none;
 }
 
-/* Photo Section Layout */
 .photoSection {
   display: flex;
   gap: 1.8rem;
@@ -264,7 +404,6 @@
   display: none;
 }
 
-/* Fields Grid */
 .fieldsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -317,7 +456,6 @@
   resize: vertical;
 }
 
-/* Household Members UI */
 .householdList {
   display: flex;
   flex-direction: column;
@@ -420,7 +558,6 @@
   cursor: not-allowed;
 }
 
-/* Success Card */
 .successCard {
   background: #ffffff;
   border: 1px solid #d4deee;
@@ -491,7 +628,6 @@
   background: #002e5c;
 }
 
-/* Animations */
 .spinner {
   animation: spin 1s linear infinite;
 }
@@ -500,6 +636,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -509,13 +646,13 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* Loading state */
 .loadingContainer {
   min-height: 100vh;
   display: flex;
@@ -532,32 +669,35 @@
   font-size: 2.2rem;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .formContainer {
     padding: 2rem 1.5rem;
   }
+
   .fieldsGrid {
     grid-template-columns: 1fr;
   }
+
   .photoSection {
     flex-direction: column;
     align-items: center;
   }
+
   .idUploadZone {
     width: 100%;
   }
+
   .householdRow {
     flex-direction: column;
     align-items: stretch;
   }
+
   .removeBtn {
     width: 100%;
     margin-top: 0.5rem;
   }
 }
 
-/* Checkbox and Terms */
 .checkboxLabel {
   display: flex;
   align-items: flex-start;
@@ -584,7 +724,6 @@
   color: #003B75;
 }
 
-/* Modal */
 .modalOverlay {
   position: fixed;
   inset: 0;

@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
+import JobTitleField from '@/components/job-title-field/job-title-field'
 import styles from './homeowner-management.module.css'
 
 const DEFAULT_STATUS_OPTIONS = ['HO, not HVNA member', 'HO, HVNA member', 'N/A']
@@ -17,12 +18,32 @@ const WORK_STATUS_OPTIONS = [
   'Regular',
   'Self-Employed',
   'Freelance',
-  'Business Owner',
   'Unemployed',
-  'Retired',
-  'Student',
   'Other'
 ]
+
+const getWorkStatusOptions = (fields = []) => {
+  const workStatusField = Array.isArray(fields)
+    ? fields.find((field) => field?.key === 'work_status' && Array.isArray(field.options))
+    : null
+
+  if (!workStatusField || workStatusField.options.length === 0) {
+    return WORK_STATUS_OPTIONS
+  }
+
+  return workStatusField.options
+    .map((option) => String(option || '').trim())
+    .filter(Boolean)
+}
+
+const toSelectOptions = (options, currentValue) => {
+  const normalized = String(currentValue || '').trim()
+  if (normalized && !options.includes(normalized)) {
+    return [...options, normalized]
+  }
+
+  return options
+}
 
 const OCCUPANT_STATUS_OPTIONS = ['Owner', 'Relative', 'Renter', 'Caretaker']
 
@@ -94,15 +115,6 @@ const normalizeStatusList = (value) => {
 
   const normalized = String(value || '').trim()
   return normalized ? [normalized] : []
-}
-
-const toSelectOptions = (options, currentValue) => {
-  const normalized = String(currentValue || '').trim()
-  if (normalized && !options.includes(normalized)) {
-    return [...options, normalized]
-  }
-
-  return options
 }
 
 const normalizeOccupantStatus = (value) => String(value || '').trim()
@@ -407,6 +419,7 @@ function HomeownerManagementInner() {
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
   const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
+  const [workStatusOptions, setWorkStatusOptions] = useState(WORK_STATUS_OPTIONS)
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
   const [isSaving, setIsSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
@@ -502,6 +515,44 @@ function HomeownerManagementInner() {
   useEffect(() => {
     fetchHomeowners()
   }, [])
+
+  useEffect(() => {
+    const loadWorkStatusOptions = async () => {
+      try {
+        const response = await apiClient.get('/settings/registration-fields', {
+          forceRefresh: true
+        })
+
+        if (response?.success && Array.isArray(response.fields)) {
+          setWorkStatusOptions(getWorkStatusOptions(response.fields))
+          return
+        }
+      } catch (error) {
+        setWorkStatusOptions(WORK_STATUS_OPTIONS)
+      }
+
+      setWorkStatusOptions(WORK_STATUS_OPTIONS)
+    }
+
+    loadWorkStatusOptions()
+  }, [])
+
+  useEffect(() => {
+    setEditForm((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      if (!prev.workStatus || workStatusOptions.includes(prev.workStatus)) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        workStatus: ''
+      }
+    })
+  }, [workStatusOptions])
 
   useEffect(() => {
     const paymentParam = searchParams.get('paymentFilter')
@@ -882,6 +933,7 @@ function HomeownerManagementInner() {
 
   const openViewModal = (homeowner) => {
     const isOwner = isOwnerOccupant(homeowner.occupantStatus)
+    const normalizedWorkStatus = workStatusOptions.includes(homeowner.workStatus) ? homeowner.workStatus : ''
 
     setSelectedHomeowner({
       ...homeowner,
@@ -906,7 +958,7 @@ function HomeownerManagementInner() {
       occupantStatus: homeowner.occupantStatus,
       householdMembers: homeowner.householdMembers,
       jobDescription: homeowner.jobDescription,
-      workStatus: homeowner.workStatus,
+      workStatus: normalizedWorkStatus,
       pictureId: homeowner.pictureId,
       photoUrl: homeowner.photoUrl,
       imageName: ''
@@ -1842,19 +1894,21 @@ function HomeownerManagementInner() {
                   className={styles.input}
                   value={addForm.phone}
                   onChange={(event) => handlePhoneChange(event.target.value)}
-                  placeholder="09XX XXX XXXX"
+                  placeholder="09xxxxxxxxx"
                 />
 
                 <div className={styles.twoColGrid}>
                   <div>
-                    <label className={styles.fieldLabel}>
-                      Job Title <span className={styles.requiredMark}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={styles.input}
+                    <JobTitleField
+                      label="Job Title"
                       value={addForm.jobDescription}
-                      onChange={(event) => handleFormChange('jobDescription', event.target.value)}
+                      onChange={(value) => handleFormChange('jobDescription', value)}
+                      required
+                      inputClassName={styles.input}
+                      labelClassName={styles.fieldLabel}
+                      selectClassName={styles.input}
+                      requiredClassName={styles.requiredMark}
+                      placeholder="Enter job title"
                     />
                   </div>
                   <div>
@@ -1867,7 +1921,7 @@ function HomeownerManagementInner() {
                       <option value="" disabled>
                         Select work status
                       </option>
-                      {WORK_STATUS_OPTIONS.map((statusOption) => (
+                      {workStatusOptions.map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
                           {statusOption}
                         </option>
@@ -2292,13 +2346,17 @@ function HomeownerManagementInner() {
                   )}
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Job Title</p>
                   {isEditingHomeowner ? (
-                    <input
-                      type="text"
-                      className={styles.input}
+                    <JobTitleField
+                      label="Job Title"
                       value={editForm?.jobDescription || ''}
-                      onChange={(event) => handleEditChange('jobDescription', event.target.value)}
+                      onChange={(value) => handleEditChange('jobDescription', value)}
+                      required={false}
+                      inputClassName={styles.input}
+                      labelClassName={styles.detailLabel}
+                      selectClassName={styles.input}
+                      requiredClassName={styles.requiredMark}
+                      placeholder="Enter job title"
                     />
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.jobDescription}</p>
@@ -2315,7 +2373,7 @@ function HomeownerManagementInner() {
                       <option value="" disabled>
                         Select work status
                       </option>
-                      {toSelectOptions(WORK_STATUS_OPTIONS, editForm?.workStatus).map((statusOption) => (
+                      {workStatusOptions.map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
                           {statusOption}
                         </option>

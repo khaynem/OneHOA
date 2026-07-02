@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 export const runtime = "nodejs";
 
 const SETTING_KEY = "registration_fields";
+const WORK_STATUS_OPTIONS = ["Contractual", "Regular", "Self-Employed", "Freelance", "Unemployed", "Other"];
 
 const DEFAULT_REGISTRATION_FIELDS = [
   { key: "first_name", label: "First Name", type: "text", required: true, isActive: true },
@@ -21,7 +22,7 @@ const DEFAULT_REGISTRATION_FIELDS = [
     key: "work_status",
     label: "Work Status",
     type: "select",
-    options: ["Contractual", "Regular", "Self-Employed", "Freelance", "Business Owner", "Unemployed", "Retired", "Student", "Other"],
+    options: WORK_STATUS_OPTIONS,
     required: true,
     isActive: true,
   },
@@ -39,6 +40,23 @@ const DEFAULT_REGISTRATION_FIELDS = [
   },
   { key: "household_members", label: "Household Members", type: "household_list", required: true, isActive: true },
 ];
+
+const normalizeRegistrationFields = (fields = []) => {
+  if (!Array.isArray(fields)) {
+    return DEFAULT_REGISTRATION_FIELDS
+  }
+
+  return fields.map((field) => {
+    if (field?.key !== "work_status") {
+      return field
+    }
+
+    return {
+      ...field,
+      options: WORK_STATUS_OPTIONS,
+    }
+  })
+};
 
 export async function GET(request) {
   try {
@@ -77,7 +95,7 @@ export async function POST(request) {
 
     // 1. Fetch form field config
     const setting = await Setting.findOne({ key: SETTING_KEY }).lean();
-    let fieldsConfig = setting?.value || DEFAULT_REGISTRATION_FIELDS;
+    let fieldsConfig = normalizeRegistrationFields(setting?.value || DEFAULT_REGISTRATION_FIELDS);
 
     if (!fieldsConfig.find(f => f.key === "email")) {
       const emailField = DEFAULT_REGISTRATION_FIELDS.find(f => f.key === "email") || { key: "email", label: "Email Address", type: "email", required: true, isActive: true };

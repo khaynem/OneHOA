@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { FaArrowLeft, FaCheckCircle, FaCloudUploadAlt, FaIdCard, FaCamera, FaSpinner, FaUserAlt, FaBriefcase, FaHome, FaUsers, FaPlus, FaTrash } from 'react-icons/fa'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
+import JobTitleField from '@/components/job-title-field/job-title-field'
 import styles from './register-homeowner.module.css'
 
 const CATEGORY_MAP = {
@@ -19,6 +20,18 @@ const CATEGORY_ICONS = {
   "Source of Income": <FaBriefcase />,
   "Residency Details": <FaHome />,
   "Household Members": <FaUsers />
+}
+
+const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+const isAllowedImageFile = (file) => {
+  return ALLOWED_IMAGE_MIME_TYPES.includes(file.type)
+}
+
+const formatFileSize = (bytes) => {
+  const mb = bytes / (1024 * 1024)
+  return `${mb.toFixed(2)} MB`
 }
 
 export default function RegisterHomeownerPage() {
@@ -64,13 +77,14 @@ export default function RegisterHomeownerPage() {
   useEffect(() => {
     async function loadFields() {
       try {
-        const response = await apiClient.get('/settings/registration-fields')
+        const response = await apiClient.get('/settings/registration-fields', {
+          forceRefresh: true
+        })
         let loadedFields = []
         if (response?.success && Array.isArray(response?.fields)) {
           loadedFields = response.fields.filter(f => f.isActive)
         }
 
-        // Ensure suffix field is always available in Personal Details
         const suffixExists = loadedFields.some(f => f.key === 'suffix')
         if (!suffixExists) {
           loadedFields.splice(
@@ -165,10 +179,15 @@ export default function RegisterHomeownerPage() {
 
     const validFiles = []
     for (const file of files) {
-      if (!file.type.startsWith('image/')) {
+      if (!isAllowedImageFile(file)) {
         notify.error({
           title: 'Invalid File',
-          description: `"${file.name}" is not an image file (PNG, JPG, JPEG).`
+          description: `"${file.name}" must be one of the supported image formats: JPEG, PNG, or WEBP.`
+        })
+      } else if (file.size > MAX_IMAGE_FILE_SIZE) {
+        notify.error({
+          title: 'File Too Large',
+          description: `"${file.name}" is ${formatFileSize(file.size)}. Image files must be 5 MB or smaller.`
         })
       } else {
         validFiles.push(file)
@@ -230,10 +249,18 @@ export default function RegisterHomeownerPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (!file.type.startsWith('image/')) {
+    if (!isAllowedImageFile(file)) {
       notify.error({
         title: 'Invalid File',
-        description: 'Please upload an image file (PNG, JPG, JPEG) for your profile photo.'
+        description: 'Please upload a JPEG, PNG, or WEBP image for your profile photo.'
+      })
+      return
+    }
+
+    if (file.size > MAX_IMAGE_FILE_SIZE) {
+      notify.error({
+        title: 'File Too Large',
+        description: `"${file.name}" is ${formatFileSize(file.size)}. Image files must be 5 MB or smaller.`
       })
       return
     }
@@ -338,7 +365,7 @@ export default function RegisterHomeownerPage() {
           if (digits.length !== 11) {
             notify.error({
               title: 'Invalid Phone Number',
-              description: 'Phone number must be exactly 11 digits (e.g. 09171234567).'
+              description: 'Phone number must be exactly 11 digits (e.g. 09xxxxxxxxx).'
             })
             return
           }
@@ -424,6 +451,22 @@ export default function RegisterHomeownerPage() {
   const renderFieldInput = (field) => {
     const isRequired = field.required
     const key = field.key
+
+    if (key === 'job_title') {
+      return (
+        <JobTitleField
+          label={field.label}
+          value={formData[key]}
+          onChange={(value) => handleInputChange(key, value)}
+          required={isRequired}
+          inputClassName={styles.input}
+          labelClassName={styles.label}
+          selectClassName={styles.select}
+          requiredClassName={styles.required}
+          placeholder="Enter job title"
+        />
+      )
+    }
 
     if (field.type === 'household_list') {
       return (
@@ -521,7 +564,7 @@ export default function RegisterHomeownerPage() {
                   : key === 'email'
                     ? 'example@gmail.com'
                     : key === 'phone_number'
-                      ? 'e.g. 09171234567'
+                      ? 'e.g. 09xxxxxxxxx'
                       : key === 'entry_date'
                         ? 'e.g. 2026'
                         : `Enter ${field.label.toLowerCase()}`
@@ -647,7 +690,7 @@ export default function RegisterHomeownerPage() {
                       type="file"
                       ref={profileInputRef}
                       onChange={handleProfileChange}
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                       className={styles.hiddenInput}
                     />
                   </div>
@@ -683,9 +726,11 @@ export default function RegisterHomeownerPage() {
                                 <>
                                   <span>Click or Drag to Upload Valid IDs</span>
                                   <p className={styles.hintText}>Upload up to 4 images (Passport, Driver&apos;s License, etc.)</p>
+                                  <p className={styles.hintText}>Accepted File formats are .jpg, .jpeg, .png, or .webp</p>
+                                  <p className={styles.hintText}>Max file size is 5 MB per image.</p>
                                 </>
                               )}
-                              {validIdPreviews.length > 0 && <span style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>Add More</span>}
+                              {validIdPreviews.length > 0 && <span style={{ fontSize: '0.8rem' }}>Add More</span>}
                             </div>
                             {isValidIdUploading && (
                               <div className={styles.uploadOverlay}>
@@ -700,7 +745,7 @@ export default function RegisterHomeownerPage() {
                       type="file"
                       ref={validIdInputRef}
                       onChange={handleValidIdChange}
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                       multiple
                       className={styles.hiddenInput}
                     />
@@ -725,9 +770,11 @@ export default function RegisterHomeownerPage() {
                             }`}
                           style={field.type === 'household_list' ? { marginBottom: '1rem' } : {}}
                         >
-                          <label className={styles.label}>
-                            {field.label} {field.required && <span className={styles.required}>*</span>}
-                          </label>
+                          {field.key !== 'job_title' ? (
+                            <label className={styles.label}>
+                              {field.label} {field.required && <span className={styles.required}>*</span>}
+                            </label>
+                          ) : null}
                           {renderFieldInput(field)}
                         </div>
                       ))}

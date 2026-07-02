@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { HiOutlineCalendarDays as ActivityIcon, HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
-import styles from './hoa-activities.module.css'
+import styles from './hoa-announcements.module.css'
 
 const EMPTY_FORM = {
   title: '',
@@ -136,7 +136,7 @@ export default function HOAActivitiesPage() {
     } catch (error) {
       notify.error({
         title: 'Failed to Load Activities',
-        description: error.message || 'Unable to fetch HOA activities.'
+        description: error.message || 'Unable to fetch HOA Announcements.'
       })
       setActivities([])
     } finally {
@@ -388,7 +388,7 @@ export default function HOAActivitiesPage() {
         <div className={styles.welcomeBanner}>
           <div className={styles.bannerContent}>
             <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
-            <h1 className={styles.bannerTitle}>HOA Activities</h1>
+            <h1 className={styles.bannerTitle}>HOA Announcements</h1>
             <p className={styles.bannerSubtitle}>
               Post, track, and manage community activities and events.
             </p>
@@ -411,7 +411,7 @@ export default function HOAActivitiesPage() {
 
         <section className={styles.listModal}>
           <div className={styles.listModalHeader}>
-            <h2 className={styles.listTitle}>Recent HOA Activities</h2>
+            <h2 className={styles.listTitle}>Recent HOA Announcements</h2>
             <p className={styles.listSubtitle}>Tap any activity card to view full details and edit information.</p>
           </div>
 

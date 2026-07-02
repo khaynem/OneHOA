@@ -11,7 +11,7 @@ const BASE_APP_LINKS = [
   { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
   { href: '/homeowner-management', label: 'Masterlist Record', Icon: HiOutlineUsers },
   { href: '/payment-monitoring', label: 'Payment Tracker', Icon: HiOutlineCreditCard },
-  { href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
+  { href: '/hoa-announcements', label: 'HOA Announcements', Icon: HiOutlineCalendarDays },
 ]
 
 const ACCOUNT_MANAGEMENT_LINK = {

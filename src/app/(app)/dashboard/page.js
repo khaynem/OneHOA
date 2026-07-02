@@ -216,8 +216,8 @@ export default function DashboardPage() {
 
           <article className={styles.listCard}>
             <h2 className={styles.sectionTitle}>
-              <Link href="/hoa-activities" className={styles.sectionLink}>
-                Previous HOA Activities
+              <Link href="/hoa-announcements" className={styles.sectionLink}>
+                Previous HOA Announcements
               </Link>
             </h2>
 

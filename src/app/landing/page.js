@@ -201,8 +201,8 @@ export default function LandingPage() {
 
           <article className={styles.card}>
             <div className={styles.iconWrap}><FaCalendarAlt /></div>
-            <h3>Track HOA Activities</h3>
-            <p>Keep residents informed with timely updates on HOA activities and community events.</p>
+            <h3>Track HOA Announcements</h3>
+            <p>Keep residents informed with timely updates on HOA Announcements and community events.</p>
           </article>
 
           <article className={styles.card}>

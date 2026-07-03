@@ -71,7 +71,7 @@ export async function GET() {
       ];
     }
 
-    return NextResponse.jn({ success: true, fields }, { status: 200 });
+    return NextResponse.json({ success: true, fields }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to load registration fields." },

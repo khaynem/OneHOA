@@ -70,6 +70,10 @@ const paymentsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    recorded_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     "records._id": {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Record",
@@ -89,4 +93,4 @@ paymentsSchema.index({ "records._id": 1, billing_period: 1 });
 paymentsSchema.index({ payment_status: 1, billing_period: 1 });
 paymentsSchema.index({ "records._id": 1, payment_for_periods: 1 });
 
-export default mongoose.models.Payment || mongoose.model("Payment", paymentsSchema);
+export default mongoose.model("Payment", paymentsSchema);

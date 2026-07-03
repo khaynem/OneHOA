@@ -18,6 +18,7 @@ export async function GET(request, { params }) {
 
     const payment = await Payment.findById(id)
       .populate("records._id", "first_name last_name household_no")
+      .populate("recorded_by", "first_name last_name email role")
       .lean();
 
     if (!payment) {

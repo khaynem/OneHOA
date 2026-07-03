@@ -125,6 +125,7 @@ export async function POST(request) {
       payment_status: inferPaymentStatus(payment_status, payment_details, normalizedPaymentMethod),
       payment_method: normalizedPaymentMethod,
       payment_details,
+      recorded_by: user.id,
       "records._id": record._id,
     });
 
@@ -211,6 +212,7 @@ export async function GET(request) {
 
     const payments = await Payment.find(filter)
       .populate("records._id", "first_name last_name")
+      .populate("recorded_by", "first_name last_name email role")
       .sort({ billing_year: -1, billing_month: -1, date: -1, createdAt: -1 })
       .lean();
 

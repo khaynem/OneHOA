@@ -63,6 +63,25 @@ const toUnitNumberFromAddress = (address) => {
 
 const getHomeownerName = (record = {}) => `${record.first_name || ''} ${record.last_name || ''}`.trim()
 
+const getUserDisplayName = (user = {}) => {
+  const name = `${user.first_name || ''} ${user.last_name || ''}`.trim()
+  return name || user.email || '-'
+}
+
+const getIssuedByLabel = (payment = {}) => {
+  const recordedBy = payment.recorded_by
+
+  if (recordedBy && typeof recordedBy === 'object') {
+    return getUserDisplayName(recordedBy)
+  }
+
+  if (typeof recordedBy === 'string' && recordedBy.trim()) {
+    return recordedBy
+  }
+
+  return payment.issuedBy || '-'
+}
+
 const isPaymentMonitored = (record = {}) => isOwnerOccupant(record.occupant_status) && !record.archived
 
 const parseCoveredPeriods = (record) => {
@@ -213,6 +232,7 @@ const buildReceiptElement = (receipt) => (
     <Text>Periods: {formatReceiptPeriods(receipt.coveredPeriods)}</Text>
     <Text>Amount: Php {Number(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
     {receipt.issuedBy && <Text>Issued By: {String(receipt.issuedBy)}</Text>}
+    {receipt.issuedAt && <Text>Issued On: {formatDate(receipt.issuedAt)}</Text>}
     <Br />
     <Text>Details: {String(receipt.details || 'Monthly Due Payments')}</Text>
     <Text align="center">--------------------------------</Text>
@@ -362,6 +382,8 @@ export default function PaymentMonitoringPage() {
             paymentMethod: String(payment.payment_method || '-'),
             paymentStatusRaw: String(payment.payment_status || '-'),
             paymentStatus: String(payment.payment_status || '').toLowerCase(),
+            issuedBy: getIssuedByLabel(payment),
+            issuedAt: payment.createdAt || null,
             coveredPeriods,
             createdAt: payment.createdAt || null,
             updatedAt: payment.updatedAt || null
@@ -1233,12 +1255,12 @@ export default function PaymentMonitoringPage() {
       receiptNo: String(numericReceiptNo || ''),
       details: form.paymentDetails.trim() || 'Maintenance fee payment',
       coveredPeriods: paymentForPeriods,
-      issuedBy: officerName || null
+      issuedBy: officerName || null,
+      issuedAt: new Date()
     }
   }
 
   const buildReceiptFromRecord = (record) => {
-    const officerName = currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username : ''
     return {
       homeownerName: record?.homeownerName || '-',
       unitNumber: record?.unitNumber || '-',
@@ -1247,7 +1269,8 @@ export default function PaymentMonitoringPage() {
       receiptNo: record?.receiptNo || '-',
       details: record?.details || 'Maintenance fee payment',
       coveredPeriods: record?.coveredPeriods || [],
-      issuedBy: officerName || null
+      issuedBy: record?.issuedBy || null,
+      issuedAt: record?.issuedAt || record?.createdAt || null
     }
   }
 
@@ -1300,7 +1323,7 @@ export default function PaymentMonitoringPage() {
 
     try {
       setIsSavingPayment(true)
-      await apiClient.post('/payments', {
+      const response = await apiClient.post('/payments', {
         receipt_no: numericReceiptNo,
         amount: amountPaid,
         date: paymentDate,
@@ -1319,6 +1342,9 @@ export default function PaymentMonitoringPage() {
         paymentForPeriods,
         paymentDate
       )
+      if (response?.payment) {
+        receiptData.issuedAt = response.payment.createdAt || receiptData.issuedAt
+      }
       closeRecordModal()
       await loadPaymentMonitoringData()
 
@@ -1835,6 +1861,26 @@ export default function PaymentMonitoringPage() {
                   type="text"
                   className={`${styles.input} ${styles.readonlyField}`}
                   value={selectedPaymentRecord.unitNumber}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                  <label className={styles.fieldLabel}>Issued By</label>
+                  <input
+                    type="text"
+                    className={`${styles.input} ${styles.readonlyField}`}
+                    value={selectedPaymentRecord.issuedBy}
+                    readOnly
+                  />
+              </div>
+
+              <div>
+                <label className={styles.fieldLabel}>Issued On</label>
+                <input
+                  type="text"
+                  className={`${styles.input} ${styles.readonlyField}`}
+                  value={formatDate(selectedPaymentRecord.issuedAt)}
                   readOnly
                 />
               </div>

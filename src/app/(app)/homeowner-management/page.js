@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineTrash, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
@@ -482,7 +483,8 @@ function HomeownerManagementInner() {
         apiClient.get('/records', {
           query: {
             page: 1,
-            limit: 200
+            limit: 200,
+            summary: true
           }
         }),
         apiClient.get('/payments/tracker', {
@@ -931,7 +933,24 @@ function HomeownerManagementInner() {
     }
   }
 
-  const openViewModal = (homeowner) => {
+  const loadHomeownerDetails = async (homeownerId, paymentSummary = null) => {
+    if (!homeownerId) {
+      return null
+    }
+
+    const response = await apiClient.get(`/records/${homeownerId}`, {
+      forceRefresh: true
+    })
+
+    const fullRecord = response?.data
+    if (!fullRecord) {
+      return null
+    }
+
+    return mapRecordToHomeowner(fullRecord, paymentSummary)
+  }
+
+  const openViewModal = async (homeowner) => {
     const isOwner = isOwnerOccupant(homeowner.occupantStatus)
     const normalizedWorkStatus = workStatusOptions.includes(homeowner.workStatus) ? homeowner.workStatus : ''
 
@@ -965,7 +984,52 @@ function HomeownerManagementInner() {
     })
 
     if (isOwner) {
-      fetchHomeownerPayments(homeowner.id)
+      void fetchHomeownerPayments(homeowner.id)
+    }
+
+    try {
+      const fullHomeowner = await loadHomeownerDetails(homeowner.id, homeowner.paymentSummary)
+      if (fullHomeowner) {
+        setSelectedHomeowner((prev) => {
+          if (!prev || prev.id !== homeowner.id) {
+            return prev
+          }
+
+          return {
+            ...fullHomeowner,
+            paymentHistory: prev.paymentHistory,
+            unpaidPeriods: prev.unpaidPeriods,
+            totalPaid: prev.totalPaid,
+            upcomingPayment: prev.upcomingPayment,
+          }
+        })
+
+        if (!isEditingHomeowner) {
+          setEditForm({
+            firstName: fullHomeowner.firstName,
+            middleName: fullHomeowner.middleName,
+            lastName: fullHomeowner.lastName,
+            unitNumber: fullHomeowner.unitNumber,
+            phone: fullHomeowner.phone,
+            phase: fullHomeowner.phase,
+            block: fullHomeowner.block,
+            lot: fullHomeowner.lot,
+            entryDate: fullHomeowner.entryDate,
+            occupantStatus: fullHomeowner.occupantStatus,
+            householdMembers: fullHomeowner.householdMembers,
+            jobDescription: fullHomeowner.jobDescription,
+            workStatus: fullHomeowner.workStatus,
+            pictureId: fullHomeowner.pictureId,
+            photoUrl: fullHomeowner.photoUrl,
+            imageName: ''
+          })
+        }
+      }
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Load Homeowner Details',
+        description: error.message || 'Unable to fetch full homeowner details.'
+      })
     }
   }
 
@@ -1691,16 +1755,20 @@ function HomeownerManagementInner() {
                       <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
                         <div className={styles.nameCell}>
                           {homeowner.photoUrl ? (
-                            <img
+                            <Image
                               src={homeowner.photoUrl}
                               alt={`${homeowner.firstName} ${homeowner.lastName}`}
                               className={styles.rowAvatar}
+                              width={34}
+                              height={34}
                             />
                           ) : (
-                            <img
-                              src="images/Default_pfp.jpg"
+                            <Image
+                              src="/images/Default_pfp.jpg"
                               alt={`${homeowner.firstName} ${homeowner.lastName}`}
                               className={styles.rowAvatar}
+                              width={34}
+                              height={34}
                             />
                           )}
                           <span>
@@ -1840,7 +1908,13 @@ function HomeownerManagementInner() {
                       onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
                     />
                     {addForm.imageUrl ? (
-                      <img src={addForm.imageUrl} alt="Homeowner preview" className={styles.photoPreview} />
+                      <Image
+                        src={addForm.imageUrl}
+                        alt="Homeowner preview"
+                        className={styles.photoPreview}
+                        width={72}
+                        height={72}
+                      />
                     ) : (
                       <span className={styles.photoPlus}>+</span>
                     )}
@@ -2116,10 +2190,12 @@ function HomeownerManagementInner() {
                     }}
                     aria-label={isEditingHomeowner ? 'Update homeowner photo' : 'Homeowner photo'}
                   >
-                    <img
+                    <Image
                       src={isEditingHomeowner ? editForm?.photoUrl : selectedHomeowner.photoUrl}
                       alt={`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}
                       className={styles.modalAvatar}
+                      width={72}
+                      height={72}
                     />
                   </button>
                 ) : (
@@ -2346,6 +2422,7 @@ function HomeownerManagementInner() {
                   )}
                 </div>
                 <div>
+                  <p className={styles.detailLabel}>Job Title</p>
                   {isEditingHomeowner ? (
                     <JobTitleField
                       label="Job Title"

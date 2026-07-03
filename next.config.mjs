@@ -5,6 +5,14 @@ const nextConfig = {
   /* config options here */
   reactCompiler: true,
   turbopack: {},
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
+    ],
+  },
 };
 
 const withSerwist = withSerwistInit({

@@ -72,6 +72,7 @@ export async function GET(request) {
     const limit = Math.max(Number(searchParams.get("limit")) || 10, 1);
     const skip = (page - 1) * limit;
     const search = (searchParams.get("search") || "").trim();
+    const summary = ["1", "true", "yes"].includes(String(searchParams.get("summary") || "").toLowerCase());
 
     const filter = {};
     if (search) {
@@ -81,15 +82,18 @@ export async function GET(request) {
       ];
     }
 
-    const [items, total] = await Promise.all([
-      Record.find(filter)
-        .populate("address._id")
-        .populate("pictures._id")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Record.countDocuments(filter),
-    ]);
+    const recordsQuery = Record.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
+
+    if (summary) {
+      recordsQuery
+        .select("first_name last_name middle_name phone_number address._id pictures._id occupant_status archived generated_id entry_date createdAt updatedAt")
+        .populate("address._id", "phase block lot");
+      recordsQuery.populate("pictures._id", "path");
+    } else {
+      recordsQuery.populate("address._id").populate("pictures._id");
+    }
+
+    const [items, total] = await Promise.all([recordsQuery, Record.countDocuments(filter)]);
 
     return NextResponse.json(
       {

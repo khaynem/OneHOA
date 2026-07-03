@@ -5,7 +5,8 @@ import {
   HiOutlineBanknotes as CollectedIcon,
   HiOutlineChartBar as RateIcon,
   HiOutlineCircleStack as PaymentIcon,
-  HiOutlineClock as PendingIcon
+  HiOutlineClock as PendingIcon,
+  HiOutlineEye,
 } from 'react-icons/hi2'
 import { Br, Cut, Line, Printer, Row, Text, render } from 'react-thermal-printer'
 import { apiClient } from '@/lib/apiClient'
@@ -344,7 +345,8 @@ export default function PaymentMonitoringPage() {
         apiClient.get('/records', {
           query: {
             page: 1,
-            limit: 500
+            limit: 500,
+            summary: true
           }
         })
       ])
@@ -1582,7 +1584,7 @@ export default function PaymentMonitoringPage() {
                           className={styles.viewButton}
                           onClick={() => openPaymentViewModal(record)}
                         >
-                          View
+                          <HiOutlineEye />
                         </button>
                       </td>
                     </tr>

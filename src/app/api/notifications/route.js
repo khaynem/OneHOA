@@ -16,15 +16,20 @@ export async function GET(request) {
     const page = Math.max(Number(searchParams.get("page")) || 1, 1);
     const limit = Math.min(Math.max(Number(searchParams.get("limit")) || 20, 1), 100);
     const skip = (page - 1) * limit;
+    const summary = ["1", "true", "yes"].includes(String(searchParams.get("summary") || "").toLowerCase());
 
     const filter = { recipient_user_id: user.id };
 
+    const notificationsQuery = Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+
+    if (summary) {
+      notificationsQuery.select("title message read read_at createdAt");
+    } else {
+      notificationsQuery.populate("audit_log_id");
+    }
+
     const [items, total, unreadCount] = await Promise.all([
-      Notification.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("audit_log_id"),
+      notificationsQuery,
       Notification.countDocuments(filter),
       Notification.countDocuments({ ...filter, read: false }),
     ]);

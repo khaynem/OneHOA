@@ -4,13 +4,71 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import styles from './landing.module.css'
 import { FaUsers, FaMoneyCheckAlt, FaCalendarAlt, FaClipboardList, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaBell } from 'react-icons/fa'
+import { apiClient } from '@/lib/apiClient'
+
+const formatAnnouncementDate = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (isNaN(parsed.getTime())) return '-'
+  return new Intl.DateTimeFormat('en-PH', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).format(parsed)
+}
+
+const getAnnouncementBadgeInfo = (title = '', content = '') => {
+  const text = `${title} ${content}`.toLowerCase()
+  if (text.includes('urgent') || text.includes('important') || text.includes('maintenance') || text.includes('warning') || text.includes('gate') || text.includes('due') || text.includes('penalty')) {
+    return { label: 'Important', badgeClass: styles.badgeImportant, cardClass: styles.cardImportant }
+  }
+  if (text.includes('event') || text.includes('tournament') || text.includes('fiesta') || text.includes('celebration') || text.includes('game') || text.includes('meeting') || text.includes('basketball')) {
+    return { label: 'Event', badgeClass: styles.badgeEvent, cardClass: styles.cardEvent }
+  }
+  return { label: 'Notice', badgeClass: styles.badgeNotice, cardClass: styles.cardNotice }
+}
 
 export default function LandingPage() {
   const [active, setActive] = useState('home')
+  const [announcements, setAnnouncements] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const handleNavClick = (sectionId) => {
     setActive(sectionId)
   }
+
+  useEffect(() => {
+    async function fetchAnnouncements() {
+      try {
+        const response = await apiClient.get('/activities')
+        const raw = Array.isArray(response?.data) ? response.data : []
+        const mapped = raw
+          .filter(item => !item.archived)
+          .map(item => {
+            const firstName = String(item.users?._id?.first_name || '').trim()
+            const lastName = String(item.users?._id?.last_name || '').trim()
+            const fullName = `${firstName} ${lastName}`.trim()
+            const reporter = fullName || String(item.users?._id?.email || '').trim() || 'HOA Admin'
+            return {
+              id: item._id,
+              title: item.title,
+              content: item.content,
+              date: item.date || item.createdAt,
+              reporter
+            }
+          })
+        setAnnouncements(mapped)
+      } catch (err) {
+        console.error('Failed to fetch announcements:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchAnnouncements()
+  }, [])
 
   useEffect(() => {
     const ids = ['home', 'about', 'features', 'announcements', 'registration']
@@ -230,47 +288,36 @@ export default function LandingPage() {
         </div>
 
         <div className={styles.announcementsList}>
-          <article className={`${styles.announcementCard} ${styles.cardNotice}`}>
-            <div className={styles.announcementCardTop}>
-              <span className={`${styles.announcementBadge} ${styles.badgeNotice}`}><FaBell /> Notice</span>
-              <span className={styles.announcementDate}>June 20, 2026 10:30 AM</span>
+          {isLoading ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem', color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem' }}>
+              Loading announcements...
             </div>
-            <h3 className={styles.announcementTitle}>Monthly Maintenance Fee Due</h3>
-            <p className={styles.announcementDescription}>
-              Reminder: Monthly maintenance fees for June are now due. Please submit your payments by June 30, 2026 to avoid penalties. Accepted payment methods include online transfer and over-the-counter payments at authorized centers.
-            </p>
-            <div className={styles.announcementFooter}>
-              Posted by: HOA President
+          ) : announcements.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem 1rem', color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem' }}>
+              No announcements posted yet.
             </div>
-          </article>
-
-          <article className={`${styles.announcementCard} ${styles.cardEvent}`}>
-            <div className={styles.announcementCardTop}>
-              <span className={`${styles.announcementBadge} ${styles.badgeEvent}`}><FaBell /> Event</span>
-              <span className={styles.announcementDate}>June 18, 2026 2:15 PM</span>
-            </div>
-            <h3 className={styles.announcementTitle}>Community Basketball Tournament</h3>
-            <p className={styles.announcementDescription}>
-              Join us for the Annual Community Basketball Tournament on July 10-15, 2026! Teams from different blocks will compete for the championship title. Registration is open for all residents. For more details, please contact the Events Committee.
-            </p>
-            <div className={styles.announcementFooter}>
-              Posted by: HOA Officer
-            </div>
-          </article>
-
-          <article className={`${styles.announcementCard} ${styles.cardImportant}`}>
-            <div className={styles.announcementCardTop}>
-              <span className={`${styles.announcementBadge} ${styles.badgeImportant}`}><FaBell /> Important</span>
-              <span className={styles.announcementDate}>June 15, 2026 9:45 AM</span>
-            </div>
-            <h3 className={styles.announcementTitle}>Security Gate Maintenance</h3>
-            <p className={styles.announcementDescription}>
-              The main security gate will undergo maintenance on June 25, 2026 from 8:00 AM to 4:00 PM. During this time, access to the community will be temporarily restricted. Residents are advised to plan their schedules accordingly. An alternate entrance will be available for emergencies.
-            </p>
-            <div className={styles.announcementFooter}>
-              Posted by: HOA President
-            </div>
-          </article>
+          ) : (
+            announcements.slice(0, 3).map((announcement) => {
+              const { label, badgeClass, cardClass } = getAnnouncementBadgeInfo(announcement.title, announcement.content)
+              return (
+                <article key={announcement.id} className={`${styles.announcementCard} ${cardClass}`}>
+                  <div className={styles.announcementCardTop}>
+                    <span className={`${styles.announcementBadge} ${badgeClass}`}>
+                      <FaBell /> {label}
+                    </span>
+                    <span className={styles.announcementDate}>
+                      {formatAnnouncementDate(announcement.date)}
+                    </span>
+                  </div>
+                  <h3 className={styles.announcementTitle}>{announcement.title}</h3>
+                  <p className={styles.announcementDescription}>{announcement.content}</p>
+                  <div className={styles.announcementFooter}>
+                    Posted by: {announcement.reporter}
+                  </div>
+                </article>
+              )
+            })
+          )}
         </div>
       </section>
 

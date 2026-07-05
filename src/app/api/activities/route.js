@@ -11,7 +11,6 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    await requireAuth();
     await connectToDatabase();
 
     const activities = await Activity.find()

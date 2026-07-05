@@ -66,6 +66,7 @@ const EMPTY_FORM = {
   firstName: '',
   middleName: '',
   lastName: '',
+  email: '',
   phone: '',
   jobDescription: '',
   workStatus: '',
@@ -234,6 +235,7 @@ const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
     archived: Boolean(record.archived),
     archivedAt: record.archived_at ? String(record.archived_at) : '',
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
+    email: String(record.email || ''),
     phone: String(record.phone_number || ''),
     status: normalizeStatusList(record.status),
     phase: address.phase,
@@ -851,6 +853,7 @@ function HomeownerManagementInner() {
         first_name: normalizeName(addForm.firstName).trim(),
         middle_name: normalizeName(addForm.middleName).trim(),
         last_name: normalizeName(addForm.lastName).trim(),
+        email: addForm.email.trim(),
         phone_number: addForm.phone.trim(),
         household_members: addForm.householdMembers,
         job_title: addForm.jobDescription.trim(),
@@ -970,6 +973,7 @@ function HomeownerManagementInner() {
       lastName: homeowner.lastName,
       unitNumber: homeowner.unitNumber,
       phone: homeowner.phone,
+      email: homeowner.email,
       phase: homeowner.phase,
       block: homeowner.block,
       lot: homeowner.lot,
@@ -1011,6 +1015,7 @@ function HomeownerManagementInner() {
             lastName: fullHomeowner.lastName,
             unitNumber: fullHomeowner.unitNumber,
             phone: fullHomeowner.phone,
+            email: fullHomeowner.email,
             phase: fullHomeowner.phase,
             block: fullHomeowner.block,
             lot: fullHomeowner.lot,
@@ -1216,6 +1221,7 @@ function HomeownerManagementInner() {
     try {
       setIsSaving(true)
       const payload = {
+        email: editForm.email,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
         entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
@@ -1480,6 +1486,7 @@ function HomeownerManagementInner() {
       'Block',
       'Lot',
       'Phone Number',
+      'Email Address',
       'Occupant Status',
       'Membership Status',
       'Entry Year',
@@ -1504,6 +1511,7 @@ function HomeownerManagementInner() {
         homeowner.block || '',
         homeowner.lot || '',
         homeowner.phone || '',
+        homeowner.email || '',
         homeowner.occupantStatus || '',
         statusListToSingleOption(homeowner.status),
         homeowner.entryDate || '',
@@ -1971,6 +1979,15 @@ function HomeownerManagementInner() {
                   placeholder="09xxxxxxxxx"
                 />
 
+                <label className={styles.fieldLabel}>Email Address</label>
+                <input
+                  type="email"
+                  className={styles.input}
+                  value={addForm.email}
+                  onChange={(event) => handleFormChange('email', event.target.value)}
+                  placeholder="example@gmail.com"
+                />
+
                 <div className={styles.twoColGrid}>
                   <div>
                     <JobTitleField
@@ -2346,6 +2363,20 @@ function HomeownerManagementInner() {
                     />
                   ) : (
                     <p className={styles.detailValue}>{formatPhone(selectedHomeowner.phone)}</p>
+                  )}
+                </div>
+                <div>
+                  <p className={styles.detailLabel}>Email Address</p>
+                  {isEditingHomeowner ? (
+                    <input
+                      type="email"
+                      className={styles.input}
+                      value={editForm?.email || ''}
+                      onChange={(event) => handleEditChange('email', event.target.value)}
+                      placeholder="example@gmail.com"
+                    />
+                  ) : (
+                    <p className={styles.detailValue}>{selectedHomeowner.email || '-'}</p>
                   )}
                 </div>
                 <div>

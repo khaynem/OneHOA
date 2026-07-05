@@ -86,7 +86,7 @@ export async function GET(request) {
 
     if (summary) {
       recordsQuery
-        .select("first_name last_name middle_name phone_number address._id pictures._id occupant_status archived generated_id entry_date createdAt updatedAt")
+        .select("first_name last_name middle_name email phone_number address._id pictures._id occupant_status archived generated_id entry_date createdAt updatedAt")
         .populate("address._id", "phase block lot");
       recordsQuery.populate("pictures._id", "path");
     } else {

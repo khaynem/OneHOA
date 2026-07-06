@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import User from "@/lib/server/models/users";
 import { buildCookieOptions, createToken, normalizeEmail } from "@/lib/server/auth";
+import { writeAuditLog } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,22 @@ export async function POST(request) {
     });
 
     response.cookies.set("auth_token", token, buildCookieOptions());
+
+    try {
+      await writeAuditLog({
+        request,
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          first_name: user.first_name,
+          last_name: user.last_name,
+        },
+        statusCode: 200,
+      });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError.message || auditError);
+    }
 
     return response;
   } catch (error) {

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET(request) {
   try {
     const user = await requireAuth();
-    requireRole(user, ["president"]);
+    requireRole(user, ["president", "admin"]);
     await connectToDatabase();
 
     const { searchParams } = request.nextUrl;

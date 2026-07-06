@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import Setting from "@/lib/server/models/settings";
 import { requireAuth, requireRole } from "@/lib/server/auth";
+import { writeAuditLog } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 
@@ -102,6 +103,17 @@ export async function PUT(request) {
       { value: normalizeRegistrationFields(fields) },
       { new: true, upsert: true }
     ).lean();
+
+    try {
+      await writeAuditLog({
+        request,
+        user,
+        statusCode: 200,
+        detailSummary: "updated registration fields configuration",
+      });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError.message || auditError);
+    }
 
     return NextResponse.json({ success: true, fields: setting.value }, { status: 200 });
   } catch (error) {

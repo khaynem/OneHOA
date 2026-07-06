@@ -20,6 +20,12 @@ const ACCOUNT_MANAGEMENT_LINK = {
   Icon: HiOutlineUsers,
 }
 
+const ACTIVITY_LOGS_LINK = {
+  href: '/admin/activity-logs',
+  label: 'Activity Log',
+  Icon: HiOutlineCalendarDays,
+}
+
 function canAccessAccountManagement(role) {
   const normalizedRole = String(role || '').trim().toLowerCase()
   return normalizedRole === 'admin'
@@ -44,6 +50,7 @@ export default function AppRouteGroupLayout({ children }) {
   }
   if (normalizedRole === 'admin') {
     appLinks.push(ACCOUNT_MANAGEMENT_LINK)
+    appLinks.push(ACTIVITY_LOGS_LINK)
   }
 
   useEffect(() => {
@@ -114,6 +121,7 @@ export default function AppRouteGroupLayout({ children }) {
 
   useEffect(() => {
     if (isMobileView) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsSidebarCollapsed(true)
     }
   }, [pathname, isMobileView])

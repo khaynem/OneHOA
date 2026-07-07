@@ -845,7 +845,7 @@
 }
 
 .closeIconButton {
-  border: 1px solid #d2d7df;
+  border: 1px solid #d7dce2;
   background: #f9fafb;
   color: #4b5563;
   width: 34px;
@@ -856,12 +856,16 @@
   justify-content: center;
   line-height: 1;
   font-size: 1rem;
-  margin-top: 2px;
+  font-weight: 600;
+  font-family: poppins, sans-serif;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .closeIconButton:hover {
-  background: #f3f4f6;
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
 }
 
 .tabRow {

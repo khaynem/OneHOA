@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import styles from './landing.module.css'
-import { FaUsers, FaMoneyCheckAlt, FaCalendarAlt, FaClipboardList, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaBell } from 'react-icons/fa'
+import { FaUsers, FaMoneyCheckAlt, FaCalendarAlt, FaClipboardList, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaBell, FaBars, FaTimes } from 'react-icons/fa'
 import { apiClient } from '@/lib/apiClient'
 
 const formatAnnouncementDate = (value) => {
@@ -35,10 +35,21 @@ export default function LandingPage() {
   const [active, setActive] = useState('home')
   const [announcements, setAnnouncements] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const handleNavClick = (sectionId) => {
     setActive(sectionId)
   }
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 900) {
+        setMenuOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     async function fetchAnnouncements() {
@@ -111,7 +122,7 @@ export default function LandingPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <header className={`${styles.header} ${menuOpen ? styles.headerOpen : ''}`}>
         <div className={styles.brand}>
           <Image
             src="/images/HOA_Logo.png"
@@ -124,18 +135,37 @@ export default function LandingPage() {
           <span className={styles.brandText}>OneHOA</span>
         </div>
 
-        <nav className={styles.nav}>
-          <Link href="#home" onClick={() => handleNavClick('home')} className={`${styles.navLink} ${active === 'home' ? styles.active : ''}`}>Home</Link>
-          <Link href="#about" onClick={() => handleNavClick('about')} className={`${styles.navLink} ${active === 'about' ? styles.active : ''}`}>About</Link>
-          <Link href="#features" onClick={() => handleNavClick('features')} className={`${styles.navLink} ${active === 'features' ? styles.active : ''}`}>Features</Link>
-          <Link href="#announcements" onClick={() => handleNavClick('announcements')} className={`${styles.navLink} ${active === 'announcements' ? styles.active : ''}`}>Announcements</Link>
-        </nav>
+        <button
+          className={styles.menuToggle}
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle Navigation Menu"
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? <FaTimes /> : <FaBars />}
+        </button>
 
-        <div className={styles.headerActions}>
-          <Link href="/register-homeowner" className={styles.registerBtn}>Homeowner Registration</Link>
-          <Link href="/login" className={styles.loginBtn}>Login</Link>
+        <div className={`${styles.menuDropdown} ${menuOpen ? styles.menuDropdownActive : ''}`}>
+          <nav className={styles.nav}>
+            <Link href="#home" onClick={() => { handleNavClick('home'); setMenuOpen(false); }} className={`${styles.navLink} ${active === 'home' ? styles.active : ''}`}>Home</Link>
+            <Link href="#about" onClick={() => { handleNavClick('about'); setMenuOpen(false); }} className={`${styles.navLink} ${active === 'about' ? styles.active : ''}`}>About</Link>
+            <Link href="#features" onClick={() => { handleNavClick('features'); setMenuOpen(false); }} className={`${styles.navLink} ${active === 'features' ? styles.active : ''}`}>Features</Link>
+            <Link href="#announcements" onClick={() => { handleNavClick('announcements'); setMenuOpen(false); }} className={`${styles.navLink} ${active === 'announcements' ? styles.active : ''}`}>Announcements</Link>
+          </nav>
+
+          <div className={styles.headerActions}>
+            <Link href="/register-homeowner" onClick={() => setMenuOpen(false)} className={styles.registerBtn}>Homeowner Registration</Link>
+            <Link href="/login" onClick={() => setMenuOpen(false)} className={styles.loginBtn}>Login</Link>
+          </div>
         </div>
       </header>
+
+      {menuOpen && (
+        <div
+          className={styles.menuBackdrop}
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       <section id="home" className={`${styles.hero} ${styles.revealSection} ${styles.revealed}`}>
         <div className={styles.heroContainer}>

@@ -2225,7 +2225,7 @@ function HomeownerManagementInner() {
               />
 
               <button type="button" className={styles.closeIconButton} onClick={closeViewModal} aria-label="Close">
-                x
+                ✕
               </button>
             </div>
 

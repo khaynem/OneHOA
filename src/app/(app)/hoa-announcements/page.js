@@ -592,7 +592,7 @@ export default function HOAAnnouncementsPage() {
               </div>
 
               <button type="button" className={styles.closeButton} onClick={closeAnnouncementModal} aria-label="Close">
-                x
+                ✕
               </button>
             </div>
 
@@ -690,7 +690,7 @@ export default function HOAAnnouncementsPage() {
               </div>
 
               <button type="button" className={styles.closeButton} onClick={closeArchivedModal} aria-label="Close">
-                x
+                ✕
               </button>
             </div>
 

@@ -461,20 +461,20 @@
 
 .closeDetailsBtn {
   border: 1px solid #d7dce2;
-  background: #f8fafc;
-  color: #475569;
-  font-size: 1.45rem;
-  font-weight: 400;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  background: #f9fafb;
+  color: #4b5563;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   line-height: 1;
-  transition: all 0.2s ease;
+  font-size: 1rem;
+  font-weight: 600;
   font-family: poppins, sans-serif;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .closeDetailsBtn:hover {
@@ -944,6 +944,10 @@
 }
 
 @media (max-width: 1024px) {
+  .pageContent {
+    z-index: auto;
+  }
+
   .dashboardContainer {
     grid-template-columns: 1fr;
   }

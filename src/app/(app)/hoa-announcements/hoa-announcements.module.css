@@ -616,13 +616,24 @@
 }
 
 .closeButton {
-  background: transparent;
   border: 1px solid #d7dce2;
-  color: #475569;
+  background: #f9fafb;
+  color: #4b5563;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: poppins, sans-serif;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   min-width: 0;
-  padding: 6px 12px;
-  min-height: 36px;
-  font-size: 1.1rem;
+  padding: 0;
+  min-height: 0;
 }
 
 .closeButton:hover {

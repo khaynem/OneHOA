@@ -752,7 +752,7 @@ export default function PaymentMonitoringPage() {
       try {
         if (navigator.bluetooth.getDevices) {
           const pairedDevices = await navigator.bluetooth.getDevices()
-          btDevice = pairedDevices.find(dev => dev.name && (dev.name.startsWith('PT-210') || dev.name.startsWith('PT-')))
+          btDevice = pairedDevices.find(dev => dev.name && (dev.name.startsWith('PT-210') || dev.name.startsWith('PT210') || dev.name.startsWith('PT-')))
         }
       } catch (e) {
         // Skip listing errors silently
@@ -762,17 +762,28 @@ export default function PaymentMonitoringPage() {
       if (!btDevice) {
         btDevice = await navigator.bluetooth.requestDevice({
           filters: [
+            { namePrefix: 'PT210' },
             { namePrefix: 'PT-210' },
-            { namePrefix: 'PT-' }
+            { namePrefix: 'PT-' },
+            { namePrefix: 'MTP' },
+            { namePrefix: 'BT4' }
           ],
-          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+          optionalServices: [
+            '000018f0-0000-1000-8000-00805f9b34fb',
+            'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+            '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+          ]
         })
       }
 
       const server = await btDevice.gatt.connect()
 
       let writeCharacteristic = null
-      const knownServiceUuids = ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+      const knownServiceUuids = [
+        '000018f0-0000-1000-8000-00805f9b34fb',
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+      ]
 
       // 3. Fast-path: query the known service UUIDs directly (takes <500ms)
       for (const uuid of knownServiceUuids) {

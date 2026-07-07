@@ -9,7 +9,7 @@ import {
   HiOutlineEye,
 } from 'react-icons/hi2'
 import { Br, Cut, Line, Printer, Row, Text, render } from 'react-thermal-printer'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './payment-monitoring.module.css'
 
@@ -690,23 +690,35 @@ export default function PaymentMonitoringPage() {
 
     try {
       setIsSavingDues(true)
-      const response = await apiClient.put('/settings/dues', { amount: nextAmount })
+      const response = await offlineApiClient.put('/settings/dues', { amount: nextAmount }, {
+        metadata: {
+          type: 'update-dues',
+          label: `Updating monthly dues to ₱${nextAmount}`
+        }
+      })
       const savedAmount = Number(response?.amount)
-
+ 
       if (!Number.isNaN(savedAmount) && savedAmount > 0) {
         setMonthlyDues(savedAmount)
         setMonthlyDuesDraft(String(savedAmount))
       }
-
+ 
       notify.success({
         title: 'Monthly Dues Updated',
         description: 'The new monthly dues amount has been saved.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Failed to Update Dues',
-        description: error.message || 'Unable to update monthly dues.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Failed to Update Dues',
+          description: error.message || 'Unable to update monthly dues.'
+        })
+      }
     } finally {
       setIsSavingDues(false)
     }
@@ -1325,13 +1337,18 @@ export default function PaymentMonitoringPage() {
 
     try {
       setIsSavingPayment(true)
-      const response = await apiClient.post('/payments', {
+      const response = await offlineApiClient.post('/payments', {
         receipt_no: numericReceiptNo,
         amount: amountPaid,
         date: paymentDate,
         payment_details: form.paymentDetails.trim() || 'Maintenance fee payment',
         record_id: form.recordId,
         payment_for_periods: paymentForPeriods.length > 0 ? paymentForPeriods : undefined
+      }, {
+        metadata: {
+          type: 'create-payment',
+          label: `Recording payment of ₱${amountPaid} for ${matchedHomeowner.name}`
+        }
       })
       notify.success({
         title: 'Payment Recorded',
@@ -1349,15 +1366,23 @@ export default function PaymentMonitoringPage() {
       }
       closeRecordModal()
       await loadPaymentMonitoringData()
-
+ 
       if (shouldPrint) {
         await handlePrintReceipt(receiptData)
       }
     } catch (error) {
-      notify.error({
-        title: 'Failed to Record Payment',
-        description: error.message || 'Unable to save payment record.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeRecordModal()
+      } else {
+        notify.error({
+          title: 'Failed to Record Payment',
+          description: error.message || 'Unable to save payment record.'
+        })
+      }
     } finally {
       setIsSavingPayment(false)
     }

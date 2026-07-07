@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineNoSymbol, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
@@ -870,7 +870,12 @@ function HomeownerManagementInner() {
         payload['pictures._id'] = addForm.pictureId
       }
 
-      const response = await apiClient.post('/records', payload)
+      const response = await offlineApiClient.post('/records', payload, {
+        metadata: {
+          type: 'create-homeowner',
+          label: `Registering homeowner ${payload.first_name} ${payload.last_name}`
+        }
+      })
       const created = mapRecordToHomeowner(response?.data)
       setHomeowners((prev) => [created, ...prev])
       notify.success({
@@ -879,10 +884,18 @@ function HomeownerManagementInner() {
       })
       closeAddModal()
     } catch (error) {
-      notify.error({
-        title: 'Registration Failed',
-        description: error.message || 'Unable to register homeowner.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeAddModal()
+      } else {
+        notify.error({
+          title: 'Registration Failed',
+          description: error.message || 'Unable to register homeowner.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -908,10 +921,15 @@ function HomeownerManagementInner() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file)
-      const response = await apiClient.post('/records/upload-photo', {
+      const response = await offlineApiClient.post('/records/upload-photo', {
         imageDataUrl: dataUrl,
         fileName: file.name,
         mimeType: file.type
+      }, {
+        metadata: {
+          type: 'upload-photo',
+          label: `Uploading photo: ${file.name}`
+        }
       })
 
       const uploaded = response?.data
@@ -925,10 +943,17 @@ function HomeownerManagementInner() {
         description: 'Homeowner photo uploaded successfully.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Photo Upload Failed',
-        description: error.message || 'Unable to upload homeowner photo.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Photo upload saved offline. It will be uploaded automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Photo Upload Failed',
+          description: error.message || 'Unable to upload homeowner photo.'
+        })
+      }
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -1150,10 +1175,15 @@ function HomeownerManagementInner() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file)
-      const response = await apiClient.post('/records/upload-photo', {
+      const response = await offlineApiClient.post('/records/upload-photo', {
         imageDataUrl: dataUrl,
         fileName: file.name,
         mimeType: file.type
+      }, {
+        metadata: {
+          type: 'upload-photo',
+          label: `Uploading edit photo: ${file.name}`
+        }
       })
       const uploaded = response?.data
 
@@ -1175,10 +1205,17 @@ function HomeownerManagementInner() {
         description: 'Photo will be applied when you click Save Changes.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Photo Update Failed',
-        description: error.message || 'Unable to update homeowner photo.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Photo upload saved offline. It will be uploaded automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Photo Update Failed',
+          description: error.message || 'Unable to update homeowner photo.'
+        })
+      }
     } finally {
       setIsUpdatingPhoto(false)
     }
@@ -1244,7 +1281,12 @@ function HomeownerManagementInner() {
         payload['pictures._id'] = editForm.pictureId
       }
 
-      const response = await apiClient.put(`/records/${selectedHomeowner.id}`, payload)
+      const response = await offlineApiClient.put(`/records/${selectedHomeowner.id}`, payload, {
+        metadata: {
+          type: 'update-homeowner',
+          label: `Updating homeowner ${editForm.firstName || selectedHomeowner.firstName} ${editForm.lastName || selectedHomeowner.lastName}`
+        }
+      })
       const updatedHomeowner = mapRecordToHomeowner(response?.data)
 
       setHomeowners((prev) =>
@@ -1269,10 +1311,18 @@ function HomeownerManagementInner() {
         description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been updated.`
       })
     } catch (error) {
-      notify.error({
-        title: 'Update Failed',
-        description: error.message || 'Unable to save homeowner changes.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setIsEditingHomeowner(false)
+      } else {
+        notify.error({
+          title: 'Update Failed',
+          description: error.message || 'Unable to save homeowner changes.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -1387,10 +1437,15 @@ function HomeownerManagementInner() {
         }
         : {}
 
-      const response = await apiClient.put(`/records/${target.id}`, {
+      const response = await offlineApiClient.put(`/records/${target.id}`, {
         archived: nextArchived,
         archived_at: nextArchived ? new Date().toISOString() : null,
         ...addressPayload
+      }, {
+        metadata: {
+          type: 'toggle-homeowner-status',
+          label: `${nextArchived ? 'Disabling' : 'Enabling'} account for ${target.firstName} ${target.lastName}`
+        }
       })
 
       const updatedHomeowner = mapRecordToHomeowner(response?.data)
@@ -1407,10 +1462,17 @@ function HomeownerManagementInner() {
         description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been ${nextArchived ? 'disabled' : 'enabled'}.`
       })
     } catch (error) {
-      notify.error({
-        title: nextArchived ? 'Disable Failed' : 'Enable Failed',
-        description: error.message || 'Unable to update account status.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: nextArchived ? 'Disable Failed' : 'Enable Failed',
+          description: error.message || 'Unable to update account status.'
+        })
+      }
     } finally {
       setIsArchiving(false)
       setIsArchiveConfirmOpen(false)

@@ -5,6 +5,7 @@ import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDa
 import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
 import Topnav from '../../components/topnav/topnav'
+import OfflineIndicator from '../../components/offline-indicator/offline-indicator'
 import styles from './layout.module.css'
 
 const BASE_APP_LINKS = [
@@ -139,6 +140,7 @@ export default function AppRouteGroupLayout({ children }) {
       )}
 
       <div className={styles.mainColumn}>
+        <OfflineIndicator />
         <Topnav
           user={currentUser}
           isSidebarCollapsed={isSidebarCollapsed}

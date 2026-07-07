@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { HiOutlineCalendarDays as AnnouncementIcon, HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './hoa-announcements.module.css'
 
@@ -210,10 +210,15 @@ export default function HOAAnnouncementsPage() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file)
-      const response = await apiClient.post('/activities/upload-photo', {
+      const response = await offlineApiClient.post('/activities/upload-photo', {
         imageDataUrl: dataUrl,
         fileName: file.name,
         mimeType: file.type
+      }, {
+        metadata: {
+          type: 'upload-announcement-photo',
+          label: `Uploading announcement image: ${file.name}`
+        }
       })
 
       const uploaded = response?.data
@@ -234,10 +239,17 @@ export default function HOAAnnouncementsPage() {
         description: 'Announcement image uploaded successfully.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Image Upload Failed',
-        description: error.message || 'Unable to upload announcement image.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Image upload saved offline. It will be uploaded automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Image Upload Failed',
+          description: error.message || 'Unable to upload announcement image.'
+        })
+      }
     } finally {
       setIsUploadingImage(false)
     }
@@ -265,7 +277,12 @@ export default function HOAAnnouncementsPage() {
         payload['pictures._id'] = form.pictureId
       }
 
-      const response = await apiClient.post('/activities', payload)
+      const response = await offlineApiClient.post('/activities', payload, {
+        metadata: {
+          type: 'create-announcement',
+          label: `Posting announcement: ${payload.title}`
+        }
+      })
       const created = mapAnnouncement(response?.data)
       setAnnouncements((prev) => [created, ...prev])
 
@@ -275,10 +292,18 @@ export default function HOAAnnouncementsPage() {
       })
       closeCreateModal()
     } catch (error) {
-      notify.error({
-        title: 'Post Failed',
-        description: error.message || 'Unable to post announcement.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeCreateModal()
+      } else {
+        notify.error({
+          title: 'Post Failed',
+          description: error.message || 'Unable to post announcement.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -303,7 +328,12 @@ export default function HOAAnnouncementsPage() {
         'pictures._id': editForm.pictureId || null
       }
 
-      const response = await apiClient.put(`/activities/${selectedAnnouncement.id}`, payload)
+      const response = await offlineApiClient.put(`/activities/${selectedAnnouncement.id}`, payload, {
+        metadata: {
+          type: 'update-announcement',
+          label: `Updating announcement: ${payload.title}`
+        }
+      })
       const updated = mapAnnouncement(response?.data)
 
       setAnnouncements((prev) => prev.map((announcement) => (announcement.id === updated.id ? updated : announcement)))
@@ -315,10 +345,18 @@ export default function HOAAnnouncementsPage() {
         description: 'Announcement details were saved successfully.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Update Failed',
-        description: error.message || 'Unable to save announcement changes.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setIsEditingAnnouncement(false)
+      } else {
+        notify.error({
+          title: 'Update Failed',
+          description: error.message || 'Unable to save announcement changes.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -346,8 +384,13 @@ export default function HOAAnnouncementsPage() {
 
     try {
       setIsSaving(true)
-      const response = await apiClient.put(`/activities/${confirmAction.announcement.id}`, {
+      const response = await offlineApiClient.put(`/activities/${confirmAction.announcement.id}`, {
         archived: shouldArchive
+      }, {
+        metadata: {
+          type: 'toggle-announcement-archive',
+          label: `${shouldArchive ? 'Archiving' : 'Restoring'} announcement: ${confirmAction.announcement.title}`
+        }
       })
 
       const updated = mapAnnouncement(response?.data)
@@ -366,10 +409,18 @@ export default function HOAAnnouncementsPage() {
 
       closeConfirmAction()
     } catch (error) {
-      notify.error({
-        title: shouldArchive ? 'Archive Failed' : 'Restore Failed',
-        description: error.message || 'Unable to update announcement archive status.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeConfirmAction()
+      } else {
+        notify.error({
+          title: shouldArchive ? 'Archive Failed' : 'Restore Failed',
+          description: error.message || 'Unable to update announcement archive status.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }

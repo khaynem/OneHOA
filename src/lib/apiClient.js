@@ -133,4 +133,71 @@ export const apiClient = {
   clearCache,
 };
 
+export class OfflineError extends Error {
+  constructor(message, endpoint, method, payload, metadata) {
+    super(message);
+    this.name = "OfflineError";
+    this.isOffline = true;
+    this.endpoint = endpoint;
+    this.method = method;
+    this.payload = payload;
+    this.metadata = metadata;
+  }
+}
+
+export async function offlineSafeRequest(path, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+
+  try {
+    return await request(path, options);
+  } catch (error) {
+    const isNetworkError =
+      !error.status ||
+      error.status === 0 ||
+      error.message?.includes("Network Error") ||
+      error.code === "ERR_NETWORK";
+
+    if (isMutation && isNetworkError) {
+      const payload = options.body || {};
+      const metadata = options.metadata || {
+        type: options.mutationType || "mutation",
+        label: options.mutationLabel || `${method} request to ${path}`,
+      };
+
+      const { offlineQueue } = await import("./offlineQueue");
+      const { notify } = await import("./notify");
+
+      await offlineQueue.enqueue(path, method, payload, metadata);
+
+      notify.info({
+        title: "Saved Offline",
+        description: "Saved offline. Will sync when connection is restored.",
+      });
+
+      throw new OfflineError(
+        "Saved offline. Your changes will be submitted automatically when you're back online.",
+        path,
+        method,
+        payload,
+        metadata
+      );
+    }
+
+    throw error;
+  }
+}
+
+export const offlineApiClient = {
+  axios: axiosClient,
+  request: offlineSafeRequest,
+  get: (path, options = {}) => offlineSafeRequest(path, { ...options, method: "GET" }),
+  post: (path, body, options = {}) => offlineSafeRequest(path, { ...options, method: "POST", body }),
+  put: (path, body, options = {}) => offlineSafeRequest(path, { ...options, method: "PUT", body }),
+  patch: (path, body, options = {}) => offlineSafeRequest(path, { ...options, method: "PATCH", body }),
+  delete: (path, options = {}) => offlineSafeRequest(path, { ...options, method: "DELETE" }),
+  clearCache,
+};
+
 export { API_BASE_URL };
+

@@ -9,7 +9,7 @@ import {
   FaSpinner,
   FaExclamationCircle
 } from 'react-icons/fa'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './pending-registrations.module.css'
 
@@ -64,8 +64,13 @@ export default function PendingRegistrationsPage() {
     setIsProcessingAction(true)
 
     try {
-      const response = await apiClient.patch(`/pending-registrations/${selectedReg._id}`, {
+      const response = await offlineApiClient.patch(`/pending-registrations/${selectedReg._id}`, {
         action: 'approve'
+      }, {
+        metadata: {
+          type: 'approve-registration',
+          label: `Approving registration for ${selectedReg.first_name} ${selectedReg.last_name}`
+        }
       })
 
       if (response?.success) {
@@ -78,10 +83,18 @@ export default function PendingRegistrationsPage() {
         setShowApproveModal(false)
       }
     } catch (error) {
-      notify.error({
-        title: 'Approval Failed',
-        description: error.message || 'Unable to approve homeowner registration.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setShowApproveModal(false)
+      } else {
+        notify.error({
+          title: 'Approval Failed',
+          description: error.message || 'Unable to approve homeowner registration.'
+        })
+      }
     } finally {
       setIsProcessingAction(false)
     }
@@ -100,9 +113,14 @@ export default function PendingRegistrationsPage() {
     setIsProcessingAction(true)
 
     try {
-      const response = await apiClient.patch(`/pending-registrations/${selectedReg._id}`, {
+      const response = await offlineApiClient.patch(`/pending-registrations/${selectedReg._id}`, {
         action: 'decline',
         decline_reason: declineReason.trim()
+      }, {
+        metadata: {
+          type: 'decline-registration',
+          label: `Declining registration for ${selectedReg.first_name} ${selectedReg.last_name}`
+        }
       })
 
       if (response?.success) {
@@ -116,10 +134,19 @@ export default function PendingRegistrationsPage() {
         setDeclineReason('')
       }
     } catch (error) {
-      notify.error({
-        title: 'Operation Failed',
-        description: error.message || 'Unable to decline registration request.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setShowDeclineModal(false)
+        setDeclineReason('')
+      } else {
+        notify.error({
+          title: 'Operation Failed',
+          description: error.message || 'Unable to decline registration request.'
+        })
+      }
     } finally {
       setIsProcessingAction(false)
     }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './account-management.module.css'
 
@@ -134,13 +134,18 @@ export default function AccountManagementClient() {
 
     try {
       setIsSaving(true)
-      const response = await apiClient.post('/users', {
+      const response = await offlineApiClient.post('/users', {
         first_name: normalizeNamePart(form.firstName),
         last_name: normalizeNamePart(form.lastName),
         email: form.email.trim().toLowerCase(),
         role: form.role,
         status: form.status,
         password: temporaryPassword,
+      }, {
+        metadata: {
+          type: 'create-user',
+          label: `Creating user: ${form.firstName} ${form.lastName} (${form.role})`
+        }
       })
 
       const createdUser = mapApiUserToUi(response?.data)
@@ -148,7 +153,15 @@ export default function AccountManagementClient() {
       notify.success('User account created successfully.')
       closeModal()
     } catch (error) {
-      notify.error(error.message || 'Unable to create user account.')
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeModal()
+      } else {
+        notify.error(error.message || 'Unable to create user account.')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -186,12 +199,17 @@ export default function AccountManagementClient() {
 
     try {
       setIsSaving(true)
-      const response = await apiClient.put(`/users/${selectedUser.id}`, {
+      const response = await offlineApiClient.put(`/users/${selectedUser.id}`, {
         first_name: normalizeNamePart(editForm.firstName),
         last_name: normalizeNamePart(editForm.lastName),
         email: editForm.email.trim().toLowerCase(),
         role: editForm.role,
         status: editForm.status
+      }, {
+        metadata: {
+          type: 'update-user',
+          label: `Updating user: ${editForm.firstName} ${editForm.lastName}`
+        }
       })
 
       const updatedUser = mapApiUserToUi(response?.data)
@@ -210,7 +228,15 @@ export default function AccountManagementClient() {
       setSelectedUserId(updatedUser.id)
       notify.success('User account updated successfully.')
     } catch (error) {
-      notify.error(error.message || 'Unable to update user account.')
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setIsEditingUser(false)
+      } else {
+        notify.error(error.message || 'Unable to update user account.')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -234,9 +260,16 @@ export default function AccountManagementClient() {
       return
     }
 
+    const pendingDeleteUser = users.find((user) => user.id === pendingDeleteUserId)
+
     try {
       setIsSaving(true)
-      await apiClient.delete(`/users/${pendingDeleteUserId}`)
+      await offlineApiClient.delete(`/users/${pendingDeleteUserId}`, {
+        metadata: {
+          type: 'delete-user',
+          label: `Deleting user: ${pendingDeleteUser?.firstName || 'User'} ${pendingDeleteUser?.lastName || ''}`
+        }
+      })
       setUsers((prev) => prev.filter((user) => user.id !== pendingDeleteUserId))
 
       if (selectedUserId === pendingDeleteUserId) {
@@ -246,7 +279,18 @@ export default function AccountManagementClient() {
       setPendingDeleteUserId(null)
       notify.success('User account deleted successfully.')
     } catch (error) {
-      notify.error(error.message || 'Unable to delete user account.')
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setPendingDeleteUserId(null)
+        if (selectedUserId === pendingDeleteUserId) {
+          closeViewModal()
+        }
+      } else {
+        notify.error(error.message || 'Unable to delete user account.')
+      }
     } finally {
       setIsSaving(false)
     }

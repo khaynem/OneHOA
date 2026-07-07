@@ -501,8 +501,7 @@
   background: #ffe8e8;
 }
 
-.restoreButton,
-.deleteButton {
+.restoreButton {
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 6px 10px;
@@ -512,9 +511,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.restoreButton {
   background: #eef8f1;
   color: #256f3a;
   border-color: #b9dfc1;
@@ -522,16 +518,6 @@
 
 .restoreButton:hover {
   background: #e3f4e8;
-}
-
-.deleteButton {
-  background: #fff3f3;
-  color: #b42318;
-  border-color: #f2a8a8;
-}
-
-.deleteButton:hover {
-  background: #ffe8e8;
 }
 
 .nameCell {

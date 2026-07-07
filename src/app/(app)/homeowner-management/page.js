@@ -4,11 +4,12 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineTrash, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
+import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineNoSymbol, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
+import { buildHomeownerMasterlistHtml } from '@/lib/homeownerMasterlistTemplate'
 import JobTitleField from '@/components/job-title-field/job-title-field'
 import styles from './homeowner-management.module.css'
 
@@ -428,12 +429,9 @@ function HomeownerManagementInner() {
   const [currentUser, setCurrentUser] = useState(null)
   const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false)
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false)
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [archiveTarget, setArchiveTarget] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
   const [archiveNext, setArchiveNext] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const ownerByAddress = useMemo(() => {
     const map = new Map()
@@ -1372,7 +1370,7 @@ function HomeownerManagementInner() {
     if (isOfficer) {
       notify.error({
         title: 'Action Restricted',
-        description: 'Officers are not authorized to archive or restore records.'
+        description: 'Officers are not authorized to disable or enable accounts.'
       })
       return
     }
@@ -1405,13 +1403,13 @@ function HomeownerManagementInner() {
       }
 
       notify.success({
-        title: nextArchived ? 'Homeowner Archived' : 'Homeowner Restored',
-        description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been ${nextArchived ? 'archived' : 'restored'}.`
+        title: nextArchived ? 'Account Disabled' : 'Account Enabled',
+        description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been ${nextArchived ? 'disabled' : 'enabled'}.`
       })
     } catch (error) {
       notify.error({
-        title: 'Archive Failed',
-        description: error.message || 'Unable to update archive status.'
+        title: nextArchived ? 'Disable Failed' : 'Enable Failed',
+        description: error.message || 'Unable to update account status.'
       })
     } finally {
       setIsArchiving(false)
@@ -1420,55 +1418,9 @@ function HomeownerManagementInner() {
     }
   }
 
-  const handleDeleteRecord = async (target) => {
-    if (!target || isDeleting) {
-      return
-    }
 
-    if (isOfficer) {
-      notify.error({
-        title: 'Action Restricted',
-        description: 'Officers are not authorized to delete records.'
-      })
-      return
-    }
 
-    if (!target.archived) {
-      notify.error({
-        title: 'Archive Required',
-        description: 'Please archive the record before deleting it.'
-      })
-      return
-    }
-
-    setIsDeleting(true)
-    try {
-      await apiClient.delete(`/records/${target.id}`)
-      setHomeowners((prev) => prev.filter((homeowner) => homeowner.id !== target.id))
-      if (selectedHomeowner?.id === target.id) {
-        setSelectedHomeowner(null)
-        setEditForm(null)
-        setIsEditingHomeowner(false)
-        setIsConfirmSaveOpen(false)
-      }
-
-      notify.success({
-        title: 'Record Deleted',
-        description: 'The homeowner record has been permanently deleted.'
-      })
-    } catch (error) {
-      notify.error({
-        title: 'Delete Failed',
-        description: error.message || 'Unable to delete homeowner record.'
-      })
-    } finally {
-      setIsDeleting(false)
-      setIsDeleteConfirmOpen(false)
-      setDeleteTarget(null)
-    }
-  }
-
-  const exportToCsv = () => {
+  const exportToPdf = () => {
     if (filteredHomeowners.length === 0) {
       notify.error({
         title: 'No Data to Export',
@@ -1477,80 +1429,51 @@ function HomeownerManagementInner() {
       return
     }
 
-    const headers = [
-      'Resident ID',
-      'First Name',
-      'Middle Name',
-      'Last Name',
-      'Phase',
-      'Block',
-      'Lot',
-      'Phone Number',
-      'Email Address',
-      'Occupant Status',
-      'Membership Status',
-      'Entry Year',
-      'Household Members',
-      'Work Status',
-      'Job Title'
-    ]
+    const generatorName = currentUser
+      ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username
+      : 'Authorized Officer'
+    const generatorRole = currentUser ? String(currentUser.role || '').toUpperCase() : 'OFFICER'
+    const generatedBy = `${generatorName} (${generatorRole})`
 
-    const rows = filteredHomeowners.map((homeowner) => {
-      const householdMembersStr = Array.isArray(homeowner.householdMembers)
-        ? homeowner.householdMembers
-          .map((member) => `${member.name || 'Unknown'} (${member.relationship || 'Unspecified'})`)
-          .join('; ')
-        : ''
-
-      return [
-        homeowner.displayId || homeowner.residentId || '-',
-        homeowner.firstName || '',
-        homeowner.middleName || '',
-        homeowner.lastName || '',
-        homeowner.phase || '',
-        homeowner.block || '',
-        homeowner.lot || '',
-        homeowner.phone || '',
-        homeowner.email || '',
-        homeowner.occupantStatus || '',
-        statusListToSingleOption(homeowner.status),
-        homeowner.entryDate || '',
-        householdMembersStr || '',
-        homeowner.workStatus || '',
-        homeowner.jobDescription || ''
-      ]
+    const html = buildHomeownerMasterlistHtml({
+      homeowners: filteredHomeowners,
+      filters: {
+        phaseFilter,
+        statusFilter: tableFilter,
+        occupantFilter,
+        paymentFilter,
+        searchText
+      },
+      generatedAt: new Date(),
+      generatedBy
     })
 
-    const escapeCsvValue = (val) => {
-      const stringVal = String(val === null || val === undefined ? '' : val).trim()
-      if (stringVal.includes(',') || stringVal.includes('"') || stringVal.includes('\n')) {
-        return `"${stringVal.replace(/"/g, '""')}"`
-      }
-      return stringVal
+    if (isMobileOrTablet()) {
+      printViaIframe(html)
+      return
     }
 
-    const csvContent = [
-      headers.map(escapeCsvValue).join(','),
-      ...rows.map((row) => row.map(escapeCsvValue).join(','))
-    ].join('\n')
+    const popup = window.open('', '_blank', 'width=1100,height=760')
+    if (!popup) {
+      printViaIframe(html)
+      return
+    }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
+    popup.document.open()
+    popup.document.write(html)
+    popup.document.close()
 
-    const phaseLabel = phaseFilter === 'all' ? 'AllPhases' : `Phase_${phaseFilter}`
-    const dateStr = new Date().toISOString().slice(0, 10)
-    link.setAttribute('download', `OneHOA_Masterlist_${phaseLabel}_${dateStr}.csv`)
-
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    popup.onload = () => {
+      popup.focus()
+      popup.onafterprint = () => {
+        popup.close()
+      }
+      popup.print()
+    }
 
     notify.success({
       title: 'Export Successful',
-      description: `Exported ${filteredHomeowners.length} homeowner records to CSV.`
+      description: `Generated Masterlist PDF report for ${filteredHomeowners.length} homeowners.`
     })
   }
 
@@ -1609,14 +1532,14 @@ function HomeownerManagementInner() {
               className={`${styles.tabButton} ${viewMode === 'archived' ? styles.activeTab : ''}`}
               onClick={() => setViewMode('archived')}
             >
-              <HiOutlineArchiveBox className={styles.tabIcon} />
-              <span>Archived Records</span>
+              <HiOutlineNoSymbol className={styles.tabIcon} />
+              <span>Disabled Accounts</span>
             </button>
           </div>
 
           <div className={styles.headerActions}>
-            <button type="button" className={styles.exportButton} onClick={exportToCsv}>
-              Export Masterlist (CSV)
+            <button type="button" className={styles.exportButton} onClick={exportToPdf}>
+              Export Masterlist (PDF)
             </button>
             <button type="button" className={styles.addButton} onClick={openAddModal}>
               <span className={styles.addIcon}>+</span>
@@ -1820,18 +1743,7 @@ function HomeownerManagementInner() {
                               }}
                             >
                               <HiOutlineArrowUturnLeft className={styles.actionIcon} aria-hidden="true" />
-                              Restore
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.deleteButton}
-                              onClick={() => {
-                                setDeleteTarget(homeowner)
-                                setIsDeleteConfirmOpen(true)
-                              }}
-                            >
-                              <HiOutlineTrash className={styles.actionIcon} aria-hidden="true" />
-                              Delete
+                              Enable
                             </button>
                           </div>
                         ) : (
@@ -1852,7 +1764,7 @@ function HomeownerManagementInner() {
                                 setArchiveNext(true)
                                 setIsArchiveConfirmOpen(true)
                               }}
-                              title="Archive record"
+                              title="Disable account"
                             >
                               <HiOutlineArchiveBox className={styles.actionIcon} aria-hidden="true" />
                             </button>
@@ -2348,8 +2260,8 @@ function HomeownerManagementInner() {
                   <p className={styles.detailValue}>{selectedHomeowner.residentId}</p>
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Record Status</p>
-                  <p className={styles.detailValue}>{selectedHomeowner.archived ? 'Archived' : 'Active'}</p>
+                  <p className={styles.detailLabel}>Account Status</p>
+                  <p className={styles.detailValue}>{selectedHomeowner.archived ? 'Disabled Account' : 'Active'}</p>
                 </div>
                 <div>
                   <p className={styles.detailLabel}>Phone Number</p>
@@ -2646,7 +2558,7 @@ function HomeownerManagementInner() {
                 <button
                   type="button"
                   className={styles.primaryButton}
-                  disabled={isOfficer || isUpdatingPhoto || isSaving || isArchiving || isDeleting}
+                  disabled={isOfficer || isUpdatingPhoto || isSaving || isArchiving}
                   onClick={() => {
                     if (isEditingHomeowner) {
                       setIsConfirmSaveOpen(true)
@@ -2702,14 +2614,14 @@ function HomeownerManagementInner() {
           <div className={styles.modal} style={{ maxWidth: '420px' }}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>
-                {archiveNext ? 'Archive Homeowner Record' : 'Restore Homeowner Record'}
+                {archiveNext ? 'Disable Account' : 'Enable Account'}
               </h2>
             </div>
             <div className={styles.modalBody} style={{ padding: '20px 0', color: '#4b5563' }}>
               <p>
                 {archiveNext
-                  ? 'Archiving will hide this homeowner from active workflows. You can restore later.'
-                  : 'Restoring will make this homeowner active again.'}
+                  ? 'Disabling this account will hide the homeowner from active workflows. You can enable it again later.'
+                  : 'Enabling this account will make the homeowner active again.'}
               </p>
             </div>
             <div className={styles.modalActions}>
@@ -2731,48 +2643,14 @@ function HomeownerManagementInner() {
                 onClick={() => handleArchiveToggle(archiveTarget, archiveNext)}
                 disabled={isArchiving}
               >
-                {isArchiving ? (archiveNext ? 'Archiving...' : 'Restoring...') : archiveNext ? 'Archive Record' : 'Restore Record'}
+                {isArchiving ? (archiveNext ? 'Disabling...' : 'Enabling...') : archiveNext ? 'Disable Account' : 'Enable Account'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {isDeleteConfirmOpen && deleteTarget && (
-        <div className={styles.modalOverlay} style={{ zIndex: 1100 }}>
-          <div className={styles.modal} style={{ maxWidth: '420px' }}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Delete Homeowner Record</h2>
-            </div>
-            <div className={styles.modalBody} style={{ padding: '20px 0', color: '#4b5563' }}>
-              <p>
-                This will permanently delete the record for {deleteTarget.firstName} {deleteTarget.lastName}.
-              </p>
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => {
-                  setIsDeleteConfirmOpen(false)
-                  setDeleteTarget(null)
-                }}
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={() => handleDeleteRecord(deleteTarget)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Record'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
     </>
   )

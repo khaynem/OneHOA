@@ -6,7 +6,6 @@ import "@/lib/server/models/pictures";
 import { requireAuth } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 import {
-  buildGeneratedId,
   extractAddressPayload,
   formatHomeownerName,
   isValidObjectId,
@@ -235,61 +234,3 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
-  let user;
-  try {
-    user = await requireAuth();
-    await connectToDatabase();
-
-    const { id } = await params;
-    if (!isValidObjectId(id)) {
-      return NextResponse.json({ success: false, message: "Invalid record ID." }, { status: 400 });
-    }
-
-    const existingRecord = await Record.findById(id);
-    if (!existingRecord) {
-      return NextResponse.json({ success: false, message: "Record not found." }, { status: 404 });
-    }
-
-    if (!existingRecord.archived) {
-      return NextResponse.json(
-        { success: false, message: "Record must be archived before deletion." },
-        { status: 409 }
-      );
-    }
-
-    const deletedRecord = await Record.findByIdAndDelete(id);
-    if (!deletedRecord) {
-      return NextResponse.json({ success: false, message: "Record not found." }, { status: 404 });
-    }
-
-    const generatedId = buildGeneratedId(deletedRecord);
-    const homeownerName = formatHomeownerName(deletedRecord);
-
-    try {
-      await writeAuditLog({
-        request,
-        user,
-        statusCode: 200,
-        detailSummary: `Deleted homeowner ${homeownerName} with generated ID ${generatedId}`,
-        metadata: {
-          record_id: String(deletedRecord._id || ""),
-          generated_id: String(generatedId || ""),
-          homeowner_name: homeownerName,
-        },
-      });
-    } catch (auditError) {
-      console.error("Failed to write audit log:", auditError.message || auditError);
-    }
-
-    return NextResponse.json(
-      { success: true, message: "Record deleted successfully." },
-      { status: 200 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, message: "Failed to delete record." },
-      { status: 500 }
-    );
-  }
-}

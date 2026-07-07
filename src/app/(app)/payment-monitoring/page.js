@@ -83,7 +83,7 @@ const getIssuedByLabel = (payment = {}) => {
   return payment.issuedBy || '-'
 }
 
-const isPaymentMonitored = (record = {}) => isOwnerOccupant(record.occupant_status) && !record.archived
+const isPaymentMonitored = (record = {}) => isOwnerOccupant(record.occupant_status)
 
 const parseCoveredPeriods = (record) => {
   if (Array.isArray(record.payment_for_periods) && record.payment_for_periods.length > 0) {

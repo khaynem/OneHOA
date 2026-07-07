@@ -602,15 +602,19 @@ export default function HOAAnnouncementsPage() {
                   <p className={styles.detailsText}>{selectedAnnouncement.details}</p>
                   <p className={styles.metaText}>Event Date: {formatDate(selectedAnnouncement.eventDate)}</p>
                   {selectedAnnouncement.images.length > 0 ? (
-                    <img src={selectedAnnouncement.images[0]} alt={selectedAnnouncement.title} className={styles.previewImage} />
+                    <img
+                      src={selectedAnnouncement.images[0]}
+                      alt={selectedAnnouncement.title}
+                      className={styles.previewImage}
+                    />
                   ) : null}
                 </div>
 
                 <div className={styles.modalActions}>
                   <button
-                     type="button"
-                     className={styles.secondaryButton}
-                     onClick={() => promptArchiveAnnouncement(selectedAnnouncement)}
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => promptArchiveAnnouncement(selectedAnnouncement)}
                   >
                     Archive
                   </button>

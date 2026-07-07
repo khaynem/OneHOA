@@ -2,12 +2,15 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
-import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineTrash, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
-import { apiClient } from '@/lib/apiClient'
+import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineNoSymbol, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
+import { buildHomeownerMasterlistHtml } from '@/lib/homeownerMasterlistTemplate'
+import JobTitleField from '@/components/job-title-field/job-title-field'
 import styles from './homeowner-management.module.css'
 
 const DEFAULT_STATUS_OPTIONS = ['HO, not HVNA member', 'HO, HVNA member', 'N/A']
@@ -17,12 +20,32 @@ const WORK_STATUS_OPTIONS = [
   'Regular',
   'Self-Employed',
   'Freelance',
-  'Business Owner',
   'Unemployed',
-  'Retired',
-  'Student',
   'Other'
 ]
+
+const getWorkStatusOptions = (fields = []) => {
+  const workStatusField = Array.isArray(fields)
+    ? fields.find((field) => field?.key === 'work_status' && Array.isArray(field.options))
+    : null
+
+  if (!workStatusField || workStatusField.options.length === 0) {
+    return WORK_STATUS_OPTIONS
+  }
+
+  return workStatusField.options
+    .map((option) => String(option || '').trim())
+    .filter(Boolean)
+}
+
+const toSelectOptions = (options, currentValue) => {
+  const normalized = String(currentValue || '').trim()
+  if (normalized && !options.includes(normalized)) {
+    return [...options, normalized]
+  }
+
+  return options
+}
 
 const OCCUPANT_STATUS_OPTIONS = ['Owner', 'Relative', 'Renter', 'Caretaker']
 
@@ -44,6 +67,7 @@ const EMPTY_FORM = {
   firstName: '',
   middleName: '',
   lastName: '',
+  email: '',
   phone: '',
   jobDescription: '',
   workStatus: '',
@@ -94,15 +118,6 @@ const normalizeStatusList = (value) => {
 
   const normalized = String(value || '').trim()
   return normalized ? [normalized] : []
-}
-
-const toSelectOptions = (options, currentValue) => {
-  const normalized = String(currentValue || '').trim()
-  if (normalized && !options.includes(normalized)) {
-    return [...options, normalized]
-  }
-
-  return options
 }
 
 const normalizeOccupantStatus = (value) => String(value || '').trim()
@@ -221,6 +236,7 @@ const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
     archived: Boolean(record.archived),
     archivedAt: record.archived_at ? String(record.archived_at) : '',
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
+    email: String(record.email || ''),
     phone: String(record.phone_number || ''),
     status: normalizeStatusList(record.status),
     phase: address.phase,
@@ -389,6 +405,8 @@ function HomeownerManagementInner() {
   const [paymentFilter, setPaymentFilter] = useState('all')
   const [occupantFilter, setOccupantFilter] = useState('all')
   const [phaseFilter, setPhaseFilter] = useState('all')
+  const [entryMonthFilter, setEntryMonthFilter] = useState('all')
+  const [entryYearFilter, setEntryYearFilter] = useState('all')
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -405,17 +423,15 @@ function HomeownerManagementInner() {
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
   const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
+  const [workStatusOptions, setWorkStatusOptions] = useState(WORK_STATUS_OPTIONS)
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
   const [isSaving, setIsSaving] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false)
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false)
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [archiveTarget, setArchiveTarget] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
   const [archiveNext, setArchiveNext] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const ownerByAddress = useMemo(() => {
     const map = new Map()
@@ -467,7 +483,8 @@ function HomeownerManagementInner() {
         apiClient.get('/records', {
           query: {
             page: 1,
-            limit: 200
+            limit: 200,
+            summary: true
           }
         }),
         apiClient.get('/payments/tracker', {
@@ -502,6 +519,44 @@ function HomeownerManagementInner() {
   }, [])
 
   useEffect(() => {
+    const loadWorkStatusOptions = async () => {
+      try {
+        const response = await apiClient.get('/settings/registration-fields', {
+          forceRefresh: true
+        })
+
+        if (response?.success && Array.isArray(response.fields)) {
+          setWorkStatusOptions(getWorkStatusOptions(response.fields))
+          return
+        }
+      } catch (error) {
+        setWorkStatusOptions(WORK_STATUS_OPTIONS)
+      }
+
+      setWorkStatusOptions(WORK_STATUS_OPTIONS)
+    }
+
+    loadWorkStatusOptions()
+  }, [])
+
+  useEffect(() => {
+    setEditForm((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      if (!prev.workStatus || workStatusOptions.includes(prev.workStatus)) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        workStatus: ''
+      }
+    })
+  }, [workStatusOptions])
+
+  useEffect(() => {
     const paymentParam = searchParams.get('paymentFilter')
     const occupantParam = searchParams.get('occupantFilter')
     const sortParam = searchParams.get('sort')
@@ -523,7 +578,7 @@ function HomeownerManagementInner() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter])
+  }, [searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter, entryMonthFilter, entryYearFilter])
 
   useEffect(() => {
     let isMounted = true
@@ -633,6 +688,24 @@ function HomeownerManagementInner() {
       results = results.filter((homeowner) => !homeowner.archived)
     }
 
+    if (entryMonthFilter !== 'all' || entryYearFilter !== 'all') {
+      results = results.filter((homeowner) => {
+        const raw = String(homeowner.entryDate || '')
+        const year = raw.slice(0, 4)
+        if (entryYearFilter !== 'all' && year !== entryYearFilter) return false
+        if (entryMonthFilter !== 'all') {
+          // entryDate is stored as a year only (YYYY), so month filter only applies when a full date is stored
+          // If entryDate has month info (YYYY-MM or ISO), extract it; otherwise skip month filter
+          const isoMatch = raw.match(/^(\d{4})-(\d{2})/)
+          if (isoMatch) {
+            const month = parseInt(isoMatch[2], 10)
+            if (String(month) !== entryMonthFilter) return false
+          }
+        }
+        return true
+      })
+    }
+
     const filterOption = STATUS_FILTER_OPTIONS.find((option) => option.value === tableFilter)
 
     if (filterOption?.type === 'status') {
@@ -643,7 +716,7 @@ function HomeownerManagementInner() {
     }
 
     return [...results].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-  }, [homeowners, searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter])
+  }, [homeowners, searchText, viewMode, tableFilter, paymentFilter, occupantFilter, phaseFilter, entryMonthFilter, entryYearFilter])
 
   const totalPages = Math.max(Math.ceil(filteredHomeowners.length / PAGE_SIZE), 1)
   const pagedHomeowners = useMemo(() => {
@@ -778,6 +851,7 @@ function HomeownerManagementInner() {
         first_name: normalizeName(addForm.firstName).trim(),
         middle_name: normalizeName(addForm.middleName).trim(),
         last_name: normalizeName(addForm.lastName).trim(),
+        email: addForm.email.trim(),
         phone_number: addForm.phone.trim(),
         household_members: addForm.householdMembers,
         job_title: addForm.jobDescription.trim(),
@@ -796,7 +870,12 @@ function HomeownerManagementInner() {
         payload['pictures._id'] = addForm.pictureId
       }
 
-      const response = await apiClient.post('/records', payload)
+      const response = await offlineApiClient.post('/records', payload, {
+        metadata: {
+          type: 'create-homeowner',
+          label: `Registering homeowner ${payload.first_name} ${payload.last_name}`
+        }
+      })
       const created = mapRecordToHomeowner(response?.data)
       setHomeowners((prev) => [created, ...prev])
       notify.success({
@@ -805,10 +884,18 @@ function HomeownerManagementInner() {
       })
       closeAddModal()
     } catch (error) {
-      notify.error({
-        title: 'Registration Failed',
-        description: error.message || 'Unable to register homeowner.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeAddModal()
+      } else {
+        notify.error({
+          title: 'Registration Failed',
+          description: error.message || 'Unable to register homeowner.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -834,10 +921,15 @@ function HomeownerManagementInner() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file)
-      const response = await apiClient.post('/records/upload-photo', {
+      const response = await offlineApiClient.post('/records/upload-photo', {
         imageDataUrl: dataUrl,
         fileName: file.name,
         mimeType: file.type
+      }, {
+        metadata: {
+          type: 'upload-photo',
+          label: `Uploading photo: ${file.name}`
+        }
       })
 
       const uploaded = response?.data
@@ -851,17 +943,42 @@ function HomeownerManagementInner() {
         description: 'Homeowner photo uploaded successfully.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Photo Upload Failed',
-        description: error.message || 'Unable to upload homeowner photo.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Photo upload saved offline. It will be uploaded automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Photo Upload Failed',
+          description: error.message || 'Unable to upload homeowner photo.'
+        })
+      }
     } finally {
       setIsUploadingPhoto(false)
     }
   }
 
-  const openViewModal = (homeowner) => {
+  const loadHomeownerDetails = async (homeownerId, paymentSummary = null) => {
+    if (!homeownerId) {
+      return null
+    }
+
+    const response = await apiClient.get(`/records/${homeownerId}`, {
+      forceRefresh: true
+    })
+
+    const fullRecord = response?.data
+    if (!fullRecord) {
+      return null
+    }
+
+    return mapRecordToHomeowner(fullRecord, paymentSummary)
+  }
+
+  const openViewModal = async (homeowner) => {
     const isOwner = isOwnerOccupant(homeowner.occupantStatus)
+    const normalizedWorkStatus = workStatusOptions.includes(homeowner.workStatus) ? homeowner.workStatus : ''
 
     setSelectedHomeowner({
       ...homeowner,
@@ -879,6 +996,7 @@ function HomeownerManagementInner() {
       lastName: homeowner.lastName,
       unitNumber: homeowner.unitNumber,
       phone: homeowner.phone,
+      email: homeowner.email,
       phase: homeowner.phase,
       block: homeowner.block,
       lot: homeowner.lot,
@@ -886,14 +1004,60 @@ function HomeownerManagementInner() {
       occupantStatus: homeowner.occupantStatus,
       householdMembers: homeowner.householdMembers,
       jobDescription: homeowner.jobDescription,
-      workStatus: homeowner.workStatus,
+      workStatus: normalizedWorkStatus,
       pictureId: homeowner.pictureId,
       photoUrl: homeowner.photoUrl,
       imageName: ''
     })
 
     if (isOwner) {
-      fetchHomeownerPayments(homeowner.id)
+      void fetchHomeownerPayments(homeowner.id)
+    }
+
+    try {
+      const fullHomeowner = await loadHomeownerDetails(homeowner.id, homeowner.paymentSummary)
+      if (fullHomeowner) {
+        setSelectedHomeowner((prev) => {
+          if (!prev || prev.id !== homeowner.id) {
+            return prev
+          }
+
+          return {
+            ...fullHomeowner,
+            paymentHistory: prev.paymentHistory,
+            unpaidPeriods: prev.unpaidPeriods,
+            totalPaid: prev.totalPaid,
+            upcomingPayment: prev.upcomingPayment,
+          }
+        })
+
+        if (!isEditingHomeowner) {
+          setEditForm({
+            firstName: fullHomeowner.firstName,
+            middleName: fullHomeowner.middleName,
+            lastName: fullHomeowner.lastName,
+            unitNumber: fullHomeowner.unitNumber,
+            phone: fullHomeowner.phone,
+            email: fullHomeowner.email,
+            phase: fullHomeowner.phase,
+            block: fullHomeowner.block,
+            lot: fullHomeowner.lot,
+            entryDate: fullHomeowner.entryDate,
+            occupantStatus: fullHomeowner.occupantStatus,
+            householdMembers: fullHomeowner.householdMembers,
+            jobDescription: fullHomeowner.jobDescription,
+            workStatus: fullHomeowner.workStatus,
+            pictureId: fullHomeowner.pictureId,
+            photoUrl: fullHomeowner.photoUrl,
+            imageName: ''
+          })
+        }
+      }
+    } catch (error) {
+      notify.error({
+        title: 'Failed to Load Homeowner Details',
+        description: error.message || 'Unable to fetch full homeowner details.'
+      })
     }
   }
 
@@ -1011,10 +1175,15 @@ function HomeownerManagementInner() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file)
-      const response = await apiClient.post('/records/upload-photo', {
+      const response = await offlineApiClient.post('/records/upload-photo', {
         imageDataUrl: dataUrl,
         fileName: file.name,
         mimeType: file.type
+      }, {
+        metadata: {
+          type: 'upload-photo',
+          label: `Uploading edit photo: ${file.name}`
+        }
       })
       const uploaded = response?.data
 
@@ -1036,10 +1205,17 @@ function HomeownerManagementInner() {
         description: 'Photo will be applied when you click Save Changes.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Photo Update Failed',
-        description: error.message || 'Unable to update homeowner photo.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Photo upload saved offline. It will be uploaded automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Photo Update Failed',
+          description: error.message || 'Unable to update homeowner photo.'
+        })
+      }
     } finally {
       setIsUpdatingPhoto(false)
     }
@@ -1080,6 +1256,7 @@ function HomeownerManagementInner() {
     try {
       setIsSaving(true)
       const payload = {
+        email: editForm.email,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
         entry_date: toEntryDateValue(normalizedEntryYear),
         occupant_status: editForm.occupantStatus,
@@ -1104,7 +1281,12 @@ function HomeownerManagementInner() {
         payload['pictures._id'] = editForm.pictureId
       }
 
-      const response = await apiClient.put(`/records/${selectedHomeowner.id}`, payload)
+      const response = await offlineApiClient.put(`/records/${selectedHomeowner.id}`, payload, {
+        metadata: {
+          type: 'update-homeowner',
+          label: `Updating homeowner ${editForm.firstName || selectedHomeowner.firstName} ${editForm.lastName || selectedHomeowner.lastName}`
+        }
+      })
       const updatedHomeowner = mapRecordToHomeowner(response?.data)
 
       setHomeowners((prev) =>
@@ -1129,10 +1311,18 @@ function HomeownerManagementInner() {
         description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been updated.`
       })
     } catch (error) {
-      notify.error({
-        title: 'Update Failed',
-        description: error.message || 'Unable to save homeowner changes.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setIsEditingHomeowner(false)
+      } else {
+        notify.error({
+          title: 'Update Failed',
+          description: error.message || 'Unable to save homeowner changes.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
@@ -1230,7 +1420,7 @@ function HomeownerManagementInner() {
     if (isOfficer) {
       notify.error({
         title: 'Action Restricted',
-        description: 'Officers are not authorized to archive or restore records.'
+        description: 'Officers are not authorized to disable or enable accounts.'
       })
       return
     }
@@ -1247,10 +1437,15 @@ function HomeownerManagementInner() {
         }
         : {}
 
-      const response = await apiClient.put(`/records/${target.id}`, {
+      const response = await offlineApiClient.put(`/records/${target.id}`, {
         archived: nextArchived,
         archived_at: nextArchived ? new Date().toISOString() : null,
         ...addressPayload
+      }, {
+        metadata: {
+          type: 'toggle-homeowner-status',
+          label: `${nextArchived ? 'Disabling' : 'Enabling'} account for ${target.firstName} ${target.lastName}`
+        }
       })
 
       const updatedHomeowner = mapRecordToHomeowner(response?.data)
@@ -1263,14 +1458,21 @@ function HomeownerManagementInner() {
       }
 
       notify.success({
-        title: nextArchived ? 'Homeowner Archived' : 'Homeowner Restored',
-        description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been ${nextArchived ? 'archived' : 'restored'}.`
+        title: nextArchived ? 'Account Disabled' : 'Account Enabled',
+        description: `${updatedHomeowner.firstName} ${updatedHomeowner.lastName} has been ${nextArchived ? 'disabled' : 'enabled'}.`
       })
     } catch (error) {
-      notify.error({
-        title: 'Archive Failed',
-        description: error.message || 'Unable to update archive status.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: nextArchived ? 'Disable Failed' : 'Enable Failed',
+          description: error.message || 'Unable to update account status.'
+        })
+      }
     } finally {
       setIsArchiving(false)
       setIsArchiveConfirmOpen(false)
@@ -1278,55 +1480,9 @@ function HomeownerManagementInner() {
     }
   }
 
-  const handleDeleteRecord = async (target) => {
-    if (!target || isDeleting) {
-      return
-    }
 
-    if (isOfficer) {
-      notify.error({
-        title: 'Action Restricted',
-        description: 'Officers are not authorized to delete records.'
-      })
-      return
-    }
 
-    if (!target.archived) {
-      notify.error({
-        title: 'Archive Required',
-        description: 'Please archive the record before deleting it.'
-      })
-      return
-    }
-
-    setIsDeleting(true)
-    try {
-      await apiClient.delete(`/records/${target.id}`)
-      setHomeowners((prev) => prev.filter((homeowner) => homeowner.id !== target.id))
-      if (selectedHomeowner?.id === target.id) {
-        setSelectedHomeowner(null)
-        setEditForm(null)
-        setIsEditingHomeowner(false)
-        setIsConfirmSaveOpen(false)
-      }
-
-      notify.success({
-        title: 'Record Deleted',
-        description: 'The homeowner record has been permanently deleted.'
-      })
-    } catch (error) {
-      notify.error({
-        title: 'Delete Failed',
-        description: error.message || 'Unable to delete homeowner record.'
-      })
-    } finally {
-      setIsDeleting(false)
-      setIsDeleteConfirmOpen(false)
-      setDeleteTarget(null)
-    }
-  }
-
-  const exportToCsv = () => {
+  const exportToPdf = () => {
     if (filteredHomeowners.length === 0) {
       notify.error({
         title: 'No Data to Export',
@@ -1335,339 +1491,384 @@ function HomeownerManagementInner() {
       return
     }
 
-    const headers = [
-      'Resident ID',
-      'First Name',
-      'Middle Name',
-      'Last Name',
-      'Phase',
-      'Block',
-      'Lot',
-      'Phone Number',
-      'Occupant Status',
-      'Membership Status',
-      'Entry Year',
-      'Household Members',
-      'Work Status',
-      'Job Title'
-    ]
+    const generatorName = currentUser
+      ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.username
+      : 'Authorized Officer'
+    const generatorRole = currentUser ? String(currentUser.role || '').toUpperCase() : 'OFFICER'
+    const generatedBy = `${generatorName} (${generatorRole})`
 
-    const rows = filteredHomeowners.map((homeowner) => {
-      const householdMembersStr = Array.isArray(homeowner.householdMembers)
-        ? homeowner.householdMembers
-            .map((member) => `${member.name || 'Unknown'} (${member.relationship || 'Unspecified'})`)
-            .join('; ')
-        : ''
-
-      return [
-        homeowner.displayId || homeowner.residentId || '-',
-        homeowner.firstName || '',
-        homeowner.middleName || '',
-        homeowner.lastName || '',
-        homeowner.phase || '',
-        homeowner.block || '',
-        homeowner.lot || '',
-        homeowner.phone || '',
-        homeowner.occupantStatus || '',
-        statusListToSingleOption(homeowner.status),
-        homeowner.entryDate || '',
-        householdMembersStr || '',
-        homeowner.workStatus || '',
-        homeowner.jobDescription || ''
-      ]
+    const html = buildHomeownerMasterlistHtml({
+      homeowners: filteredHomeowners,
+      filters: {
+        phaseFilter,
+        statusFilter: tableFilter,
+        occupantFilter,
+        paymentFilter,
+        searchText
+      },
+      generatedAt: new Date(),
+      generatedBy
     })
 
-    const escapeCsvValue = (val) => {
-      const stringVal = String(val === null || val === undefined ? '' : val).trim()
-      if (stringVal.includes(',') || stringVal.includes('"') || stringVal.includes('\n')) {
-        return `"${stringVal.replace(/"/g, '""')}"`
-      }
-      return stringVal
+    if (isMobileOrTablet()) {
+      printViaIframe(html)
+      return
     }
 
-    const csvContent = [
-      headers.map(escapeCsvValue).join(','),
-      ...rows.map((row) => row.map(escapeCsvValue).join(','))
-    ].join('\n')
+    const popup = window.open('', '_blank', 'width=1100,height=760')
+    if (!popup) {
+      printViaIframe(html)
+      return
+    }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    
-    const phaseLabel = phaseFilter === 'all' ? 'AllPhases' : `Phase_${phaseFilter}`
-    const dateStr = new Date().toISOString().slice(0, 10)
-    link.setAttribute('download', `OneHOA_Masterlist_${phaseLabel}_${dateStr}.csv`)
-    
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    popup.document.open()
+    popup.document.write(html)
+    popup.document.close()
+
+    popup.onload = () => {
+      popup.focus()
+      popup.onafterprint = () => {
+        popup.close()
+      }
+      popup.print()
+    }
 
     notify.success({
       title: 'Export Successful',
-      description: `Exported ${filteredHomeowners.length} homeowner records to CSV.`
+      description: `Generated Masterlist PDF report for ${filteredHomeowners.length} homeowners.`
     })
   }
 
+  const hasActiveFilters =
+    phaseFilter !== 'all' ||
+    paymentFilter !== 'all' ||
+    occupantFilter !== 'all' ||
+    tableFilter !== 'all' ||
+    entryMonthFilter !== 'all' ||
+    entryYearFilter !== 'all'
+
+  const clearAllFilters = () => {
+    setPhaseFilter('all')
+    setPaymentFilter('all')
+    setOccupantFilter('all')
+    setTableFilter('all')
+    setEntryMonthFilter('all')
+    setEntryYearFilter('all')
+  }
+
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>Masterlist Record</h1>
-          <p className={styles.subtitle}>Register and manage homeowner records</p>
-        </div>
-      </section>
-
-      <div className={styles.controlsRow}>
-        <div className={styles.tabsContainer}>
-          <button
-            type="button"
-            className={`${styles.tabButton} ${viewMode === 'active' ? styles.activeTab : ''}`}
-            onClick={() => setViewMode('active')}
-          >
-            <HiOutlineUsers className={styles.tabIcon} />
-            <span>Active Records</span>
-          </button>
-          <button
-            type="button"
-            className={`${styles.tabButton} ${viewMode === 'archived' ? styles.activeTab : ''}`}
-            onClick={() => setViewMode('archived')}
-          >
-            <HiOutlineArchiveBox className={styles.tabIcon} />
-            <span>Archived Records</span>
-          </button>
-        </div>
-
-        <div className={styles.headerActions}>
-          <button type="button" className={styles.exportButton} onClick={exportToCsv}>
-            Export Masterlist (CSV)
-          </button>
-          <button type="button" className={styles.addButton} onClick={openAddModal}>
-            <span className={styles.addIcon}>+</span>
-            Add Homeowner
-          </button>
-        </div>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
       </div>
 
-      <section className={styles.searchWrap}>
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            className={styles.searchInput}
-            placeholder="Search homeowners by name or unit number"
-            aria-label="Search homeowners"
-          />
-          <select
-            className={styles.filterSelect}
-            value={phaseFilter}
-            onChange={(event) => setPhaseFilter(event.target.value)}
-            aria-label="Filter by phase"
-          >
-            <option value="all">All Phases</option>
-            <option value="1">Phase 1</option>
-            <option value="2">Phase 2</option>
-            <option value="3">Phase 3</option>
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={paymentFilter}
-            onChange={(event) => setPaymentFilter(event.target.value)}
-            aria-label="Filter by payment status"
-          >
-            {PAYMENT_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={occupantFilter}
-            onChange={(event) => setOccupantFilter(event.target.value)}
-            aria-label="Filter by occupant status"
-          >
-            {OCCUPANT_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={styles.filterSelect}
-            value={tableFilter}
-            onChange={(event) => setTableFilter(event.target.value)}
-            aria-label="Filter homeowners"
-          >
-            {STATUS_FILTER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Masterlist Record</h1>
+            <p className={styles.bannerSubtitle}>
+              Register, search, filter, and manage homeowner records and membership statuses.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
-      </section>
 
-      <section className={styles.tableCard}>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>User ID</th>
-                <th>Unit Number</th>
-                <th>Phone</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className={styles.emptyRow}>
-                    Loading homeowners...
-                  </td>
-                </tr>
-              ) : filteredHomeowners.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className={styles.emptyRow}>
-                    No homeowners found for your search.
-                  </td>
-                </tr>
-              ) : (
-                pagedHomeowners.map((homeowner) => (
-                  <tr key={homeowner.id}>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
-                      <div className={styles.nameCell}>
-                        {homeowner.photoUrl ? (
-                          <img
-                            src={homeowner.photoUrl}
-                            alt={`${homeowner.firstName} ${homeowner.lastName}`}
-                            className={styles.rowAvatar}
-                          />
-                        ) : (
-                          <img
-                            src="images/Default_pfp.jpg"
-                            alt={`${homeowner.firstName} ${homeowner.lastName}`}
-                            className={styles.rowAvatar}
-                          />
-                        )}
-                        <span>
-                          {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
-                            middleInitialOnly: true
-                          })}
-                        </span>
-                      </div>
-                    </td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.displayId || '-'}</td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.unitNumber}</td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{formatPhone(homeowner.phone)}</td>
-                    <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
-                      <span
-                        className={`${styles.statusPill} ${getStatusPillClass(statusListToSingleOption(homeowner.status))}`}
-                      >
-                        {statusListToSingleOption(homeowner.status)}
-                      </span>
-                    </td>
-                    <td>
-                      {isOfficer ? (
-                        <div className={styles.actionGroup}>
-                          <button
-                            type="button"
-                            className={styles.viewIconButton}
-                            onClick={() => openViewModal(homeowner)}
-                            title="View details"
-                          >
-                            <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
-                          </button>
-                        </div>
-                      ) : homeowner.archived ? (
-                        <div className={styles.actionGroup}>
-                          <button
-                            type="button"
-                            className={styles.restoreButton}
-                            onClick={() => {
-                              setArchiveTarget(homeowner)
-                              setArchiveNext(false)
-                              setIsArchiveConfirmOpen(true)
-                            }}
-                          >
-                            <HiOutlineArrowUturnLeft className={styles.actionIcon} aria-hidden="true" />
-                            Restore
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.deleteButton}
-                            onClick={() => {
-                              setDeleteTarget(homeowner)
-                              setIsDeleteConfirmOpen(true)
-                            }}
-                          >
-                            <HiOutlineTrash className={styles.actionIcon} aria-hidden="true" />
-                            Delete
-                          </button>
-                        </div>
-                      ) : (
-                        <div className={styles.actionGroup}>
-                          <button
-                            type="button"
-                            className={styles.viewIconButton}
-                            onClick={() => openViewModal(homeowner)}
-                            title="View details"
-                          >
-                            <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.archiveIconButton}
-                            onClick={() => {
-                              setArchiveTarget(homeowner)
-                              setArchiveNext(true)
-                              setIsArchiveConfirmOpen(true)
-                            }}
-                            title="Archive record"
-                          >
-                            <HiOutlineArchiveBox className={styles.actionIcon} aria-hidden="true" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {filteredHomeowners.length > 0 ? (
-        <div className={styles.pagination}>
-          <span className={styles.pageRange}>
-            Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredHomeowners.length)} out of {filteredHomeowners.length}
-          </span>
-          <div className={styles.pageControls}>
+        <div className={styles.controlsRow}>
+          <div className={styles.tabsContainer}>
             <button
               type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              className={`${styles.tabButton} ${viewMode === 'active' ? styles.activeTab : ''}`}
+              onClick={() => setViewMode('active')}
             >
-              Prev
+              <HiOutlineUsers className={styles.tabIcon} />
+              <span>Active Records</span>
             </button>
-            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
             <button
               type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              className={`${styles.tabButton} ${viewMode === 'archived' ? styles.activeTab : ''}`}
+              onClick={() => setViewMode('archived')}
             >
-              Next
+              <HiOutlineNoSymbol className={styles.tabIcon} />
+              <span>Disabled Accounts</span>
+            </button>
+          </div>
+
+          <div className={styles.headerActions}>
+            <button type="button" className={styles.exportButton} onClick={exportToPdf}>
+              Export Masterlist (PDF)
+            </button>
+            <button type="button" className={styles.addButton} onClick={openAddModal}>
+              <span className={styles.addIcon}>+</span>
+              Add Homeowner
             </button>
           </div>
         </div>
-      ) : null}
+
+        <section className={styles.searchWrap}>
+          <div className={styles.searchBarRow}>
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              className={styles.searchInput}
+              placeholder="Search homeowners by name or unit number"
+              aria-label="Search homeowners"
+            />
+          </div>
+
+          <div className={styles.filtersRow}>
+            <select
+              className={styles.filterSelect}
+              value={phaseFilter}
+              onChange={(event) => setPhaseFilter(event.target.value)}
+              aria-label="Filter by phase"
+            >
+              <option value="all">All Phases</option>
+              <option value="1">Phase 1</option>
+              <option value="2">Phase 2</option>
+              <option value="3">Phase 3</option>
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={paymentFilter}
+              onChange={(event) => setPaymentFilter(event.target.value)}
+              aria-label="Filter by payment status"
+            >
+              {PAYMENT_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={occupantFilter}
+              onChange={(event) => setOccupantFilter(event.target.value)}
+              aria-label="Filter by occupant status"
+            >
+              {OCCUPANT_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={tableFilter}
+              onChange={(event) => setTableFilter(event.target.value)}
+              aria-label="Filter homeowners"
+            >
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={entryMonthFilter}
+              onChange={(event) => setEntryMonthFilter(event.target.value)}
+              aria-label="Filter by entry month"
+            >
+              <option value="all">All Months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <select
+              className={styles.filterSelect}
+              value={entryYearFilter}
+              onChange={(event) => setEntryYearFilter(event.target.value)}
+              aria-label="Filter by entry year"
+            >
+              <option value="all">All Years</option>
+              {Array.from({ length: new Date().getFullYear() - 2000 + 1 }, (_, i) => 2000 + i)
+                .reverse()
+                .map((year) => (
+                  <option key={year} value={String(year)}>{year}</option>
+                ))}
+            </select>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className={styles.clearFiltersBtn}
+                onClick={clearAllFilters}
+                aria-label="Clear all filters"
+              >
+                ✕ Clear Filters
+              </button>
+            )}
+          </div>
+        </section>
+
+        <section className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>User ID</th>
+                  <th>Unit Number</th>
+                  <th>Phone</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className={styles.emptyRow}>
+                      Loading homeowners...
+                    </td>
+                  </tr>
+                ) : filteredHomeowners.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className={styles.emptyRow}>
+                      No homeowners found for your search.
+                    </td>
+                  </tr>
+                ) : (
+                  pagedHomeowners.map((homeowner) => (
+                    <tr key={homeowner.id}>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
+                        <div className={styles.nameCell}>
+                          {homeowner.photoUrl ? (
+                            <Image
+                              src={homeowner.photoUrl}
+                              alt={`${homeowner.firstName} ${homeowner.lastName}`}
+                              className={styles.rowAvatar}
+                              width={34}
+                              height={34}
+                            />
+                          ) : (
+                            <Image
+                              src="/images/Default_pfp.jpg"
+                              alt={`${homeowner.firstName} ${homeowner.lastName}`}
+                              className={styles.rowAvatar}
+                              width={34}
+                              height={34}
+                            />
+                          )}
+                          <span>
+                            {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
+                              middleInitialOnly: true
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.displayId || '-'}</td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{homeowner.unitNumber}</td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>{formatPhone(homeowner.phone)}</td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
+                        <span
+                          className={`${styles.statusPill} ${getStatusPillClass(statusListToSingleOption(homeowner.status))}`}
+                        >
+                          {statusListToSingleOption(homeowner.status)}
+                        </span>
+                      </td>
+                      <td>
+                        {isOfficer ? (
+                          <div className={styles.actionGroup}>
+                            <button
+                              type="button"
+                              className={styles.viewIconButton}
+                              onClick={() => openViewModal(homeowner)}
+                              title="View details"
+                            >
+                              <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
+                            </button>
+                          </div>
+                        ) : homeowner.archived ? (
+                          <div className={styles.actionGroup}>
+                            <button
+                              type="button"
+                              className={styles.restoreButton}
+                              onClick={() => {
+                                setArchiveTarget(homeowner)
+                                setArchiveNext(false)
+                                setIsArchiveConfirmOpen(true)
+                              }}
+                            >
+                              <HiOutlineArrowUturnLeft className={styles.actionIcon} aria-hidden="true" />
+                              Enable
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={styles.actionGroup}>
+                            <button
+                              type="button"
+                              className={styles.viewIconButton}
+                              onClick={() => openViewModal(homeowner)}
+                              title="View details"
+                            >
+                              <HiOutlineEye className={styles.actionIcon} aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.archiveIconButton}
+                              onClick={() => {
+                                setArchiveTarget(homeowner)
+                                setArchiveNext(true)
+                                setIsArchiveConfirmOpen(true)
+                              }}
+                              title="Disable account"
+                            >
+                              <HiOutlineArchiveBox className={styles.actionIcon} aria-hidden="true" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {filteredHomeowners.length > 0 ? (
+          <div className={styles.pagination}>
+            <span className={styles.pageRange}>
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredHomeowners.length)} out of {filteredHomeowners.length}
+            </span>
+            <div className={styles.pageControls}>
+              <button
+                type="button"
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+              <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+      </div>
 
       {isAddModalOpen && (
         <div className={styles.modalOverlay}>
@@ -1689,7 +1890,13 @@ function HomeownerManagementInner() {
                       onChange={(event) => handlePhotoUpload(event.target.files?.[0])}
                     />
                     {addForm.imageUrl ? (
-                      <img src={addForm.imageUrl} alt="Homeowner preview" className={styles.photoPreview} />
+                      <Image
+                        src={addForm.imageUrl}
+                        alt="Homeowner preview"
+                        className={styles.photoPreview}
+                        width={72}
+                        height={72}
+                      />
                     ) : (
                       <span className={styles.photoPlus}>+</span>
                     )}
@@ -1743,19 +1950,30 @@ function HomeownerManagementInner() {
                   className={styles.input}
                   value={addForm.phone}
                   onChange={(event) => handlePhoneChange(event.target.value)}
-                  placeholder="09XX XXX XXXX"
+                  placeholder="09xxxxxxxxx"
+                />
+
+                <label className={styles.fieldLabel}>Email Address</label>
+                <input
+                  type="email"
+                  className={styles.input}
+                  value={addForm.email}
+                  onChange={(event) => handleFormChange('email', event.target.value)}
+                  placeholder="example@gmail.com"
                 />
 
                 <div className={styles.twoColGrid}>
                   <div>
-                    <label className={styles.fieldLabel}>
-                      Job Title <span className={styles.requiredMark}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={styles.input}
+                    <JobTitleField
+                      label="Job Title"
                       value={addForm.jobDescription}
-                      onChange={(event) => handleFormChange('jobDescription', event.target.value)}
+                      onChange={(value) => handleFormChange('jobDescription', value)}
+                      required
+                      inputClassName={styles.input}
+                      labelClassName={styles.fieldLabel}
+                      selectClassName={styles.input}
+                      requiredClassName={styles.requiredMark}
+                      placeholder="Enter job title"
                     />
                   </div>
                   <div>
@@ -1768,7 +1986,7 @@ function HomeownerManagementInner() {
                       <option value="" disabled>
                         Select work status
                       </option>
-                      {WORK_STATUS_OPTIONS.map((statusOption) => (
+                      {workStatusOptions.map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
                           {statusOption}
                         </option>
@@ -1963,10 +2181,12 @@ function HomeownerManagementInner() {
                     }}
                     aria-label={isEditingHomeowner ? 'Update homeowner photo' : 'Homeowner photo'}
                   >
-                    <img
+                    <Image
                       src={isEditingHomeowner ? editForm?.photoUrl : selectedHomeowner.photoUrl}
                       alt={`${selectedHomeowner.firstName} ${selectedHomeowner.lastName}`}
                       className={styles.modalAvatar}
+                      width={72}
+                      height={72}
                     />
                   </button>
                 ) : (
@@ -2013,14 +2233,14 @@ function HomeownerManagementInner() {
               <div className={styles.tabGroup}>
                 <button
                   type="button"
-                  className={`${styles.tabButton} ${activeViewTab === 'info' ? styles.tabActive : ''}`}
+                  className={`${styles.modalTabButton} ${activeViewTab === 'info' ? styles.modalTabActive : ''}`}
                   onClick={() => setActiveViewTab('info')}
                 >
                   Homeowner Info
                 </button>
                 <button
                   type="button"
-                  className={`${styles.tabButton} ${activeViewTab === 'payments' ? styles.tabActive : ''}`}
+                  className={`${styles.modalTabButton} ${activeViewTab === 'payments' ? styles.modalTabActive : ''}`}
                   onClick={() => setActiveViewTab('payments')}
                 >
                   Payments
@@ -2102,8 +2322,8 @@ function HomeownerManagementInner() {
                   <p className={styles.detailValue}>{selectedHomeowner.residentId}</p>
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Record Status</p>
-                  <p className={styles.detailValue}>{selectedHomeowner.archived ? 'Archived' : 'Active'}</p>
+                  <p className={styles.detailLabel}>Account Status</p>
+                  <p className={styles.detailValue}>{selectedHomeowner.archived ? 'Disabled Account' : 'Active'}</p>
                 </div>
                 <div>
                   <p className={styles.detailLabel}>Phone Number</p>
@@ -2117,6 +2337,20 @@ function HomeownerManagementInner() {
                     />
                   ) : (
                     <p className={styles.detailValue}>{formatPhone(selectedHomeowner.phone)}</p>
+                  )}
+                </div>
+                <div>
+                  <p className={styles.detailLabel}>Email Address</p>
+                  {isEditingHomeowner ? (
+                    <input
+                      type="email"
+                      className={styles.input}
+                      value={editForm?.email || ''}
+                      onChange={(event) => handleEditChange('email', event.target.value)}
+                      placeholder="example@gmail.com"
+                    />
+                  ) : (
+                    <p className={styles.detailValue}>{selectedHomeowner.email || '-'}</p>
                   )}
                 </div>
                 <div>
@@ -2195,11 +2429,16 @@ function HomeownerManagementInner() {
                 <div>
                   <p className={styles.detailLabel}>Job Title</p>
                   {isEditingHomeowner ? (
-                    <input
-                      type="text"
-                      className={styles.input}
+                    <JobTitleField
+                      label="Job Title"
                       value={editForm?.jobDescription || ''}
-                      onChange={(event) => handleEditChange('jobDescription', event.target.value)}
+                      onChange={(value) => handleEditChange('jobDescription', value)}
+                      required={false}
+                      inputClassName={styles.input}
+                      labelClassName={styles.detailLabel}
+                      selectClassName={styles.input}
+                      requiredClassName={styles.requiredMark}
+                      placeholder="Enter job title"
                     />
                   ) : (
                     <p className={styles.detailValue}>{selectedHomeowner.jobDescription}</p>
@@ -2216,7 +2455,7 @@ function HomeownerManagementInner() {
                       <option value="" disabled>
                         Select work status
                       </option>
-                      {toSelectOptions(WORK_STATUS_OPTIONS, editForm?.workStatus).map((statusOption) => (
+                      {workStatusOptions.map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
                           {statusOption}
                         </option>
@@ -2381,7 +2620,7 @@ function HomeownerManagementInner() {
                 <button
                   type="button"
                   className={styles.primaryButton}
-                  disabled={isOfficer || isUpdatingPhoto || isSaving || isArchiving || isDeleting}
+                  disabled={isOfficer || isUpdatingPhoto || isSaving || isArchiving}
                   onClick={() => {
                     if (isEditingHomeowner) {
                       setIsConfirmSaveOpen(true)
@@ -2437,14 +2676,14 @@ function HomeownerManagementInner() {
           <div className={styles.modal} style={{ maxWidth: '420px' }}>
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>
-                {archiveNext ? 'Archive Homeowner Record' : 'Restore Homeowner Record'}
+                {archiveNext ? 'Disable Account' : 'Enable Account'}
               </h2>
             </div>
             <div className={styles.modalBody} style={{ padding: '20px 0', color: '#4b5563' }}>
               <p>
                 {archiveNext
-                  ? 'Archiving will hide this homeowner from active workflows. You can restore later.'
-                  : 'Restoring will make this homeowner active again.'}
+                  ? 'Disabling this account will hide the homeowner from active workflows. You can enable it again later.'
+                  : 'Enabling this account will make the homeowner active again.'}
               </p>
             </div>
             <div className={styles.modalActions}>
@@ -2466,56 +2705,22 @@ function HomeownerManagementInner() {
                 onClick={() => handleArchiveToggle(archiveTarget, archiveNext)}
                 disabled={isArchiving}
               >
-                {isArchiving ? (archiveNext ? 'Archiving...' : 'Restoring...') : archiveNext ? 'Archive Record' : 'Restore Record'}
+                {isArchiving ? (archiveNext ? 'Disabling...' : 'Enabling...') : archiveNext ? 'Disable Account' : 'Enable Account'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {isDeleteConfirmOpen && deleteTarget && (
-        <div className={styles.modalOverlay} style={{ zIndex: 1100 }}>
-          <div className={styles.modal} style={{ maxWidth: '420px' }}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Delete Homeowner Record</h2>
-            </div>
-            <div className={styles.modalBody} style={{ padding: '20px 0', color: '#4b5563' }}>
-              <p>
-                This will permanently delete the record for {deleteTarget.firstName} {deleteTarget.lastName}.
-              </p>
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => {
-                  setIsDeleteConfirmOpen(false)
-                  setDeleteTarget(null)
-                }}
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                onClick={() => handleDeleteRecord(deleteTarget)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Record'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-    </main>
+
+    </>
   )
 }
 
 export default function HomeownerManagementPage() {
   return (
-    <Suspense fallback={<div className={styles.page}>Loading homeowner management...</div>}>
+    <Suspense fallback={<p className={styles.stateText}>Loading homeowner management...</p>}>
       <HomeownerManagementInner />
     </Suspense>
   )

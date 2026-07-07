@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState } from 'react'
-import { HiOutlineCalendarDays as ActivityIcon, HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
-import { apiClient } from '@/lib/apiClient'
+import { HiOutlineCalendarDays as AnnouncementIcon, HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
-import styles from './hoa-activities.module.css'
+import styles from './hoa-announcements.module.css'
 
 const EMPTY_FORM = {
   title: '',
@@ -58,26 +58,26 @@ const formatReporter = (user) => {
   return String(user.email || '').trim()
 }
 
-const mapActivity = (activity = {}) => ({
-  id: String(activity._id || ''),
-  title: String(activity.title || '-'),
-  details: String(activity.content || ''),
-  reporter: formatReporter(activity.users?._id),
+const mapAnnouncement = (announcement = {}) => ({
+  id: String(announcement._id || ''),
+  title: String(announcement.title || '-'),
+  details: String(announcement.content || ''),
+  reporter: formatReporter(announcement.users?._id),
   location: '',
-  postedDate: activity.createdAt || activity.date || null,
-  eventDate: activity.date || null,
-  images: activity.pictures?._id?.path ? [String(activity.pictures._id.path)] : [],
-  pictureId: activity.pictures?._id?._id ? String(activity.pictures._id._id) : '',
-  archived: Boolean(activity.archived)
+  postedDate: announcement.createdAt || announcement.date || null,
+  eventDate: announcement.date || null,
+  images: announcement.pictures?._id?.path ? [String(announcement.pictures._id.path)] : [],
+  pictureId: announcement.pictures?._id?._id ? String(announcement.pictures._id._id) : '',
+  archived: Boolean(announcement.archived)
 })
 
-export default function HOAActivitiesPage() {
-  const [activities, setActivities] = useState([])
+export default function HOAAnnouncementsPage() {
+  const [announcements, setAnnouncements] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false)
-  const [selectedActivity, setSelectedActivity] = useState(null)
-  const [isEditingActivity, setIsEditingActivity] = useState(false)
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
+  const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [archivedPage, setArchivedPage] = useState(1)
@@ -87,33 +87,33 @@ export default function HOAActivitiesPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const sortedActivities = useMemo(
+  const sortedAnnouncements = useMemo(
     () =>
-      [...activities]
-        .filter((activity) => !activity.archived)
+      [...announcements]
+        .filter((announcement) => !announcement.archived)
         .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
-    [activities]
+    [announcements]
   )
 
-  const archivedActivities = useMemo(
+  const archivedAnnouncements = useMemo(
     () =>
-      [...activities]
-        .filter((activity) => activity.archived)
+      [...announcements]
+        .filter((announcement) => announcement.archived)
         .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
-    [activities]
+    [announcements]
   )
 
-  const totalPages = Math.max(Math.ceil(sortedActivities.length / PAGE_SIZE), 1)
-  const pagedActivities = useMemo(() => {
+  const totalPages = Math.max(Math.ceil(sortedAnnouncements.length / PAGE_SIZE), 1)
+  const pagedAnnouncements = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE
-    return sortedActivities.slice(start, start + PAGE_SIZE)
-  }, [currentPage, sortedActivities])
+    return sortedAnnouncements.slice(start, start + PAGE_SIZE)
+  }, [currentPage, sortedAnnouncements])
 
-  const archivedTotalPages = Math.max(Math.ceil(archivedActivities.length / PAGE_SIZE), 1)
-  const pagedArchivedActivities = useMemo(() => {
+  const archivedTotalPages = Math.max(Math.ceil(archivedAnnouncements.length / PAGE_SIZE), 1)
+  const pagedArchivedAnnouncements = useMemo(() => {
     const start = (archivedPage - 1) * PAGE_SIZE
-    return archivedActivities.slice(start, start + PAGE_SIZE)
-  }, [archivedActivities, archivedPage])
+    return archivedAnnouncements.slice(start, start + PAGE_SIZE)
+  }, [archivedAnnouncements, archivedPage])
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -127,25 +127,25 @@ export default function HOAActivitiesPage() {
     }
   }, [archivedPage, archivedTotalPages])
 
-  const loadActivities = async () => {
+  const loadAnnouncements = async () => {
     try {
       setIsLoading(true)
       const response = await apiClient.get('/activities')
       const raw = Array.isArray(response?.data) ? response.data : []
-      setActivities(raw.map(mapActivity))
+      setAnnouncements(raw.map(mapAnnouncement))
     } catch (error) {
       notify.error({
-        title: 'Failed to Load Activities',
-        description: error.message || 'Unable to fetch HOA activities.'
+        title: 'Failed to Load Announcements',
+        description: error.message || 'Unable to fetch HOA Announcements.'
       })
-      setActivities([])
+      setAnnouncements([])
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    loadActivities()
+    loadAnnouncements()
   }, [])
 
   const openCreateModal = () => {
@@ -166,22 +166,22 @@ export default function HOAActivitiesPage() {
     setIsArchivedModalOpen(false)
   }
 
-  const openActivityModal = (activity) => {
-    setSelectedActivity(activity)
+  const openAnnouncementModal = (announcement) => {
+    setSelectedAnnouncement(announcement)
     setEditForm({
-      title: activity.title,
-      details: activity.details,
-      eventDate: activity.eventDate ? String(activity.eventDate).slice(0, 10) : '',
+      title: announcement.title,
+      details: announcement.details,
+      eventDate: announcement.eventDate ? String(announcement.eventDate).slice(0, 10) : '',
       imageNames: [],
-      pictureId: activity.pictureId || '',
-      imageUrl: activity.images?.[0] || ''
+      pictureId: announcement.pictureId || '',
+      imageUrl: announcement.images?.[0] || ''
     })
-    setIsEditingActivity(false)
+    setIsEditingAnnouncement(false)
   }
 
-  const closeActivityModal = () => {
-    setSelectedActivity(null)
-    setIsEditingActivity(false)
+  const closeAnnouncementModal = () => {
+    setSelectedAnnouncement(null)
+    setIsEditingAnnouncement(false)
     setEditForm(EMPTY_FORM)
   }
 
@@ -193,7 +193,7 @@ export default function HOAActivitiesPage() {
     setEditForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const uploadActivityImage = async (file, target = 'create') => {
+  const uploadAnnouncementImage = async (file, target = 'create') => {
     if (!file) {
       return
     }
@@ -210,10 +210,15 @@ export default function HOAActivitiesPage() {
 
     try {
       const dataUrl = await readFileAsDataUrl(file)
-      const response = await apiClient.post('/activities/upload-photo', {
+      const response = await offlineApiClient.post('/activities/upload-photo', {
         imageDataUrl: dataUrl,
         fileName: file.name,
         mimeType: file.type
+      }, {
+        metadata: {
+          type: 'upload-announcement-photo',
+          label: `Uploading announcement image: ${file.name}`
+        }
       })
 
       const uploaded = response?.data
@@ -231,24 +236,31 @@ export default function HOAActivitiesPage() {
 
       notify.success({
         title: 'Image Uploaded',
-        description: 'Activity image uploaded successfully.'
+        description: 'Announcement image uploaded successfully.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Image Upload Failed',
-        description: error.message || 'Unable to upload activity image.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Image upload saved offline. It will be uploaded automatically when you're back online."
+        })
+      } else {
+        notify.error({
+          title: 'Image Upload Failed',
+          description: error.message || 'Unable to upload announcement image.'
+        })
+      }
     } finally {
       setIsUploadingImage(false)
     }
   }
 
-  const createActivity = async () => {
+  const createAnnouncement = async () => {
     if (isSaving) return
     if (!form.title.trim() || !form.details.trim()) {
       notify.error({
         title: 'Missing Required Details',
-        description: 'Please provide an activity title and details.'
+        description: 'Please provide an announcement title and details.'
       })
       return
     }
@@ -265,28 +277,41 @@ export default function HOAActivitiesPage() {
         payload['pictures._id'] = form.pictureId
       }
 
-      const response = await apiClient.post('/activities', payload)
-      const created = mapActivity(response?.data)
-      setActivities((prev) => [created, ...prev])
+      const response = await offlineApiClient.post('/activities', payload, {
+        metadata: {
+          type: 'create-announcement',
+          label: `Posting announcement: ${payload.title}`
+        }
+      })
+      const created = mapAnnouncement(response?.data)
+      setAnnouncements((prev) => [created, ...prev])
 
       notify.success({
-        title: 'Activity Posted',
-        description: 'The new HOA activity has been added successfully.'
+        title: 'Announcement Posted',
+        description: 'The new HOA announcement has been added successfully.'
       })
       closeCreateModal()
     } catch (error) {
-      notify.error({
-        title: 'Post Failed',
-        description: error.message || 'Unable to post activity.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeCreateModal()
+      } else {
+        notify.error({
+          title: 'Post Failed',
+          description: error.message || 'Unable to post announcement.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
   }
 
-  const saveActivityEdits = async () => {
+  const saveAnnouncementEdits = async () => {
     if (isSaving) return
-    if (!selectedActivity || !editForm.title.trim() || !editForm.details.trim()) {
+    if (!selectedAnnouncement || !editForm.title.trim() || !editForm.details.trim()) {
       notify.error({
         title: 'Missing Required Details',
         description: 'Title and details are required before saving changes.'
@@ -303,33 +328,46 @@ export default function HOAActivitiesPage() {
         'pictures._id': editForm.pictureId || null
       }
 
-      const response = await apiClient.put(`/activities/${selectedActivity.id}`, payload)
-      const updated = mapActivity(response?.data)
+      const response = await offlineApiClient.put(`/activities/${selectedAnnouncement.id}`, payload, {
+        metadata: {
+          type: 'update-announcement',
+          label: `Updating announcement: ${payload.title}`
+        }
+      })
+      const updated = mapAnnouncement(response?.data)
 
-      setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
-      setSelectedActivity(updated)
-      setIsEditingActivity(false)
+      setAnnouncements((prev) => prev.map((announcement) => (announcement.id === updated.id ? updated : announcement)))
+      setSelectedAnnouncement(updated)
+      setIsEditingAnnouncement(false)
 
       notify.success({
-        title: 'Activity Updated',
-        description: 'Activity details were saved successfully.'
+        title: 'Announcement Updated',
+        description: 'Announcement details were saved successfully.'
       })
     } catch (error) {
-      notify.error({
-        title: 'Update Failed',
-        description: error.message || 'Unable to save activity changes.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setIsEditingAnnouncement(false)
+      } else {
+        notify.error({
+          title: 'Update Failed',
+          description: error.message || 'Unable to save announcement changes.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
   }
 
-  const promptArchiveActivity = (activity) => {
-    setConfirmAction({ type: 'archive', activity })
+  const promptArchiveAnnouncement = (announcement) => {
+    setConfirmAction({ type: 'archive', announcement })
   }
 
-  const promptUnarchiveActivity = (activity) => {
-    setConfirmAction({ type: 'unarchive', activity })
+  const promptUnarchiveAnnouncement = (announcement) => {
+    setConfirmAction({ type: 'unarchive', announcement })
   }
 
   const closeConfirmAction = () => {
@@ -338,7 +376,7 @@ export default function HOAActivitiesPage() {
 
   const runArchiveAction = async () => {
     if (isSaving) return
-    if (!confirmAction?.activity?.id) {
+    if (!confirmAction?.announcement?.id) {
       return
     }
 
@@ -346,126 +384,155 @@ export default function HOAActivitiesPage() {
 
     try {
       setIsSaving(true)
-      const response = await apiClient.put(`/activities/${confirmAction.activity.id}`, {
+      const response = await offlineApiClient.put(`/activities/${confirmAction.announcement.id}`, {
         archived: shouldArchive
+      }, {
+        metadata: {
+          type: 'toggle-announcement-archive',
+          label: `${shouldArchive ? 'Archiving' : 'Restoring'} announcement: ${confirmAction.announcement.title}`
+        }
       })
 
-      const updated = mapActivity(response?.data)
-      setActivities((prev) => prev.map((activity) => (activity.id === updated.id ? updated : activity)))
+      const updated = mapAnnouncement(response?.data)
+      setAnnouncements((prev) => prev.map((announcement) => (announcement.id === updated.id ? updated : announcement)))
 
       if (shouldArchive) {
-        setSelectedActivity(null)
+        setSelectedAnnouncement(null)
       }
 
       notify.success({
-        title: shouldArchive ? 'Activity Archived' : 'Activity Restored',
+        title: shouldArchive ? 'Announcement Archived' : 'Announcement Restored',
         description: shouldArchive
-          ? 'The activity has been moved to archived records.'
-          : 'The activity has been restored to recent activities.'
+          ? 'The announcement has been moved to archived records.'
+          : 'The announcement has been restored to recent announcements.'
       })
 
       closeConfirmAction()
     } catch (error) {
-      notify.error({
-        title: shouldArchive ? 'Archive Failed' : 'Restore Failed',
-        description: error.message || 'Unable to update activity archive status.'
-      })
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeConfirmAction()
+      } else {
+        notify.error({
+          title: shouldArchive ? 'Archive Failed' : 'Restore Failed',
+          description: error.message || 'Unable to update announcement archive status.'
+        })
+      }
     } finally {
       setIsSaving(false)
     }
   }
 
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>HOA Activities</h1>
-          <p className={styles.subtitle}>Post and track community activities and events</p>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>HOA Announcements</h1>
+            <p className={styles.bannerSubtitle}>
+              Post, track, and manage community announcements and events.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
 
         <div className={styles.headerActions}>
           <button type="button" className={styles.recordButton} onClick={openCreateModal}>
-            <ActivityIcon className={styles.recordButtonIcon} aria-hidden="true" />
-            Record New Activity
+            <AnnouncementIcon className={styles.recordButtonIcon} aria-hidden="true" />
+            Post New Announcement
           </button>
 
           <button type="button" className={styles.archivedButton} onClick={openArchivedModal}>
             Archived
           </button>
         </div>
-      </section>
 
-      <section className={styles.listModal}>
-        <div className={styles.listModalHeader}>
-          <h2 className={styles.listTitle}>Recent HOA Activities</h2>
-          <p className={styles.listSubtitle}>Tap any activity card to view full details and edit information.</p>
-        </div>
+        <section className={styles.listModal}>
+          <div className={styles.listModalHeader}>
+            <h2 className={styles.listTitle}>Recent HOA Announcements</h2>
+            <p className={styles.listSubtitle}>Tap any announcement card to view full details and edit information.</p>
+          </div>
 
-        <div className={styles.activityList}>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading activities...</div>
-          ) : sortedActivities.length === 0 ? (
-            <div className={styles.emptyState}>No activities posted yet.</div>
-          ) : (
-            pagedActivities.map((activity) => (
+          <div className={styles.activityList}>
+            {isLoading ? (
+              <div className={styles.emptyState}>Loading announcements...</div>
+            ) : sortedAnnouncements.length === 0 ? (
+              <div className={styles.emptyState}>No announcements posted yet.</div>
+            ) : (
+              pagedAnnouncements.map((announcement) => (
+                <button
+                  type="button"
+                  key={announcement.id}
+                  className={styles.activityMiniModal}
+                  onClick={() => openAnnouncementModal(announcement)}
+                >
+                  <div className={styles.activityTopRow}>
+                    <h3 className={styles.activityTitle}>{announcement.title}</h3>
+                  </div>
+
+                  <p className={styles.activityDetails}>{announcement.details}</p>
+                  <p className={styles.activityMetaLine}>
+                    <span className={styles.metaLabel}>Date Posted:</span> {formatDate(announcement.postedDate)}
+                  </p>
+                  <p className={styles.activityMetaLine}>
+                    <span className={styles.metaLabel}>Posted By:</span> {announcement.reporter || '-'}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+
+          {sortedAnnouncements.length > 0 ? (
+            <div className={styles.pagination}>
               <button
                 type="button"
-                key={activity.id}
-                className={styles.activityMiniModal}
-                onClick={() => openActivityModal(activity)}
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
               >
-                <div className={styles.activityTopRow}>
-                  <h3 className={styles.activityTitle}>{activity.title}</h3>
-                </div>
-
-                <p className={styles.activityDetails}>{activity.details}</p>
-                <p className={styles.activityMetaLine}>
-                  <span className={styles.metaLabel}>Date Posted:</span> {formatDate(activity.postedDate)}
-                </p>
-                <p className={styles.activityMetaLine}>
-                  <span className={styles.metaLabel}>Posted By:</span> {activity.reporter || '-'}
-                </p>
+                Prev
               </button>
-            ))
-          )}
-        </div>
+              <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                className={styles.pageButton}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </section>
 
-        {sortedActivities.length > 0 ? (
-          <div className={styles.pagination}>
-            <button
-              type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Prev
-            </button>
-            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
-            <button
-              type="button"
-              className={styles.pageButton}
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
-        ) : null}
-      </section>
+      </div>
 
       {isCreateModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
-            <h2 className={styles.modalTitle}>Log New Activity</h2>
-            <p className={styles.modalLead}>Track recent HOA activity</p>
+            <h2 className={styles.modalTitle}>Log New Announcement</h2>
+            <p className={styles.modalLead}>Track recent HOA announcement</p>
 
-            <label className={styles.fieldLabel}>Activity Title</label>
+            <label className={styles.fieldLabel}>Announcement Title</label>
             <input
               type="text"
               className={styles.input}
               value={form.title}
               onChange={(event) => handleFormChange('title', event.target.value)}
-              placeholder="Enter activity title"
+              placeholder="Enter announcement title"
             />
 
             <label className={styles.fieldLabel}>Details</label>
@@ -473,7 +540,7 @@ export default function HOAActivitiesPage() {
               className={styles.textarea}
               value={form.details}
               onChange={(event) => handleFormChange('details', event.target.value)}
-              placeholder="Write the activity details"
+              placeholder="Write the announcement details"
             />
 
             <div className={styles.formGrid}>
@@ -493,7 +560,7 @@ export default function HOAActivitiesPage() {
               <input
                 type="file"
                 className={styles.hiddenInput}
-                onChange={(event) => uploadActivityImage(event.target.files?.[0], 'create')}
+                onChange={(event) => uploadAnnouncementImage(event.target.files?.[0], 'create')}
                 accept="image/*"
               />
               <span className={styles.uploadPlus}>+</span>
@@ -507,31 +574,31 @@ export default function HOAActivitiesPage() {
               <button type="button" className={styles.secondaryButton} onClick={closeCreateModal} disabled={isSaving}>
                 Cancel
               </button>
-              <button type="button" className={styles.primaryButton} onClick={createActivity} disabled={isSaving}>
-                {isSaving ? 'Posting...' : 'Post Activity'}
+              <button type="button" className={styles.primaryButton} onClick={createAnnouncement} disabled={isSaving}>
+                {isSaving ? 'Posting...' : 'Post Announcement'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {selectedActivity && (
+      {selectedAnnouncement && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
               <div>
-                <h2 className={styles.modalTitle}>{isEditingActivity ? 'Edit Activity' : selectedActivity.title}</h2>
-                <p className={styles.modalLead}>Posted: {formatDate(selectedActivity.postedDate)}</p>
+                <h2 className={styles.modalTitle}>{isEditingAnnouncement ? 'Edit Announcement' : selectedAnnouncement.title}</h2>
+                <p className={styles.modalLead}>Posted: {formatDate(selectedAnnouncement.postedDate)}</p>
               </div>
 
-              <button type="button" className={styles.closeButton} onClick={closeActivityModal} aria-label="Close">
+              <button type="button" className={styles.closeButton} onClick={closeAnnouncementModal} aria-label="Close">
                 x
               </button>
             </div>
 
-            {isEditingActivity ? (
+            {isEditingAnnouncement ? (
               <>
-                <label className={styles.fieldLabel}>Activity Title</label>
+                <label className={styles.fieldLabel}>Announcement Title</label>
                 <input
                   type="text"
                   className={styles.input}
@@ -563,7 +630,7 @@ export default function HOAActivitiesPage() {
                   <input
                     type="file"
                     className={styles.hiddenInput}
-                    onChange={(event) => uploadActivityImage(event.target.files?.[0], 'edit')}
+                    onChange={(event) => uploadAnnouncementImage(event.target.files?.[0], 'edit')}
                     accept="image/*"
                   />
                   <span className={styles.uploadPlus}>+</span>
@@ -572,10 +639,10 @@ export default function HOAActivitiesPage() {
                 </label>
 
                 <div className={styles.modalActions}>
-                  <button type="button" className={styles.secondaryButton} onClick={() => setIsEditingActivity(false)} disabled={isSaving}>
+                  <button type="button" className={styles.secondaryButton} onClick={() => setIsEditingAnnouncement(false)} disabled={isSaving}>
                     Cancel
                   </button>
-                  <button type="button" className={styles.primaryButton} onClick={saveActivityEdits} disabled={isSaving}>
+                  <button type="button" className={styles.primaryButton} onClick={saveAnnouncementEdits} disabled={isSaving}>
                     {isSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
@@ -583,10 +650,14 @@ export default function HOAActivitiesPage() {
             ) : (
               <>
                 <div className={styles.detailsCard}>
-                  <p className={styles.detailsText}>{selectedActivity.details}</p>
-                  <p className={styles.metaText}>Event Date: {formatDate(selectedActivity.eventDate)}</p>
-                  {selectedActivity.images.length > 0 ? (
-                    <img src={selectedActivity.images[0]} alt={selectedActivity.title} className={styles.previewImage} />
+                  <p className={styles.detailsText}>{selectedAnnouncement.details}</p>
+                  <p className={styles.metaText}>Event Date: {formatDate(selectedAnnouncement.eventDate)}</p>
+                  {selectedAnnouncement.images.length > 0 ? (
+                    <img
+                      src={selectedAnnouncement.images[0]}
+                      alt={selectedAnnouncement.title}
+                      className={styles.previewImage}
+                    />
                   ) : null}
                 </div>
 
@@ -594,13 +665,13 @@ export default function HOAActivitiesPage() {
                   <button
                     type="button"
                     className={styles.secondaryButton}
-                    onClick={() => promptArchiveActivity(selectedActivity)}
+                    onClick={() => promptArchiveAnnouncement(selectedAnnouncement)}
                   >
                     Archive
                   </button>
-                  <button type="button" className={styles.primaryButton} onClick={() => setIsEditingActivity(true)}>
+                  <button type="button" className={styles.primaryButton} onClick={() => setIsEditingAnnouncement(true)}>
                     <EditIcon className={styles.editIcon} aria-hidden="true" />
-                    Edit Activity
+                    Edit Announcement
                   </button>
                 </div>
               </>
@@ -614,8 +685,8 @@ export default function HOAActivitiesPage() {
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
               <div>
-                <h2 className={styles.modalTitle}>Archived Activities</h2>
-                <p className={styles.modalLead}>Review archived activities and restore when needed</p>
+                <h2 className={styles.modalTitle}>Archived Announcements</h2>
+                <p className={styles.modalLead}>Review archived announcements and restore when needed</p>
               </div>
 
               <button type="button" className={styles.closeButton} onClick={closeArchivedModal} aria-label="Close">
@@ -624,25 +695,25 @@ export default function HOAActivitiesPage() {
             </div>
 
             <div className={styles.archivedList}>
-              {archivedActivities.length === 0 ? (
-                <div className={styles.emptyState}>No archived activities found.</div>
+              {archivedAnnouncements.length === 0 ? (
+                <div className={styles.emptyState}>No archived announcements found.</div>
               ) : (
-                pagedArchivedActivities.map((activity) => (
-                  <div key={activity.id} className={styles.archivedItem}>
+                pagedArchivedAnnouncements.map((announcement) => (
+                  <div key={announcement.id} className={styles.archivedItem}>
                     <div>
-                      <h3 className={styles.activityTitle}>{activity.title}</h3>
-                      <p className={styles.activityDetails}>{activity.details}</p>
+                      <h3 className={styles.activityTitle}>{announcement.title}</h3>
+                      <p className={styles.activityDetails}>{announcement.details}</p>
                       <p className={styles.activityMetaLine}>
-                        <span className={styles.metaLabel}>Date Posted:</span> {formatDate(activity.postedDate)}
+                        <span className={styles.metaLabel}>Date Posted:</span> {formatDate(announcement.postedDate)}
                       </p>
                       <p className={styles.activityMetaLine}>
-                        <span className={styles.metaLabel}>Posted By:</span> {activity.reporter || '-'}
+                        <span className={styles.metaLabel}>Posted By:</span> {announcement.reporter || '-'}
                       </p>
                     </div>
                     <button
                       type="button"
                       className={styles.primaryButton}
-                      onClick={() => promptUnarchiveActivity(activity)}
+                      onClick={() => promptUnarchiveAnnouncement(announcement)}
                     >
                       Unarchive
                     </button>
@@ -651,7 +722,7 @@ export default function HOAActivitiesPage() {
               )}
             </div>
 
-            {archivedActivities.length > 0 ? (
+            {archivedAnnouncements.length > 0 ? (
               <div className={styles.pagination}>
                 <button
                   type="button"
@@ -686,12 +757,12 @@ export default function HOAActivitiesPage() {
         <div className={styles.modalOverlay}>
           <div className={`${styles.modal} ${styles.confirmModal}`}>
             <h2 className={styles.confirmTitle}>
-              {confirmAction.type === 'archive' ? 'Archive Activity' : 'Unarchive Activity'}
+              {confirmAction.type === 'archive' ? 'Archive Announcement' : 'Unarchive Announcement'}
             </h2>
             <p className={styles.modalLead}>
               {confirmAction.type === 'archive'
-                ? `Are you sure you want to archive "${confirmAction.activity.title}"?`
-                : `Are you sure you want to unarchive "${confirmAction.activity.title}"?`}
+                ? `Are you sure you want to archive "${confirmAction.announcement.title}"?`
+                : `Are you sure you want to unarchive "${confirmAction.announcement.title}"?`}
             </p>
 
             <div className={styles.modalActions}>
@@ -705,6 +776,6 @@ export default function HOAActivitiesPage() {
           </div>
         </div>
       )}
-    </main>
+    </>
   )
 }

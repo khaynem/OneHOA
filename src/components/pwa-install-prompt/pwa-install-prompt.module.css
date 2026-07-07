@@ -22,6 +22,7 @@
     transform: translateY(40px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -138,7 +139,6 @@
   transform: scale(0.98);
 }
 
-/* iOS Modal overlay and components */
 .overlay {
   position: fixed;
   inset: 0;
@@ -153,8 +153,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .modal {
@@ -173,6 +178,7 @@
     transform: scale(0.95);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -247,7 +253,7 @@
 
 .shareIcon {
   font-size: 18px;
-  color: #007aff; /* Apple Blue tint */
+  color: #007aff;
 }
 
 .iconLabel {
@@ -278,7 +284,6 @@
   transform: scale(0.98);
 }
 
-/* Mobile Responsiveness */
 @media (max-width: 480px) {
   .promptCard {
     bottom: 0;
@@ -297,6 +302,7 @@
     from {
       transform: translateY(100%);
     }
+
     to {
       transform: translateY(0);
     }

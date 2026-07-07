@@ -13,8 +13,8 @@ export default function PwaInstallPrompt() {
   useEffect(() => {
     const checkPwaStatus = () => {
       // 1. Detect if already running in standalone mode (installed app)
-      const isStandalone = 
-        window.matchMedia('(display-mode: standalone)').matches || 
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
         (window.navigator.standalone === true);
 
       if (isStandalone) {
@@ -29,7 +29,7 @@ export default function PwaInstallPrompt() {
       const ua = window.navigator.userAgent.toLowerCase();
       const isIosDevice = /iphone|ipad|ipod/.test(ua);
       const isSafari = /safari/.test(ua) && !/crios/.test(ua) && !/fxios/.test(ua); // Exclude Chrome/Firefox on iOS
-      
+
       if (isIosDevice && isSafari && !dismissed) {
         setIsIOS(true);
         setIsInstallable(true);
@@ -72,7 +72,7 @@ export default function PwaInstallPrompt() {
     if (outcome === 'accepted') {
       setIsInstallable(false);
     }
-    
+
     setInstallPromptEvent(null);
   };
 
@@ -88,14 +88,14 @@ export default function PwaInstallPrompt() {
   return (
     <>
       <div className={styles.promptCard} role="alert" aria-live="polite">
-        <button 
-          className={styles.closeBtn} 
-          onClick={handleDismiss} 
+        <button
+          className={styles.closeBtn}
+          onClick={handleDismiss}
           aria-label="Dismiss install prompt"
         >
           <HiOutlineXMark />
         </button>
-        
+
         <div className={styles.content}>
           <div className={styles.iconCircle}>
             <HiOutlineArrowDownTray className={styles.trayIcon} />
@@ -118,7 +118,6 @@ export default function PwaInstallPrompt() {
         </div>
       </div>
 
-      {/* iOS Step-by-step installation instructions overlay */}
       {showIOSGuide && (
         <div className={styles.overlay} onClick={() => setShowIOSGuide(false)} role="dialog" aria-modal="true">
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -129,7 +128,7 @@ export default function PwaInstallPrompt() {
             <p className={styles.modalText}>
               iOS requires manual PWA installation. Follow these 3 quick steps to save OneHOA to your home screen:
             </p>
-            
+
             <ol className={styles.stepsList}>
               <li className={styles.stepItem}>
                 Tap the **Share** button in Safari’s bottom toolbar.

@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import Setting from "@/lib/server/models/settings";
 import { requireAuth, requireRole } from "@/lib/server/auth";
+import { writeAuditLog } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 
 const SETTING_KEY = "registration_fields";
+const WORK_STATUS_OPTIONS = ["Contractual", "Regular", "Self-Employed", "Freelance", "Unemployed", "Other"];
 
 const DEFAULT_REGISTRATION_FIELDS = [
   { key: "first_name", label: "First Name", type: "text", required: true, isActive: true },
@@ -18,7 +20,7 @@ const DEFAULT_REGISTRATION_FIELDS = [
     key: "work_status",
     label: "Work Status",
     type: "select",
-    options: ["Contractual", "Regular", "Self-Employed", "Freelance", "Business Owner", "Unemployed", "Retired", "Student", "Other"],
+    options: WORK_STATUS_OPTIONS,
     required: true,
     isActive: true,
   },
@@ -37,12 +39,29 @@ const DEFAULT_REGISTRATION_FIELDS = [
   { key: "household_members", label: "Household Members", type: "household_list", required: true, isActive: true },
 ];
 
+const normalizeRegistrationFields = (fields = []) => {
+  if (!Array.isArray(fields)) {
+    return DEFAULT_REGISTRATION_FIELDS
+  }
+
+  return fields.map((field) => {
+    if (field?.key !== "work_status") {
+      return field
+    }
+
+    return {
+      ...field,
+      options: WORK_STATUS_OPTIONS,
+    }
+  })
+};
+
 export async function GET() {
   try {
     await connectToDatabase();
 
     const setting = await Setting.findOne({ key: SETTING_KEY }).lean();
-    let fields = setting?.value || DEFAULT_REGISTRATION_FIELDS;
+    let fields = normalizeRegistrationFields(setting?.value || DEFAULT_REGISTRATION_FIELDS);
 
     if (!fields.find(f => f.key === "email")) {
       const emailField = DEFAULT_REGISTRATION_FIELDS.find(f => f.key === "email");
@@ -81,9 +100,20 @@ export async function PUT(request) {
 
     const setting = await Setting.findOneAndUpdate(
       { key: SETTING_KEY },
-      { value: fields },
+      { value: normalizeRegistrationFields(fields) },
       { new: true, upsert: true }
     ).lean();
+
+    try {
+      await writeAuditLog({
+        request,
+        user,
+        statusCode: 200,
+        detailSummary: "updated registration fields configuration",
+      });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError.message || auditError);
+    }
 
     return NextResponse.json({ success: true, fields: setting.value }, { status: 200 });
   } catch (error) {

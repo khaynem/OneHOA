@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { HiOutlinePencilSquare as EditIcon } from 'react-icons/hi2'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import styles from './account-management.module.css'
 
@@ -134,13 +134,18 @@ export default function AccountManagementClient() {
 
     try {
       setIsSaving(true)
-      const response = await apiClient.post('/users', {
+      const response = await offlineApiClient.post('/users', {
         first_name: normalizeNamePart(form.firstName),
         last_name: normalizeNamePart(form.lastName),
         email: form.email.trim().toLowerCase(),
         role: form.role,
         status: form.status,
         password: temporaryPassword,
+      }, {
+        metadata: {
+          type: 'create-user',
+          label: `Creating user: ${form.firstName} ${form.lastName} (${form.role})`
+        }
       })
 
       const createdUser = mapApiUserToUi(response?.data)
@@ -148,7 +153,15 @@ export default function AccountManagementClient() {
       notify.success('User account created successfully.')
       closeModal()
     } catch (error) {
-      notify.error(error.message || 'Unable to create user account.')
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        closeModal()
+      } else {
+        notify.error(error.message || 'Unable to create user account.')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -186,12 +199,17 @@ export default function AccountManagementClient() {
 
     try {
       setIsSaving(true)
-      const response = await apiClient.put(`/users/${selectedUser.id}`, {
+      const response = await offlineApiClient.put(`/users/${selectedUser.id}`, {
         first_name: normalizeNamePart(editForm.firstName),
         last_name: normalizeNamePart(editForm.lastName),
         email: editForm.email.trim().toLowerCase(),
         role: editForm.role,
         status: editForm.status
+      }, {
+        metadata: {
+          type: 'update-user',
+          label: `Updating user: ${editForm.firstName} ${editForm.lastName}`
+        }
       })
 
       const updatedUser = mapApiUserToUi(response?.data)
@@ -210,7 +228,15 @@ export default function AccountManagementClient() {
       setSelectedUserId(updatedUser.id)
       notify.success('User account updated successfully.')
     } catch (error) {
-      notify.error(error.message || 'Unable to update user account.')
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setIsEditingUser(false)
+      } else {
+        notify.error(error.message || 'Unable to update user account.')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -234,9 +260,16 @@ export default function AccountManagementClient() {
       return
     }
 
+    const pendingDeleteUser = users.find((user) => user.id === pendingDeleteUserId)
+
     try {
       setIsSaving(true)
-      await apiClient.delete(`/users/${pendingDeleteUserId}`)
+      await offlineApiClient.delete(`/users/${pendingDeleteUserId}`, {
+        metadata: {
+          type: 'delete-user',
+          label: `Deleting user: ${pendingDeleteUser?.firstName || 'User'} ${pendingDeleteUser?.lastName || ''}`
+        }
+      })
       setUsers((prev) => prev.filter((user) => user.id !== pendingDeleteUserId))
 
       if (selectedUserId === pendingDeleteUserId) {
@@ -246,7 +279,18 @@ export default function AccountManagementClient() {
       setPendingDeleteUserId(null)
       notify.success('User account deleted successfully.')
     } catch (error) {
-      notify.error(error.message || 'Unable to delete user account.')
+      if (error.isOffline) {
+        notify.info({
+          title: 'Saved Offline',
+          description: "Saved offline. Your changes will be submitted automatically when you're back online."
+        })
+        setPendingDeleteUserId(null)
+        if (selectedUserId === pendingDeleteUserId) {
+          closeViewModal()
+        }
+      } else {
+        notify.error(error.message || 'Unable to delete user account.')
+      }
     } finally {
       setIsSaving(false)
     }
@@ -255,97 +299,114 @@ export default function AccountManagementClient() {
   const pendingDeleteUser = users.find((user) => user.id === pendingDeleteUserId)
 
   return (
-    <main className={styles.page}>
-      <section className={styles.headerRow}>
-        <div>
-          <h1 className={styles.title}>Account Management</h1>
-          <p className={styles.subtitle}>Create and view user accounts for the HOA system</p>
+    <>
+      <div className={styles.backgroundContainer} aria-hidden="true">
+        <div className={styles.gridOverlay} />
+        <div className={styles.blob1} />
+        <div className={styles.blob2} />
+        <div className={styles.movingGradient} />
+      </div>
+
+      <div className={styles.pageContent}>
+        <div className={styles.welcomeBanner}>
+          <div className={styles.bannerContent}>
+            <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
+            <h1 className={styles.bannerTitle}>Account Management</h1>
+            <p className={styles.bannerSubtitle}>
+              Create, edit, and manage user accounts for the HOA system officers and administrators.
+            </p>
+          </div>
+          <div className={styles.bannerVisual} aria-hidden="true">
+            <div className={styles.bannerLogoBg} />
+          </div>
         </div>
 
-        <button type="button" className={styles.addButton} onClick={() => setIsAddModalOpen(true)}>
-          <span className={styles.addIcon}>+</span>
-          Add User
-        </button>
-      </section>
-
-      <section className={styles.searchWrap}>
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            className={styles.searchInput}
-            placeholder="Search users by name or email"
-            aria-label="Search users"
-          />
-          <select
-            className={styles.filterSelect}
-            value={roleFilter}
-            onChange={(event) => setRoleFilter(event.target.value)}
-            aria-label="Filter by role"
-          >
-            <option value="all">All Roles</option>
-            {ROLE_OPTIONS.map((role) => (
-              <option key={role.value} value={role.value}>
-                {role.label}
-              </option>
-            ))}
-          </select>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.addButton} onClick={() => setIsAddModalOpen(true)}>
+            <span className={styles.addIcon}>+</span>
+            Add User
+          </button>
         </div>
-      </section>
 
-      <section className={styles.tableCard}>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        <section className={styles.searchWrap}>
+          <div className={styles.searchRow}>
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              className={styles.searchInput}
+              placeholder="Search users by name or email"
+              aria-label="Search users"
+            />
+            <select
+              className={styles.filterSelect}
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+              aria-label="Filter by role"
+            >
+              <option value="all">All Roles</option>
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        <section className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead>
                 <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
-                    Loading users...
-                  </td>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className={styles.emptyRow}>
-                    No users found.
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>{`${user.firstName} ${user.lastName}`}</td>
-                    <td>{user.email}</td>
-                    <td>{roleLabel(user.role)}</td>
-                    <td>
-                      <span
-                        className={`${styles.statusPill} ${
-                          user.status === 'active' ? styles.statusActive : styles.statusInactive
-                        }`}
-                      >
-                        {statusLabel(user.status)}
-                      </span>
-                    </td>
-                    <td>
-                      <button type="button" className={styles.viewButton} onClick={() => openViewModal(user)}>
-                        View
-                      </button>
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className={styles.emptyRow}>
+                      Loading users...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className={styles.emptyRow}>
+                      No users found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td>{`${user.firstName} ${user.lastName}`}</td>
+                      <td>{user.email}</td>
+                      <td>{roleLabel(user.role)}</td>
+                      <td>
+                        <span
+                          className={`${styles.statusPill} ${user.status === 'active' ? styles.statusActive : styles.statusInactive
+                            }`}
+                        >
+                          {statusLabel(user.status)}
+                        </span>
+                      </td>
+                      <td>
+                        <button type="button" className={styles.viewButton} onClick={() => openViewModal(user)}>
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
 
       {isAddModalOpen && (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Add user">
@@ -581,6 +642,6 @@ export default function AccountManagementClient() {
           </div>
         </div>
       )}
-    </main>
+    </>
   )
 }

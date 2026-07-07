@@ -6,12 +6,12 @@ import "@/lib/server/models/pictures";
 import "@/lib/server/models/users";
 import { requireAuth } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
+import { broadcastAnnouncementEmail } from "@/lib/server/services/emailService";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    await requireAuth();
     await connectToDatabase();
 
     const activities = await Activity.find()
@@ -82,6 +82,11 @@ export async function POST(request) {
     } catch (auditError) {
       console.error("Failed to write audit log:", auditError.message || auditError);
     }
+
+    // Fire background email broadcast to all registered homeowners
+    broadcastAnnouncementEmail(populated).catch((emailError) => {
+      console.error("[Activities API] Background email broadcast failed:", emailError);
+    });
 
     return NextResponse.json({ success: true, data: populated }, { status: 201 });
   } catch (error) {

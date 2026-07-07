@@ -5,19 +5,26 @@ import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDa
 import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
 import Topnav from '../../components/topnav/topnav'
+import OfflineIndicator from '../../components/offline-indicator/offline-indicator'
 import styles from './layout.module.css'
 
 const BASE_APP_LINKS = [
   { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
   { href: '/homeowner-management', label: 'Masterlist Record', Icon: HiOutlineUsers },
   { href: '/payment-monitoring', label: 'Payment Tracker', Icon: HiOutlineCreditCard },
-  { href: '/hoa-activities', label: 'HOA Activities', Icon: HiOutlineCalendarDays },
+  { href: '/hoa-announcements', label: 'HOA Announcements', Icon: HiOutlineCalendarDays },
 ]
 
 const ACCOUNT_MANAGEMENT_LINK = {
   href: '/admin/account-management',
   label: 'Account Management',
   Icon: HiOutlineUsers,
+}
+
+const ACTIVITY_LOGS_LINK = {
+  href: '/admin/activity-logs',
+  label: 'Activity Log',
+  Icon: HiOutlineCalendarDays,
 }
 
 function canAccessAccountManagement(role) {
@@ -33,7 +40,7 @@ export default function AppRouteGroupLayout({ children }) {
 
   const currentUserRole = currentUser?.role || ''
   const normalizedRole = String(currentUserRole).trim().toLowerCase()
-  
+
   const appLinks = [...BASE_APP_LINKS]
   if (normalizedRole === 'admin' || normalizedRole === 'president') {
     appLinks.splice(2, 0, {
@@ -44,6 +51,7 @@ export default function AppRouteGroupLayout({ children }) {
   }
   if (normalizedRole === 'admin') {
     appLinks.push(ACCOUNT_MANAGEMENT_LINK)
+    appLinks.push(ACTIVITY_LOGS_LINK)
   }
 
   useEffect(() => {
@@ -112,7 +120,6 @@ export default function AppRouteGroupLayout({ children }) {
     }
   }, [])
 
-  // Auto-close sidebar on navigation inside mobile/tablet viewport
   useEffect(() => {
     if (isMobileView) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -123,8 +130,7 @@ export default function AppRouteGroupLayout({ children }) {
   return (
     <div className={styles.shell}>
       <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} user={currentUser} />
-      
-      {/* Backdrop overlay for mobile/tablet when sidebar drawer is active */}
+
       {isMobileView && !isSidebarCollapsed && (
         <div
           className={styles.mobileBackdrop}
@@ -134,6 +140,7 @@ export default function AppRouteGroupLayout({ children }) {
       )}
 
       <div className={styles.mainColumn}>
+        <OfflineIndicator />
         <Topnav
           user={currentUser}
           isSidebarCollapsed={isSidebarCollapsed}

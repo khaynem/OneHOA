@@ -43,7 +43,7 @@ export async function GET(request) {
       monthKeySet.add(key);
     }
 
-    const records = await Record.find({ archived: { $ne: true } })
+    const records = await Record.find({})
       .select("_id first_name last_name household_no")
       .sort({ last_name: 1, first_name: 1 })
       .lean();

@@ -1,9 +1,10 @@
 .container {
   min-height: 100vh;
   display: flex;
-  background: #e7e7e7;
+  background: #dde6f0;
   overflow: hidden;
   transition: background-color 220ms ease;
+  position: relative;
 }
 
 .leftPane {
@@ -12,8 +13,76 @@
   align-items: center;
   justify-content: center;
   padding: 2.5rem 2rem;
-  background: #efefef;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #dae5f3 0%, #eaf1f9 40%, #f0f5fa 70%, #e3edf8 100%);
   transition: flex-basis 280ms ease, padding 280ms ease;
+}
+
+.leftPane::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  left: -120px;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(255, 220, 30, 0.52);
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: multiply;
+}
+
+.leftPane::after {
+  content: '';
+  position: absolute;
+  bottom: -80px;
+  right: -80px;
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+  background: rgba(60, 150, 255, 0.42);
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: multiply;
+}
+
+.square1 {
+  position: absolute;
+  top: 15%;
+  left: 10%;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 2.5px solid rgba(0, 112, 196, 0.12);
+  pointer-events: none;
+  z-index: 1;
+  animation: floatSquare1 8s ease-in-out infinite;
+}
+
+.square2 {
+  position: absolute;
+  bottom: 15%;
+  right: 12%;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 202, 40, 0.18);
+  pointer-events: none;
+  z-index: 1;
+  animation: floatSquare2 10s ease-in-out infinite;
+}
+
+@keyframes floatSquare1 {
+  0%, 100% { transform: rotate(25deg) translateY(0px); }
+  50% { transform: rotate(25deg) translateY(-10px); }
+}
+
+@keyframes floatSquare2 {
+  0%, 100% { transform: rotate(-15deg) translateY(0px); }
+  50% { transform: rotate(-15deg) translateY(-8px); }
 }
 
 .formCard {
@@ -21,10 +90,14 @@
   max-width: 436px;
   min-height: 470px;
   padding: 2.55rem 1.75rem 1.85rem;
-  border: 1px solid #b6b6b6;
-  border-radius: 8px;
-  background: #f4f4f4;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 103, 181, 0.15);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0, 59, 117, 0.12), 0 4px 16px rgba(0, 103, 181, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  position: relative;
+  z-index: 2;
   transition: max-width 280ms ease, min-height 280ms ease, padding 280ms ease;
 }
 
@@ -108,9 +181,11 @@
 }
 
 .input:focus {
-  border-color: #7caad4;
-  box-shadow: 0 0 0 2px rgba(0, 102, 181, 0.12);
+  border-color: #0070c4;
+  box-shadow: 0 0 0 3px rgba(0, 102, 181, 0.15);
+  background: #ffffff;
 }
+
 
 .rowOptions {
   margin-top: -0.2rem;
@@ -175,6 +250,28 @@
   line-height: 1.5;
 }
 
+.formCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 5%;
+  right: 5%;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, #003B75, #0070C4, #38bdf8);
+  opacity: 0.75;
+}
+
+.dotGrid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(0, 59, 117, 0.12) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+
 .disclaimerLink {
   color: #0067b5;
   font-weight: 600;
@@ -224,14 +321,39 @@
   text-align: center;
   padding: 2rem 2.3rem;
   border-radius: 34px 0 0 34px;
-  box-shadow: -3px 0 10px rgba(0, 0, 0, 0.22);
+  box-shadow: -6px 0 30px rgba(0, 40, 100, 0.3);
+  overflow: hidden;
   background-image:
-    linear-gradient(rgba(0, 100, 178, 0.9), rgba(0, 100, 178, 0.9)),
+    linear-gradient(160deg, rgba(0, 70, 145, 0.92) 0%, rgba(0, 100, 178, 0.88) 50%, rgba(0, 130, 200, 0.92) 100%),
     url('/images/HOA Background.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   transition: flex-basis 280ms ease, min-width 280ms ease, padding 280ms ease, border-radius 280ms ease;
+}
+
+.rightPane::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.rightPane::after {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
 }
 
 .brandContent {

@@ -52,6 +52,7 @@ export default function Topnav({
 	}, [user])
 
 	const isPresident = String(currentUser?.role || '').toLowerCase() === 'president'
+	const shouldPollNotifications = isPresident && notificationsOpen
 
 	const fetchNotifications = async () => {
 		if (!isPresident) {
@@ -63,7 +64,7 @@ export default function Topnav({
 		setIsLoadingNotifications(true)
 		try {
 			const response = await apiClient.get('/notifications', {
-				query: { page: 1, limit: 10 },
+				query: { page: 1, limit: 10, summary: true },
 			})
 
 			setNotifications(Array.isArray(response?.data) ? response.data : [])
@@ -82,7 +83,7 @@ export default function Topnav({
 	}, [isPresident])
 
 	useEffect(() => {
-		if (!isPresident) {
+		if (!shouldPollNotifications) {
 			return undefined
 		}
 
@@ -92,7 +93,7 @@ export default function Topnav({
 
 		return () => window.clearInterval(timer)
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isPresident])
+	}, [shouldPollNotifications])
 
 	const handleToggleNotifications = async () => {
 		setNotificationsOpen((prev) => !prev)

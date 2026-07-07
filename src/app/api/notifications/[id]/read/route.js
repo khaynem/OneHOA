@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/server/db";
 import Notification from "@/lib/server/models/notifications";
 import { requireAuth, requireRole } from "@/lib/server/auth";
+import { writeAuditLog } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,17 @@ export async function PATCH(request, { params }) {
 
     if (!updated) {
       return NextResponse.json({ message: "Notification not found" }, { status: 404 });
+    }
+
+    try {
+      await writeAuditLog({
+        request,
+        user,
+        statusCode: 200,
+        detailSummary: "marked a notification as read",
+      });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError.message || auditError);
     }
 
     return NextResponse.json({ success: true, data: updated }, { status: 200 });

@@ -75,7 +75,7 @@
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, transparent 60%);
   pointer-events: none;
 }
 
@@ -213,7 +213,6 @@
   color: var(--color-main);
 }
 
-/* DPO Card Styling */
 .dpoCard {
   background: linear-gradient(to right, #f8fafc, #eff6ff);
   border: 1px solid #bfdbfe;

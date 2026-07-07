@@ -49,6 +49,9 @@ export default function LoginPage() {
   return (
     <main className={styles.container}>
       <section className={styles.leftPane}>
+        <div className={styles.dotGrid} aria-hidden="true" />
+        <div className={styles.square1} aria-hidden="true" />
+        <div className={styles.square2} aria-hidden="true" />
         <div className={styles.formCard}>
           <h1 className={styles.title}>Login</h1>
           <p className={styles.lead}>Login your account to continue</p>
@@ -129,11 +132,11 @@ export default function LoginPage() {
           />
           <h2 className={styles.brandTitle}>OneHOA</h2>
           <p className={styles.brandLead}>
-            Management Information System for
+            Streamlining records, payments,
             <br />
-            Homeowner Records, ID Generation,
+            and community operations
             <br />
-            and Dues Monitoring
+            in one unified platform.
           </p>
         </div>
         <p className={styles.copyright}>© 2026 Endurix. All rights reserved.</p>

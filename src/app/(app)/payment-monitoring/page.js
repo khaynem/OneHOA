@@ -1246,10 +1246,21 @@ export default function PaymentMonitoringPage() {
       })
     } catch (error) {
       const errorName = String(error?.name || '')
-      const description =
-        errorName === 'NotFoundError'
-          ? 'No printer was selected. Please choose a port to continue.'
-          : error.message || 'Unable to print receipt.'
+      const errorMsg = String(error?.message || '')
+      let description = ''
+
+      if (errorName === 'NotFoundError') {
+        description = 'No printer was selected. Please choose a port to continue.'
+      } else if (errorMsg.includes('Access denied')) {
+        description = 'Windows blocked the printer. Use "Zadig" tool (zadig.akeo.ie) to install WinUSB driver for your printer, then restart Chrome.'
+      } else if (errorMsg.includes('claimInterface')) {
+        description = 'Another browser (e.g. Chrome) is already using the printer. Close all other browsers and tabs, then try again. Only one browser can access the USB printer at a time.'
+      } else if (errorMsg.includes('Bluetooth') || errorMsg.includes('GATT') || errorMsg.includes('gatt') || errorMsg.includes('Connection')) {
+        description = 'Bluetooth connection to printer failed. Make sure the printer is turned on, in pairing mode, and not already connected to another device. Try unpairing and pairing again in Windows Bluetooth settings.'
+      } else {
+        description = errorMsg || 'Unable to print receipt. Check your printer connection and try again.'
+      }
+
       notify.error({
         title: 'Print Failed',
         description

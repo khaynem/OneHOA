@@ -1845,8 +1845,20 @@ export default function PaymentMonitoringPage() {
       {selectedPaymentRecord && (
         <div className={styles.modalOverlay}>
           <div className={`${styles.modal} ${styles.viewModal}`}>
-            <h2 className={styles.modalTitle}>Payment Record Details</h2>
-            <p className={styles.modalLead}>Full details for the selected payment record</p>
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 className={styles.modalTitle}>Payment Record Details</h2>
+                <p className={styles.modalLead}>Full details for the selected payment record</p>
+              </div>
+              <button
+                type="button"
+                className={styles.closeIconButton}
+                onClick={closePaymentViewModal}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
 
             <div className={styles.formGrid}>
               <div className={styles.fullSpan}>
@@ -1949,9 +1961,6 @@ export default function PaymentMonitoringPage() {
                   <option value="bluetooth">Bluetooth</option>
                 </select>
               </div>
-              <button type="button" className={styles.secondaryButton} onClick={closePaymentViewModal}>
-                Close
-              </button>
               <button
                 type="button"
                 className={styles.printButton}

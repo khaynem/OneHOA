@@ -320,7 +320,7 @@ export default function PendingRegistrationsPage() {
                       onClick={() => setSelectedReg(null)}
                       aria-label="Close details"
                     >
-                      &times;
+                      ✕
                     </button>
                   </div>
                 </div>

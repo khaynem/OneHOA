@@ -414,7 +414,7 @@ export default function AccountManagementClient() {
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Add New User</h2>
               <button type="button" className={styles.closeButton} onClick={closeModal} aria-label="Close">
-                x
+                ✕
               </button>
             </div>
 
@@ -512,7 +512,7 @@ export default function AccountManagementClient() {
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>User Details</h2>
               <button type="button" className={styles.closeButton} onClick={closeViewModal} aria-label="Close">
-                x
+                ✕
               </button>
             </div>
 

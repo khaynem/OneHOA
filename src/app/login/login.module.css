@@ -76,13 +76,27 @@
 }
 
 @keyframes floatSquare1 {
-  0%, 100% { transform: rotate(25deg) translateY(0px); }
-  50% { transform: rotate(25deg) translateY(-10px); }
+
+  0%,
+  100% {
+    transform: rotate(25deg) translateY(0px);
+  }
+
+  50% {
+    transform: rotate(25deg) translateY(-10px);
+  }
 }
 
 @keyframes floatSquare2 {
-  0%, 100% { transform: rotate(-15deg) translateY(0px); }
-  50% { transform: rotate(-15deg) translateY(-8px); }
+
+  0%,
+  100% {
+    transform: rotate(-15deg) translateY(0px);
+  }
+
+  50% {
+    transform: rotate(-15deg) translateY(-8px);
+  }
 }
 
 .formCard {
@@ -434,12 +448,15 @@
   .container {
     flex-direction: column;
     align-items: center;
+    overflow-y: auto;
+    background: linear-gradient(145deg, #dae5f3 0%, #eaf1f9 40%, #f0f5fa 70%, #e3edf8 100%);
     --module-width: min(calc(100% - 2rem), 560px);
     --module-overlap: clamp(1.85rem, 3.2vw, 2.35rem);
     --module-top-height: clamp(250px, 34svh, 320px);
     --module-top-pad: clamp(1.1rem, 2.2vw, 1.35rem);
     padding-bottom: var(--module-overlap);
     padding-top: 1rem;
+    z-index: 0;
   }
 
   .rightPane {
@@ -466,7 +483,14 @@
     margin: 0.7rem auto 0;
   }
 
-  .brandTitle,
+  .brandTitle {
+    display: block;
+    color: #ffffff;
+    font-size: clamp(1.6rem, 5.2vw, 2.2rem);
+    margin-top: 0.5rem;
+    font-weight: 600;
+  }
+
   .brandLead,
   .copyright {
     display: none;
@@ -478,11 +502,22 @@
     width: var(--module-width);
     padding: 0 0 1.25rem;
     margin-top: 0;
-    transform: translateY(calc(-1 * var(--module-overlap)));
     background: transparent;
+    overflow: visible;
     position: relative;
-    z-index: 2;
-    transition: transform 280ms ease, width 280ms ease, padding 280ms ease;
+    z-index: auto;
+    transition: width 280ms ease, padding 280ms ease;
+  }
+
+  .dotGrid,
+  .square1,
+  .square2 {
+    z-index: -1;
+  }
+
+  .leftPane::before,
+  .leftPane::after {
+    z-index: -2;
   }
 
   .formCard {
@@ -492,6 +527,10 @@
     border-radius: 26px 26px 16px 16px;
     padding: 3rem 1.45rem 1.35rem;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+    position: relative;
+    z-index: 2;
+    transform: translateY(calc(-1 * var(--module-overlap)));
+    transition: transform 280ms ease;
   }
 
   .form {
@@ -530,7 +569,7 @@
   }
 
   .button {
-    width: 50%;
+    width: 85%;
     height: 42px;
     font-size: 1.08rem;
   }
@@ -599,7 +638,7 @@
   }
 
   .input {
-    height: 39px;
+    height: 42px;
     border-radius: 7px;
     font-size: 0.84rem;
   }
@@ -610,7 +649,7 @@
   }
 
   .button {
-    width: 50%;
+    width: 85%;
     height: 42px;
     font-size: 1.08rem;
   }
@@ -658,7 +697,7 @@
   }
 
   .input {
-    height: 37px;
+    height: 42px;
   }
 
   .rowOptions {
@@ -666,13 +705,14 @@
   }
 
   .button {
-    width: 60%;
-    font-size: 1rem;
-    height: 39px;
+    width: 85%;
+    font-size: 1.08rem;
+    height: 42px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .container,
   .leftPane,
   .rightPane,

@@ -74,39 +74,7 @@
   text-transform: uppercase;
 }
 
-.syncButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #047857;
-  color: #ffffff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-.syncButton:hover:not(:disabled) {
-  background: #065f46;
-  transform: translateY(-1px);
-}
-
-.syncButton:disabled {
-  background: #6ee7b7;
-  color: #065f46;
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-
-.buttonIcon {
-  font-size: 14px;
-}
-
-.syncing .buttonIcon {
+.spinning {
   animation: spin 1s linear infinite;
 }
 

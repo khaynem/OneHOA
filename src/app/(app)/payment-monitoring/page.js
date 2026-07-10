@@ -1376,6 +1376,7 @@ export default function PaymentMonitoringPage() {
         title: 'Payment Recorded',
         description: `${matchedHomeowner.name}'s payment has been added.`
       })
+
       const receiptData = buildReceiptFromForm(
         matchedHomeowner,
         amountPaid,
@@ -1388,7 +1389,7 @@ export default function PaymentMonitoringPage() {
       }
       closeRecordModal()
       await loadPaymentMonitoringData()
- 
+
       if (shouldPrint) {
         await handlePrintReceipt(receiptData)
       }
@@ -1398,6 +1399,18 @@ export default function PaymentMonitoringPage() {
           title: 'Saved Offline',
           description: "Saved offline. Your changes will be submitted automatically when you're back online."
         })
+
+        if (shouldPrint) {
+          const receiptData = buildReceiptFromForm(
+            matchedHomeowner,
+            amountPaid,
+            numericReceiptNo,
+            paymentForPeriods,
+            paymentDate
+          )
+          await handlePrintReceipt(receiptData)
+        }
+
         closeRecordModal()
       } else {
         notify.error({

@@ -127,8 +127,8 @@ const isOwnerOccupant = (value) => normalizeOccupantStatus(value).toLowerCase() 
 const getStatusForOccupant = (statusValue, occupantStatus) =>
   isOwnerOccupant(occupantStatus) ? statusValue : NON_OWNER_STATUS
 
-const statusListToSingleOption = (statuses) => {
-  const list = normalizeStatusList(statuses)
+const statusListToSingleOption = (status) => {
+  const list = normalizeStatusList(status)
     .map((entry) => {
       const normalized = String(entry || '').trim()
       const alias = STATUS_ALIASES.get(normalized.toLowerCase())
@@ -151,14 +151,14 @@ const statusListToSingleOption = (statuses) => {
 }
 
 const STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'All membership statuses', type: 'all' },
+  { value: 'all', label: 'All membership status', type: 'all' },
   { value: 'ho-non-hvna', label: 'HO, not HVNA member', type: 'status', match: 'HO, not HVNA member' },
   { value: 'ho-hvna', label: 'HO, HVNA member', type: 'status', match: 'HO, HVNA member' },
   { value: 'na', label: 'N/A', type: 'status', match: 'N/A' }
 ]
 
 const PAYMENT_FILTER_OPTIONS = [
-  { value: 'all', label: 'All payment statuses' },
+  { value: 'all', label: 'All payment status' },
   { value: 'current-due', label: 'Monthly due this month (unpaid)' },
   { value: 'past-due', label: 'Past monthly dues unpaid' }
 ]
@@ -1571,7 +1571,7 @@ function HomeownerManagementInner() {
             <span className={styles.bannerBadge}>Fiesta Community Hanjin Village</span>
             <h1 className={styles.bannerTitle}>Masterlist Record</h1>
             <p className={styles.bannerSubtitle}>
-              Register, search, filter, and manage homeowner records and membership statuses.
+              Register, search, filter, and manage homeowner records and membership status.
             </p>
           </div>
           <div className={styles.bannerVisual} aria-hidden="true">

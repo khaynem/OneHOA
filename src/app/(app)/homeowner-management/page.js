@@ -2427,7 +2427,6 @@ function HomeownerManagementInner() {
                   )}
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Job Title</p>
                   {isEditingHomeowner ? (
                     <JobTitleField
                       label="Job Title"
@@ -2441,7 +2440,10 @@ function HomeownerManagementInner() {
                       placeholder="Enter job title"
                     />
                   ) : (
-                    <p className={styles.detailValue}>{selectedHomeowner.jobDescription}</p>
+                    <>
+                      <p className={styles.detailLabel}>Job Title</p>
+                      <p className={styles.detailValue}>{selectedHomeowner.jobDescription}</p>
+                    </>
                   )}
                 </div>
                 <div>

@@ -34,6 +34,11 @@ const formatFileSize = (bytes) => {
   return `${mb.toFixed(2)} MB`
 }
 
+const NAME_FIELDS = new Set(['first_name', 'middle_name', 'last_name', 'suffix'])
+
+const toProperCase = (str) =>
+  str.replace(/\b\w/g, (char) => char.toUpperCase())
+
 export default function RegisterHomeownerPage() {
   const [fields, setFields] = useState([])
   const [isLoadingFields, setIsLoadingFields] = useState(true)
@@ -479,7 +484,7 @@ export default function RegisterHomeownerPage() {
                   type="text"
                   className={styles.input}
                   value={member.name}
-                  onChange={(e) => handleHouseholdChange(index, 'name', e.target.value)}
+                  onChange={(e) => handleHouseholdChange(index, 'name', toProperCase(e.target.value))}
                   placeholder="e.g. Juan Dela Cruz"
                   required
                 />
@@ -572,11 +577,18 @@ export default function RegisterHomeownerPage() {
         onChange={(e) => {
           const val = e.target.value
           if (field.type === 'number') {
-            handleInputChange(key, val.replace(/\D/g, ''))
+            const digits = val.replace(/\D/g, '')
+            const maxLen = key === 'block' ? 2 : key === 'lot' ? 3 : key === 'entry_date' ? 4 : Infinity
+            const truncated = digits.slice(0, maxLen)
+            if (key === 'entry_date' && truncated.length === 4) {
+              const currentYear = new Date().getFullYear()
+              if (Number(truncated) > currentYear) return
+            }
+            handleInputChange(key, truncated)
           } else if (field.type === 'tel') {
             handleInputChange(key, val.replace(/\D/g, '').slice(0, 11))
           } else {
-            handleInputChange(key, val)
+            handleInputChange(key, NAME_FIELDS.has(key) ? toProperCase(val.replace(/\d/g, '')) : val)
           }
         }}
         required={isRequired}

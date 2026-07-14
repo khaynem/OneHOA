@@ -168,7 +168,11 @@ const OCCUPANT_FILTER_OPTIONS = [
   { value: 'owner', label: 'Owner occupants only' }
 ]
 
-const normalizeName = (value) => String(value || '').replace(/\d/g, '')
+const toProperCase = (str) =>
+  str.replace(/\b\w/g, (char) => char.toUpperCase())
+
+const normalizeName = (value) =>
+  toProperCase(String(value || '').replace(/\d/g, ''))
 
 const toInputDate = (dateValue) => {
   if (!dateValue) {
@@ -2038,7 +2042,7 @@ function HomeownerManagementInner() {
                       inputMode="numeric"
                       className={styles.input}
                       value={addForm.block}
-                      maxLength={3}
+                      maxLength={2}
                       onChange={(event) => handleBlockLotChange('block', event.target.value)}
                     />
                   </div>
@@ -2100,7 +2104,7 @@ function HomeownerManagementInner() {
                       <div key={index} style={{ display: 'flex', gap: '0.8rem', alignItems: 'flex-end', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                         <div style={{ flex: 1 }}>
                           <label className={styles.fieldLabel}>Name <span className={styles.requiredMark}>*</span></label>
-                          <input type="text" className={styles.input} value={member.name} onChange={(e) => handleHouseholdMemberChange(index, 'name', e.target.value)} required />
+                          <input type="text" className={styles.input} value={member.name} onChange={(e) => handleHouseholdMemberChange(index, 'name', toProperCase(e.target.value))} required />
                         </div>
                         <div style={{ flex: 1 }}>
                           <label className={styles.fieldLabel}>Relationship <span className={styles.requiredMark}>*</span></label>
@@ -2475,7 +2479,7 @@ function HomeownerManagementInner() {
                         <div key={index} style={{ display: 'flex', gap: '0.8rem', alignItems: 'flex-end', background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                           <div style={{ flex: 1 }}>
                             <label className={styles.fieldLabel}>Full Name <span className={styles.requiredMark}>*</span></label>
-                            <input type="text" className={styles.input} value={member.name} onChange={(e) => handleEditHouseholdMemberChange(index, 'name', e.target.value)} required />
+                            <input type="text" className={styles.input} value={member.name} onChange={(e) => handleEditHouseholdMemberChange(index, 'name', toProperCase(e.target.value))} required />
                           </div>
                           <div style={{ flex: 1 }}>
                             <label className={styles.fieldLabel}>Relationship <span className={styles.requiredMark}>*</span></label>

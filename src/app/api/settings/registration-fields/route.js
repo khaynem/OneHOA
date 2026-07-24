@@ -11,7 +11,7 @@ const WORK_STATUS_OPTIONS = ["Contractual", "Regular", "Self-Employed", "Freelan
 
 const DEFAULT_REGISTRATION_FIELDS = [
   { key: "first_name", label: "First Name", type: "text", required: true, isActive: true },
-  { key: "middle_name", label: "Middle Name", type: "text", required: true, isActive: true },
+  { key: "middle_name", label: "Middle Name", type: "text", required: false, isActive: true },
   { key: "last_name", label: "Last Name", type: "text", required: true, isActive: true },
   { key: "email", label: "Email Address", type: "email", required: true, isActive: true },
   { key: "phone_number", label: "Phone Number (11 digits)", type: "tel", required: true, isActive: true },

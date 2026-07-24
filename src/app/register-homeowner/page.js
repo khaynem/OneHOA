@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState, useRef } from 'react'
-import { FaArrowLeft, FaCheckCircle, FaCloudUploadAlt, FaIdCard, FaCamera, FaSpinner, FaUserAlt, FaBriefcase, FaHome, FaUsers, FaPlus, FaTrash } from 'react-icons/fa'
+import { FaArrowLeft, FaCheckCircle, FaCloudUploadAlt, FaIdCard, FaCamera, FaSpinner, FaUserAlt, FaBriefcase, FaHome, FaUsers, FaPlus, FaTrash, FaEnvelope, FaLock, FaKey, FaCheck } from 'react-icons/fa'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import JobTitleField from '@/components/job-title-field/job-title-field'
@@ -46,6 +46,17 @@ export default function RegisterHomeownerPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+  // Email verification state
+  const [emailInput, setEmailInput] = useState('')
+  const [isSendingCode, setIsSendingCode] = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
+  const [verifiedEmail, setVerifiedEmail] = useState('')
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+  const [devCode, setDevCode] = useState('')
 
   // Form states
   const [formData, setFormData] = useState({
@@ -118,6 +129,98 @@ export default function RegisterHomeownerPage() {
     }
     loadFields()
   }, [])
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const timer = setInterval(() => {
+      setCooldownSeconds(prev => prev - 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [cooldownSeconds])
+
+  const handleSendCode = async () => {
+    const trimmedEmail = emailInput.trim().toLowerCase()
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      notify.error({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.'
+      })
+      return
+    }
+
+    setIsSendingCode(true)
+    setDevCode('')
+    try {
+      const res = await fetch('/api/auth/register-verification/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to send verification code')
+      }
+
+      setCodeSent(true)
+      setCooldownSeconds(60)
+      if (data.dev_code) {
+        setDevCode(data.dev_code)
+      }
+      notify.success({
+        title: 'Code Sent',
+        description: `A 6-digit verification code was sent to ${trimmedEmail}.`
+      })
+    } catch (err) {
+      console.error(err)
+      notify.error({
+        title: 'Sending Failed',
+        description: err.message || 'Failed to send verification code.'
+      })
+    } finally {
+      setIsSendingCode(false)
+    }
+  }
+
+  const handleVerifyCode = async () => {
+    const trimmedCode = verificationCode.trim()
+    if (!trimmedCode || trimmedCode.length !== 6) {
+      notify.error({
+        title: 'Invalid Code',
+        description: 'Please enter a valid 6-digit verification code.'
+      })
+      return
+    }
+
+    setIsVerifyingCode(true)
+    try {
+      const res = await fetch('/api/auth/register-verification/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput.trim().toLowerCase(), code: trimmedCode })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Verification failed')
+      }
+
+      const verified = emailInput.trim().toLowerCase()
+      setIsEmailVerified(true)
+      setVerifiedEmail(verified)
+      setFormData(prev => ({ ...prev, email: verified }))
+      notify.success({
+        title: 'Email Verified',
+        description: 'Email address successfully verified! You may now complete your registration.'
+      })
+    } catch (err) {
+      console.error(err)
+      notify.error({
+        title: 'Verification Failed',
+        description: err.message || 'Invalid or expired verification code.'
+      })
+    } finally {
+      setIsVerifyingCode(false)
+    }
+  }
 
   const handleInputChange = (key, value) => {
     setFormData(prev => ({ ...prev, [key]: value }))
@@ -295,13 +398,19 @@ export default function RegisterHomeownerPage() {
   }
 
   const areRequiredFieldsFilled = () => {
+    // 0. Verify email is verified
+    if (!isEmailVerified) {
+      return false
+    }
+
     // 1. Verify profile picture and valid IDs are uploaded
     if (!pictureId || validIdPictureIds.length === 0) {
       return false
     }
 
-    // 2. Verify all active required fields are filled
+    // 2. Verify all active required fields are filled (skip middle_name)
     for (const field of fields) {
+      if (field.key === 'middle_name') continue
       if (field.required) {
         const val = formData[field.key]
         let isPresent = false
@@ -328,6 +437,14 @@ export default function RegisterHomeownerPage() {
     e.preventDefault()
     if (isSubmitting) return
 
+    if (!isEmailVerified) {
+      notify.error({
+        title: 'Email Verification Required',
+        description: 'Please verify your email address before proceeding.'
+      })
+      return
+    }
+
     // 1. Verify files are uploaded
     if (validIdPictureIds.length === 0) {
       notify.error({
@@ -347,6 +464,7 @@ export default function RegisterHomeownerPage() {
 
     // 2. Client-side field validations
     for (const field of fields) {
+      if (field.key === 'middle_name') continue
       const val = formData[field.key]
       let isPresent = false;
       if (field.type === 'household_list') {
@@ -358,7 +476,7 @@ export default function RegisterHomeownerPage() {
       if (field.required && !isPresent) {
         notify.error({
           title: 'Required Field',
-          description: `"${field.label}" is required. If household members are required, please add at least one member or specify yourself/none.`
+          description: `"${field.label}" is required.`
         })
         return
       }
@@ -555,8 +673,9 @@ export default function RegisterHomeownerPage() {
     return (
       <input
         type={field.type === 'number' || field.type === 'tel' ? 'text' : field.type}
-        className={styles.input}
+        className={`${styles.input} ${key === 'email' && isEmailVerified ? styles.readOnlyInput : ''}`}
         value={formData[key]}
+        readOnly={key === 'email' && isEmailVerified}
         placeholder={
           key === 'first_name'
             ? 'e.g. Juan'
@@ -575,6 +694,7 @@ export default function RegisterHomeownerPage() {
                         : `Enter ${field.label.toLowerCase()}`
         }
         onChange={(e) => {
+          if (key === 'email' && isEmailVerified) return
           const val = e.target.value
           if (field.type === 'number') {
             const digits = val.replace(/\D/g, '')
@@ -591,7 +711,7 @@ export default function RegisterHomeownerPage() {
             handleInputChange(key, NAME_FIELDS.has(key) ? toProperCase(val.replace(/\d/g, '')) : val)
           }
         }}
-        required={isRequired}
+        required={key === 'middle_name' ? false : isRequired}
       />
     )
   }
@@ -618,7 +738,7 @@ export default function RegisterHomeownerPage() {
           <FaCheckCircle className={styles.successIcon} />
           <h2 className={styles.successTitle}>Registration Submitted!</h2>
           <p className={styles.successText}>
-            Thank you for registering. Your details and Valid ID have been securely submitted to the <strong>Fiesta Community Hanjin Village Association (FVHOA)</strong>.
+            A confirmation email has been sent to <strong>{formData.email}</strong>. Thank you for registering with the <strong>Fiesta Community Hanjin Village Association (FVHOA)</strong>.
           </p>
           <div className={styles.successInfo}>
             <p><strong>What happens next?</strong></p>
@@ -668,163 +788,287 @@ export default function RegisterHomeownerPage() {
             <div className={styles.formHeader}>
               <h1 className={styles.title}>Homeowner Registration</h1>
               <p className={styles.subtitle}>
-                Please fill out the form below to register as a homeowner in Fiesta Community Hanjin Village. Your submission will be reviewed.
+                Please verify your email address to begin, then fill out the registration form for Fiesta Community Hanjin Village.
               </p>
             </div>
 
-            <form className={styles.form} onSubmit={handleSubmit}>
-              <div className={styles.formSection}>
-                <h3 className={styles.sectionTitle}>
-                  <FaCamera /> Identification Photos
-                </h3>
-                <div className={styles.photoSection}>
-                  <div className={styles.photoUploadGroup}>
-                    <label className={styles.label}>Profile Photo <span className={styles.required}>*</span></label>
-                    <div
-                      className={styles.profileUploadZone}
-                      onClick={() => profileInputRef.current?.click()}
-                    >
-                      {profilePreview ? (
-                        <img src={profilePreview} alt="Profile preview" className={styles.profilePreviewImg} />
-                      ) : (
-                        <div className={styles.uploadPlaceholder}>
-                          <FaCamera className={styles.photoIcon} />
-                          <span>Upload Photo</span>
-                        </div>
-                      )}
-                      {isProfileUploading && (
-                        <div className={styles.uploadOverlay}>
-                          <FaSpinner className={styles.spinner} />
-                        </div>
-                      )}
+            {/* Step Bar */}
+            <div className={styles.stepBar}>
+              <div className={`${styles.stepItem} ${!isEmailVerified ? styles.stepItemActive : styles.stepItemCompleted}`}>
+                <span className={styles.stepNumber}>{isEmailVerified ? <FaCheck /> : '1'}</span>
+                <span>Step 1: Email Verification</span>
+              </div>
+              <div className={`${styles.stepDivider} ${isEmailVerified ? styles.stepDividerActive : ''}`} />
+              <div className={`${styles.stepItem} ${isEmailVerified ? styles.stepItemActive : ''}`}>
+                <span className={styles.stepNumber}>2</span>
+                <span>Step 2: Homeowner Details</span>
+              </div>
+            </div>
+
+            {/* Step 1: Verification Card */}
+            <div className={styles.verificationSection}>
+              <div className={styles.verificationHeader}>
+                <FaEnvelope /> Step 1: Email Verification
+                {isEmailVerified && (
+                  <span className={styles.verifiedBadge} style={{ marginLeft: 'auto' }}>
+                    <FaCheck /> Verified
+                  </span>
+                )}
+              </div>
+              <p className={styles.verificationDesc}>
+                {isEmailVerified
+                  ? `Your email address (${verifiedEmail}) has been successfully verified! Please complete your registration details below.`
+                  : 'Please input your email address and click "Send Code". Enter the 6-digit code sent to your inbox to proceed.'}
+              </p>
+
+              {!isEmailVerified && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                  <div className={styles.verificationRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label}>
+                        Email Address <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="email"
+                        className={styles.input}
+                        placeholder="e.g. juan@example.com"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        disabled={codeSent && cooldownSeconds > 0}
+                      />
                     </div>
-                    <input
-                      type="file"
-                      ref={profileInputRef}
-                      onChange={handleProfileChange}
-                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                      className={styles.hiddenInput}
-                    />
+                    <button
+                      type="button"
+                      className={styles.verifyActionBtn}
+                      onClick={handleSendCode}
+                      disabled={isSendingCode || !emailInput || (codeSent && cooldownSeconds > 0)}
+                    >
+                      {isSendingCode ? (
+                        <>
+                          <FaSpinner className={styles.spinner} /> Sending Code...
+                        </>
+                      ) : codeSent && cooldownSeconds > 0 ? (
+                        `Resend Code (${cooldownSeconds}s)`
+                      ) : (
+                        'Send Code'
+                      )}
+                    </button>
                   </div>
 
-                  <div className={styles.photoUploadGroup} style={{ flexGrow: 1 }}>
-                    <label className={styles.label}>
-                      Documents for Validation <span className={styles.required}>*</span>
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                        {validIdPreviews.map((preview, index) => (
-                          <div key={index} style={{ position: 'relative', width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                            <img src={preview} alt={`Valid ID ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleRemoveValidId(index); }}
-                              style={{ position: 'absolute', top: '4px', right: '4px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              title="Remove image"
-                            >
-                              ✕
-                            </button>
+                  {codeSent && (
+                    <div className={styles.verificationRow}>
+                      <div className={styles.formGroup}>
+                        <label className={styles.label}>
+                          Verification Code (6 Digits) <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          className={styles.input}
+                          placeholder="Enter 6-digit code"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.verifyActionBtn}
+                        onClick={handleVerifyCode}
+                        disabled={isVerifyingCode || verificationCode.trim().length !== 6}
+                      >
+                        {isVerifyingCode ? (
+                          <>
+                            <FaSpinner className={styles.spinner} /> Verifying...
+                          </>
+                        ) : (
+                          'Verify Code'
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {devCode && (
+                    <div className={styles.devCodeBox}>
+                      <strong>[Dev Test Code]:</strong> <code>{devCode}</code> (SMTP is not configured locally, use this code to test verification).
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: Main Registration Form (Unlocked after Email Verification) */}
+            {isEmailVerified ? (
+              <form className={styles.form} onSubmit={handleSubmit}>
+                <div className={styles.formSection}>
+                  <h3 className={styles.sectionTitle}>
+                    <FaCamera /> Identification Photos
+                  </h3>
+                  <div className={styles.photoSection}>
+                    <div className={styles.photoUploadGroup}>
+                      <label className={styles.label}>Profile Photo <span className={styles.required}>*</span></label>
+                      <div
+                        className={styles.profileUploadZone}
+                        onClick={() => profileInputRef.current?.click()}
+                      >
+                        {profilePreview ? (
+                          <img src={profilePreview} alt="Profile preview" className={styles.profilePreviewImg} />
+                        ) : (
+                          <div className={styles.uploadPlaceholder}>
+                            <FaCamera className={styles.photoIcon} />
+                            <span>Upload Photo</span>
                           </div>
-                        ))}
-                        {validIdPreviews.length < 4 && (
-                          <div
-                            className={styles.idUploadZone}
-                            style={{ width: validIdPreviews.length > 0 ? '120px' : '100%', height: validIdPreviews.length > 0 ? '120px' : 'auto', margin: 0 }}
-                            onClick={() => validIdInputRef.current?.click()}
-                          >
-                            <div className={styles.uploadPlaceholder} style={{ padding: validIdPreviews.length > 0 ? '0.5rem' : '2rem' }}>
-                              <FaIdCard className={styles.idIcon} style={{ fontSize: validIdPreviews.length > 0 ? '1.5rem' : '2rem' }} />
-                              {validIdPreviews.length === 0 && (
-                                <>
-                                  <span>Click or Drag to Upload Valid IDs</span>
-                                  <p className={styles.hintText}>Upload up to 4 images (Passport, Driver&apos;s License, etc.)</p>
-                                  <p className={styles.hintText}>Accepted File formats are .jpg, .jpeg, .png, or .webp</p>
-                                  <p className={styles.hintText}>Max file size is 5 MB per image.</p>
-                                </>
-                              )}
-                              {validIdPreviews.length > 0 && <span style={{ fontSize: '0.8rem' }}>Add More</span>}
-                            </div>
-                            {isValidIdUploading && (
-                              <div className={styles.uploadOverlay}>
-                                <FaSpinner className={styles.spinner} />
-                              </div>
-                            )}
+                        )}
+                        {isProfileUploading && (
+                          <div className={styles.uploadOverlay}>
+                            <FaSpinner className={styles.spinner} />
                           </div>
                         )}
                       </div>
+                      <input
+                        type="file"
+                        ref={profileInputRef}
+                        onChange={handleProfileChange}
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        className={styles.hiddenInput}
+                      />
                     </div>
-                    <input
-                      type="file"
-                      ref={validIdInputRef}
-                      onChange={handleValidIdChange}
-                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                      multiple
-                      className={styles.hiddenInput}
-                    />
+
+                    <div className={styles.photoUploadGroup} style={{ flexGrow: 1 }}>
+                      <label className={styles.label}>
+                        Documents for Validation <span className={styles.required}>*</span>
+                      </label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                          {validIdPreviews.map((preview, index) => (
+                            <div key={index} style={{ position: 'relative', width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                              <img src={preview} alt={`Valid ID ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleRemoveValidId(index); }}
+                                style={{ position: 'absolute', top: '4px', right: '4px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                title="Remove image"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                          {validIdPreviews.length < 4 && (
+                            <div
+                              className={styles.idUploadZone}
+                              style={{ width: validIdPreviews.length > 0 ? '120px' : '100%', height: validIdPreviews.length > 0 ? '120px' : 'auto', margin: 0 }}
+                              onClick={() => validIdInputRef.current?.click()}
+                            >
+                              <div className={styles.uploadPlaceholder} style={{ padding: validIdPreviews.length > 0 ? '0.5rem' : '2rem' }}>
+                                <FaIdCard className={styles.idIcon} style={{ fontSize: validIdPreviews.length > 0 ? '1.5rem' : '2rem' }} />
+                                {validIdPreviews.length === 0 && (
+                                  <>
+                                    <span>Click or Drag to Upload Valid IDs</span>
+                                    <p className={styles.hintText}>Upload up to 4 images (Passport, Driver&apos;s License, etc.)</p>
+                                    <p className={styles.hintText}>Accepted File formats are .jpg, .jpeg, .png, or .webp</p>
+                                    <p className={styles.hintText}>Max file size is 5 MB per image.</p>
+                                  </>
+                                )}
+                                {validIdPreviews.length > 0 && <span style={{ fontSize: '0.8rem' }}>Add More</span>}
+                              </div>
+                              {isValidIdUploading && (
+                                <div className={styles.uploadOverlay}>
+                                  <FaSpinner className={styles.spinner} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="file"
+                        ref={validIdInputRef}
+                        onChange={handleValidIdChange}
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        multiple
+                        className={styles.hiddenInput}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {Object.entries(CATEGORY_MAP).map(([categoryName, categoryKeys]) => {
-                const categoryFields = fields.filter(f => categoryKeys.includes(f.key))
-                if (categoryFields.length === 0) return null
+                {Object.entries(CATEGORY_MAP).map(([categoryName, categoryKeys]) => {
+                  const categoryFields = fields.filter(f => categoryKeys.includes(f.key))
+                  if (categoryFields.length === 0) return null
 
-                return (
-                  <div key={categoryName} className={styles.formSection}>
-                    <h3 className={styles.sectionTitle}>
-                      {CATEGORY_ICONS[categoryName] || null} {categoryName}
-                    </h3>
-                    <div className={categoryFields.some(f => f.type === 'household_list' || f.type === 'textarea') ? '' : styles.fieldsGrid}>
-                      {categoryFields.map((field) => (
-                        <div
-                          key={field.key}
-                          className={`${styles.formGroup} ${field.type === 'textarea' || field.type === 'household_list' ? styles.fullWidth : ''
-                            }`}
-                          style={field.type === 'household_list' ? { marginBottom: '1rem' } : {}}
-                        >
-                          {field.key !== 'job_title' ? (
-                            <label className={styles.label}>
-                              {field.label} {field.required && <span className={styles.required}>*</span>}
-                            </label>
-                          ) : null}
-                          {renderFieldInput(field)}
-                        </div>
-                      ))}
+                  return (
+                    <div key={categoryName} className={styles.formSection}>
+                      <h3 className={styles.sectionTitle}>
+                        {CATEGORY_ICONS[categoryName] || null} {categoryName}
+                      </h3>
+                      <div className={categoryFields.some(f => f.type === 'household_list' || f.type === 'textarea') ? '' : styles.fieldsGrid}>
+                        {categoryFields.map((field) => (
+                          <div
+                            key={field.key}
+                            className={`${styles.formGroup} ${field.type === 'textarea' || field.type === 'household_list' ? styles.fullWidth : ''
+                              }`}
+                            style={field.type === 'household_list' ? { marginBottom: '1rem' } : {}}
+                          >
+                            {field.key !== 'job_title' ? (
+                              <label className={styles.label}>
+                                {field.label}{' '}
+                                {field.key === 'middle_name' ? (
+                                  <span className={styles.optionalTag}>(Optional)</span>
+                                ) : field.required ? (
+                                  <span className={styles.required}>*</span>
+                                ) : null}
+                                {field.key === 'email' && isEmailVerified && (
+                                  <span className={styles.verifiedBadge} style={{ marginLeft: '0.5rem' }}>
+                                    <FaCheck /> Verified
+                                  </span>
+                                )}
+                              </label>
+                            ) : null}
+                            {renderFieldInput(field)}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
 
-              <div className={styles.formSection} style={{ border: 'none', padding: '0', background: 'transparent', boxShadow: 'none' }}>
-                <label className={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    className={styles.checkbox}
-                  />
-                  <span>
-                    I have read and agree to the <Link href="/privacy-policy" target="_blank" className={styles.link}>Privacy Policy</Link> and <Link href="/terms-and-conditions" target="_blank" className={styles.link}>Terms & Conditions</Link>. <span className={styles.required}>*</span>
-                  </span>
-                </label>
+                <div className={styles.formSection} style={{ border: 'none', padding: '0', background: 'transparent', boxShadow: 'none' }}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      className={styles.checkbox}
+                    />
+                    <span>
+                      I have read and agree to the <Link href="/privacy-policy" target="_blank" className={styles.link}>Privacy Policy</Link> and <Link href="/terms-and-conditions" target="_blank" className={styles.link}>Terms & Conditions</Link>. <span className={styles.required}>*</span>
+                    </span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className={styles.submitBtn}
+                  disabled={isSubmitting || isValidIdUploading || isProfileUploading || !areRequiredFieldsFilled()}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <FaSpinner className={styles.spinner} /> Submitting Registration...
+                    </>
+                  ) : (
+                    'Submit Registration Request'
+                  )}
+                </button>
+              </form>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+                <FaLock style={{ fontSize: '2rem', color: '#003B75', marginBottom: '0.75rem' }} />
+                <h3 style={{ margin: '0 0 0.5rem 0', color: '#003B75', fontSize: '1.2rem', fontWeight: '700' }}>Registration Form Locked</h3>
+                <p style={{ margin: 0, fontSize: '0.94rem' }}>Please verify your email address in <strong>Step 1</strong> above to unlock the registration details form.</p>
               </div>
-
-              <button
-                type="submit"
-                className={styles.submitBtn}
-                disabled={isSubmitting || isValidIdUploading || isProfileUploading || !areRequiredFieldsFilled()}
-              >
-                {isSubmitting ? (
-                  <>
-                    <FaSpinner className={styles.spinner} /> Submitting Registration...
-                  </>
-                ) : (
-                  'Submit Registration Request'
-                )}
-              </button>
-            </form>
+            )}
           </div>
         </div>
+
 
         {showConfirmModal && (
           <div className={styles.modalOverlay}>

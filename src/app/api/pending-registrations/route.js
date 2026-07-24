@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import PendingRegistration from "@/lib/server/models/pendingRegistrations";
+import EmailVerification from "@/lib/server/models/emailVerification";
 import Setting from "@/lib/server/models/settings";
 import "@/lib/server/models/pictures";
-import { requireAuth, requireRole } from "@/lib/server/auth";
+import { requireAuth, requireRole, normalizeEmail } from "@/lib/server/auth";
+import { sendRegistrationSubmittedEmail } from "@/lib/server/services/emailService";
 import mongoose from "mongoose";
 
 export const runtime = "nodejs";
@@ -13,7 +15,7 @@ const WORK_STATUS_OPTIONS = ["Contractual", "Regular", "Self-Employed", "Freelan
 
 const DEFAULT_REGISTRATION_FIELDS = [
   { key: "first_name", label: "First Name", type: "text", required: true, isActive: true },
-  { key: "middle_name", label: "Middle Name", type: "text", required: true, isActive: true },
+  { key: "middle_name", label: "Middle Name", type: "text", required: false, isActive: true },
   { key: "last_name", label: "Last Name", type: "text", required: true, isActive: true },
   { key: "email", label: "Email Address", type: "email", required: true, isActive: true },
   { key: "phone_number", label: "Phone Number (11 digits)", type: "tel", required: true, isActive: true },
@@ -93,7 +95,6 @@ export async function POST(request) {
 
     const body = await request.json();
 
-    // 1. Fetch form field config
     const setting = await Setting.findOne({ key: SETTING_KEY }).lean();
     let fieldsConfig = normalizeRegistrationFields(setting?.value || DEFAULT_REGISTRATION_FIELDS);
 
@@ -106,7 +107,6 @@ export async function POST(request) {
       ];
     }
 
-    // 2. Build registration payload and validate required active fields
     const payload = {};
     for (const field of fieldsConfig) {
       if (field.isActive) {
@@ -194,6 +194,17 @@ export async function POST(request) {
 
     // 4. Create Pending Registration Record
     const newReg = await PendingRegistration.create(payload);
+
+    // 5. Send confirmation email to applicant
+    if (payload.email) {
+      const applicantName = [payload.first_name, payload.last_name].filter(Boolean).join(" ");
+      sendRegistrationSubmittedEmail({
+        toEmail: payload.email,
+        fullName: applicantName,
+      }).catch((err) => {
+        console.error("Failed to send submission email asynchronously:", err);
+      });
+    }
 
     return NextResponse.json({ success: true, data: newReg }, { status: 201 });
   } catch (error) {

@@ -1,11 +1,23 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import PendingRegistration from "@/lib/server/models/pendingRegistrations";
 import Record from "@/lib/server/models/records";
 import Address from "@/lib/server/models/address";
+import User from "@/lib/server/models/users";
 import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
-import { sendRegistrationStatusEmail } from "@/lib/server/services/emailService";
+import { sendRegistrationStatusEmail, sendAccountActivationEmail } from "@/lib/server/services/emailService";
+
+const ACTIVATION_CODE_EXPIRY_HOURS = 72;
+
+function generateActivationCode() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+function hashCode(code) {
+  return crypto.createHash("sha256").update(String(code)).digest("hex");
+}
 
 export const runtime = "nodejs";
 
@@ -174,12 +186,54 @@ export async function PATCH(request, { params }) {
       console.error("Failed to write audit log:", auditError);
     }
 
+    // 5. Create homeowner User account & send activation email
     if (pending.email) {
-      await sendRegistrationStatusEmail({
-        toEmail: pending.email,
-        status: "approved",
-        fullName,
-      });
+      const normalizedEmail = pending.email.trim().toLowerCase();
+      let existingUser = await User.findOne({ email: normalizedEmail });
+
+      if (!existingUser) {
+        // Generate activation code
+        const activationCode = generateActivationCode();
+        const codeHash = hashCode(activationCode);
+        const expiresAt = new Date(Date.now() + ACTIVATION_CODE_EXPIRY_HOURS * 60 * 60 * 1000);
+
+        // Create user with temporary random password (will be replaced on activation)
+        const tempPassword = crypto.randomBytes(32).toString("hex") + "A!a1";
+        existingUser = await User.create({
+          first_name: pending.first_name || "",
+          last_name: pending.last_name || "",
+          email: normalizedEmail,
+          password: tempPassword,
+          role: "homeowner",
+          status: "active",
+          password_reset_code_hash: codeHash,
+          password_reset_code_expires_at: expiresAt,
+        });
+
+        // Build activation URL
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+        const activationUrl = `${baseUrl}/activate-account?email=${encodeURIComponent(normalizedEmail)}&code=${activationCode}`;
+
+        const emailResult = await sendAccountActivationEmail({
+          toEmail: normalizedEmail,
+          fullName,
+          activationCode,
+          activationUrl,
+          expiresInHours: ACTIVATION_CODE_EXPIRY_HOURS,
+        });
+
+        if (process.env.NODE_ENV !== "production" && emailResult.delivered === false) {
+          console.log(`[Dev] Activation code for ${normalizedEmail}: ${activationCode}`);
+          console.log(`[Dev] Activation URL: ${activationUrl}`);
+        }
+      } else {
+        // User already exists — just send the standard approval email
+        await sendRegistrationStatusEmail({
+          toEmail: normalizedEmail,
+          status: "approved",
+          fullName,
+        });
+      }
     }
 
     return NextResponse.json({ success: true, data: pending, record: newRecord }, { status: 200 });

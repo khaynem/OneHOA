@@ -825,3 +825,157 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Step Bar & Verification UI */
+.stepBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stepItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #94a3b8;
+}
+
+.stepItemActive {
+  color: #003B75;
+}
+
+.stepNumber {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.stepItemActive .stepNumber {
+  background: #003B75;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 59, 117, 0.25);
+}
+
+.stepItemCompleted .stepNumber {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.stepDivider {
+  width: 40px;
+  height: 2px;
+  background: #cbd5e1;
+}
+
+.stepDividerActive {
+  background: #003B75;
+}
+
+.verificationSection {
+  background: #ffffff;
+  border: 1px solid #0070C4;
+  border-radius: 14px;
+  padding: 1.8rem;
+  box-shadow: 0 6px 20px rgba(0, 112, 196, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.verificationHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #003B75;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.verificationDesc {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.verificationRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.verificationRow .formGroup {
+  flex: 1;
+}
+
+.verifyActionBtn {
+  background: #0070C4;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.68rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+  height: 42px;
+}
+
+.verifyActionBtn:hover:not(:disabled) {
+  background: #005696;
+}
+
+.verifyActionBtn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #bbf7d0;
+}
+
+.readOnlyInput {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  cursor: not-allowed;
+}
+
+.optionalTag {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-left: 0.25rem;
+}
+
+.devCodeBox {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: #92400e;
+}

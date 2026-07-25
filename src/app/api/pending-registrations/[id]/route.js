@@ -186,17 +186,18 @@ export async function PATCH(request, { params }) {
       console.error("Failed to write audit log:", auditError);
     }
 
-    // 5. Create homeowner User account & send activation email
+    // 5. Create / update homeowner User account & send activation email
     if (pending.email) {
       const normalizedEmail = pending.email.trim().toLowerCase();
+
+      // Generate a fresh activation code
+      const activationCode = generateActivationCode();
+      const codeHash = hashCode(activationCode);
+      const expiresAt = new Date(Date.now() + ACTIVATION_CODE_EXPIRY_HOURS * 60 * 60 * 1000);
+
       let existingUser = await User.findOne({ email: normalizedEmail });
 
       if (!existingUser) {
-        // Generate activation code
-        const activationCode = generateActivationCode();
-        const codeHash = hashCode(activationCode);
-        const expiresAt = new Date(Date.now() + ACTIVATION_CODE_EXPIRY_HOURS * 60 * 60 * 1000);
-
         // Create user with temporary random password (will be replaced on activation)
         const tempPassword = crypto.randomBytes(32).toString("hex") + "A!a1";
         existingUser = await User.create({
@@ -209,30 +210,36 @@ export async function PATCH(request, { params }) {
           password_reset_code_hash: codeHash,
           password_reset_code_expires_at: expiresAt,
         });
+      } else {
+        // User already exists — refresh their activation code so they can still activate
+        // Reset their password to a temporary one so they must go through activation
+        const tempPassword = crypto.randomBytes(32).toString("hex") + "A!a1";
+        existingUser.password = tempPassword;
+        existingUser.password_reset_code_hash = codeHash;
+        existingUser.password_reset_code_expires_at = expiresAt;
+        await existingUser.save();
+      }
 
-        // Build activation URL
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-        const activationUrl = `${baseUrl}/activate-account?email=${encodeURIComponent(normalizedEmail)}&code=${activationCode}`;
+      // Build activation URL
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const activationUrl = `${baseUrl}/activate-account?email=${encodeURIComponent(normalizedEmail)}&code=${activationCode}`;
 
-        const emailResult = await sendAccountActivationEmail({
-          toEmail: normalizedEmail,
-          fullName,
-          activationCode,
-          activationUrl,
-          expiresInHours: ACTIVATION_CODE_EXPIRY_HOURS,
-        });
+      // Send activation email with approval message (same email for both cases)
+      const emailResult = await sendAccountActivationEmail({
+        toEmail: normalizedEmail,
+        fullName,
+        activationCode,
+        activationUrl,
+        expiresInHours: ACTIVATION_CODE_EXPIRY_HOURS,
+      });
 
-        if (process.env.NODE_ENV !== "production" && emailResult.delivered === false) {
+      if (emailResult.delivered === false) {
+        console.error(`[Approval] Failed to send activation email to ${normalizedEmail}. SMTP may not be configured.`);
+        // Log the activation code in dev so the flow can still be tested
+        if (process.env.NODE_ENV !== "production") {
           console.log(`[Dev] Activation code for ${normalizedEmail}: ${activationCode}`);
           console.log(`[Dev] Activation URL: ${activationUrl}`);
         }
-      } else {
-        // User already exists — just send the standard approval email
-        await sendRegistrationStatusEmail({
-          toEmail: normalizedEmail,
-          status: "approved",
-          fullName,
-        });
       }
     }
 

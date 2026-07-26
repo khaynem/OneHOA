@@ -46,6 +46,129 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
 
   const appliedFiltersText = filterParts.join(" | ");
 
+  // ─── Group homeowners by phase, sort alphabetically by lastName ───
+  const compareNames = (a, b) => {
+    const aLast = (a.lastName || "").toLowerCase();
+    const bLast = (b.lastName || "").toLowerCase();
+    if (aLast < bLast) return -1;
+    if (aLast > bLast) return 1;
+    // fallback to first name when last names are equal
+    const aFirst = (a.firstName || "").toLowerCase();
+    const bFirst = (b.firstName || "").toLowerCase();
+    if (aFirst < bFirst) return -1;
+    if (aFirst > bFirst) return 1;
+    return 0;
+  };
+
+  const phaseGroups = {};
+  const UNASSIGNED_KEY = "__unassigned__";
+
+  homeowners.forEach((h) => {
+    const phase = (h.phase || "").trim();
+    const key = phase || UNASSIGNED_KEY;
+    if (!phaseGroups[key]) {
+      phaseGroups[key] = [];
+    }
+    phaseGroups[key].push(h);
+  });
+
+  // Sort each group alphabetically by lastName
+  Object.values(phaseGroups).forEach((group) => group.sort(compareNames));
+
+  // Sort phase keys numerically, unassigned goes last
+  const phaseKeys = Object.keys(phaseGroups).sort((a, b) => {
+    if (a === UNASSIGNED_KEY) return 1;
+    if (b === UNASSIGNED_KEY) return -1;
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+    return a.localeCompare(b);
+  });
+
+  // ─── Helper to render a single homeowner row ───
+  const renderRow = (h) => {
+    const fullName = `${h.firstName || ""} ${h.middleName ? h.middleName + " " : ""}${h.lastName || ""}`.trim() || "-";
+    const address = `Phase ${h.phase || "-"}, Blk ${h.block || "-"}, Lot ${h.lot || "-"}`;
+    const contactInfo = [h.phone, h.email].filter(Boolean).join(" / ") || "-";
+
+    // Membership badge classes
+    const memStatus = String(h.status || "ho, not hvna member").toLowerCase();
+    let memBadgeClass = "badge-nonmember";
+    let memLabel = "HO, not HVNA member";
+    if (memStatus.includes("hvna member")) {
+      memBadgeClass = "badge-member";
+      memLabel = "HO, HVNA member";
+    } else if (memStatus.includes("n/a")) {
+      memBadgeClass = "badge-na";
+      memLabel = "N/A";
+    }
+
+    // Occupant status badge classes
+    const occStatus = String(h.occupantStatus || "owner").toLowerCase();
+    let occBadgeClass = "badge-owner";
+    let occLabel = h.occupantStatus || "Owner";
+    if (occStatus.includes("relative")) {
+      occBadgeClass = "badge-relative";
+    } else if (occStatus.includes("renter")) {
+      occBadgeClass = "badge-renter";
+    } else if (occStatus.includes("caretaker")) {
+      occBadgeClass = "badge-caretaker";
+    }
+
+    const displayJob = h.jobDescription 
+      ? `${escapeHtml(h.jobDescription)}${h.workStatus ? ` <span style="color: #64748b; font-size: 10px;">(${escapeHtml(h.workStatus)})</span>` : ""}`
+      : (h.workStatus ? escapeHtml(h.workStatus) : "-");
+
+    return `
+      <tr>
+        <td style="font-weight: 600; font-family: monospace;">${escapeHtml(h.displayId || h.residentId || "-")}</td>
+        <td style="font-weight: 500;">${escapeHtml(fullName)}</td>
+        <td>${escapeHtml(address)}</td>
+        <td>${escapeHtml(contactInfo)}</td>
+        <td><span class="status-badge ${occBadgeClass}">${escapeHtml(occLabel)}</span></td>
+        <td><span class="status-badge ${memBadgeClass}">${escapeHtml(memLabel)}</span></td>
+        <td>${escapeHtml(h.entryDate ? h.entryDate.slice(0, 4) : "-")}</td>
+        <td>${displayJob}</td>
+      </tr>
+    `;
+  };
+
+  // ─── Render phase sections ───
+  const renderPhaseSection = (phaseKey) => {
+    const group = phaseGroups[phaseKey];
+    if (!group || group.length === 0) return "";
+
+    const phaseLabel = phaseKey === UNASSIGNED_KEY ? "Unassigned" : `Phase ${phaseKey}`;
+    const recordsLabel = `${group.length} Record${group.length !== 1 ? "s" : ""}`;
+
+    return `
+    <div class="phase-section">
+      <div class="phase-header">
+        <span class="phase-title">${phaseLabel}</span>
+        <span class="phase-count">${recordsLabel}</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Resident ID</th>
+            <th>Name</th>
+            <th>Address (Ph-Blk-Lot)</th>
+            <th>Contact Info</th>
+            <th>Occupant Status</th>
+            <th>Membership</th>
+            <th>Entry Year</th>
+            <th>Occupation</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${group.map(renderRow).join("")}
+        </tbody>
+      </table>
+    </div>`;
+  };
+
+  const phaseSectionsHtml = phaseKeys.map(renderPhaseSection).join("");
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,30 +255,54 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       font-weight: 500;
     }
     
-    /* Table Styling */
-    .table-container {
-      margin-bottom: 24px;
-      overflow-x: auto;
+    /* Phase Section Headers */
+    .phase-section {
+      margin-bottom: 28px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
+    .phase-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, #0a68b2, #095b9b);
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 6px 6px 0 0;
+      margin-bottom: 0;
+    }
+    .phase-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .phase-count {
+      font-size: 11px;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+    
+    /* Table Styling */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 6px;
+      margin-top: 0;
     }
     th {
-      background: #0a68b2;
-      color: #ffffff;
-      font-weight: 600;
-      font-size: 11px;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 8px 10px;
+      padding: 7px 10px;
       text-align: left;
-      border-bottom: 2px solid #095b9b;
+      border-bottom: 2px solid #cbd5e1;
       white-space: nowrap;
     }
     td {
-      padding: 8px 10px;
+      padding: 7px 10px;
       font-size: 11px;
       color: #334155;
       border-bottom: 1px solid #e2e8f0;
@@ -230,7 +377,8 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
         size: landscape;
         margin: 10mm;
       }
-      th { background: #0a68b2 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .phase-header { background: #0a68b2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      th { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .filter-section { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .badge-member { background: #dcfce7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .badge-nonmember { background: #fef9c3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -267,75 +415,10 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
     </div>
   </div>
 
-  <!-- Masterlist Table -->
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th>Resident ID</th>
-          <th>Name</th>
-          <th>Address (Ph-Blk-Lot)</th>
-          <th>Contact Info</th>
-          <th>Occupant Status</th>
-          <th>Membership</th>
-          <th>Entry Year</th>
-          <th>Occupation</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${homeowners.length === 0 
-          ? '<tr><td colspan="8" style="text-align: center; color: #64748b;">No homeowner records found matching the current filters.</td></tr>' 
-          : homeowners.map((h) => {
-              const fullName = `${h.firstName || ""} ${h.middleName ? h.middleName + " " : ""}${h.lastName || ""}`.trim() || "-";
-              const address = `Phase ${h.phase || "-"}, Blk ${h.block || "-"}, Lot ${h.lot || "-"}`;
-              const contactInfo = [h.phone, h.email].filter(Boolean).join(" / ") || "-";
-              
-              // Membership badge classes
-              const memStatus = String(h.status || "ho, not hvna member").toLowerCase();
-              let memBadgeClass = "badge-nonmember";
-              let memLabel = "HO, not HVNA member";
-              if (memStatus.includes("hvna member")) {
-                memBadgeClass = "badge-member";
-                memLabel = "HO, HVNA member";
-              } else if (memStatus.includes("n/a")) {
-                memBadgeClass = "badge-na";
-                memLabel = "N/A";
-              }
-
-              // Occupant status badge classes
-              const occStatus = String(h.occupantStatus || "owner").toLowerCase();
-              let occBadgeClass = "badge-owner";
-              let occLabel = h.occupantStatus || "Owner";
-              if (occStatus.includes("relative")) {
-                occBadgeClass = "badge-relative";
-              } else if (occStatus.includes("renter")) {
-                occBadgeClass = "badge-renter";
-              } else if (occStatus.includes("caretaker")) {
-                occBadgeClass = "badge-caretaker";
-              }
-
-              const jobLabel = [h.jobDescription, h.workStatus].filter(Boolean).join(" (${h.workStatus || ''})") || "-";
-              const displayJob = h.jobDescription 
-                ? `${escapeHtml(h.jobDescription)}${h.workStatus ? ` <span style="color: #64748b; font-size: 10px;">(${escapeHtml(h.workStatus)})</span>` : ""}`
-                : (h.workStatus ? escapeHtml(h.workStatus) : "-");
-
-              return `
-                <tr>
-                  <td style="font-weight: 600; font-family: monospace;">${escapeHtml(h.displayId || h.residentId || "-")}</td>
-                  <td style="font-weight: 500;">${escapeHtml(fullName)}</td>
-                  <td>${escapeHtml(address)}</td>
-                  <td>${escapeHtml(contactInfo)}</td>
-                  <td><span class="status-badge ${occBadgeClass}">${escapeHtml(occLabel)}</span></td>
-                  <td><span class="status-badge ${memBadgeClass}">${escapeHtml(memLabel)}</span></td>
-                  <td>${escapeHtml(h.entryDate ? h.entryDate.slice(0, 4) : "-")}</td>
-                  <td>${displayJob}</td>
-                </tr>
-              `;
-            }).join("")
-        }
-      </tbody>
-    </table>
-  </div>
+  ${homeowners.length === 0 
+    ? '<div style="text-align: center; color: #64748b; padding: 40px 0; font-size: 14px;">No homeowner records found matching the current filters.</div>'
+    : phaseSectionsHtml
+  }
 
   <!-- Footer Area -->
   <div class="footer">

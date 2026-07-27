@@ -512,6 +512,115 @@ export default function PaymentMonitoringPage() {
     })
   }, [rangeInfo, monthlyDues])
 
+  const availableUnpaidDuesOptions = useMemo(() => {
+    const MIN_TRACKING_PERIOD = 202502 // System baseline: February 2025
+
+    if (!form.recordId) return []
+
+    const selectedHomeowner = homeowners.find((h) => String(h._id) === String(form.recordId))
+    if (!selectedHomeowner) return []
+
+    const paidPeriodsSet = new Set(
+      records
+        .filter((r) => r.recordId === form.recordId && r.paymentStatus === 'paid')
+        .flatMap((r) => r.coveredPeriods || [])
+    )
+
+    const MONTH_NAMES = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+
+    let entryYear = 2025
+    let entryMonthNum = 2
+
+    if (selectedHomeowner.entry_date) {
+      const d = new Date(selectedHomeowner.entry_date)
+      if (!Number.isNaN(d.getTime())) {
+        entryYear = d.getFullYear()
+        entryMonthNum = d.getMonth() + 1
+      }
+    }
+
+    if (selectedHomeowner.entry_month) {
+      const idx = MONTH_NAMES.indexOf(selectedHomeowner.entry_month)
+      if (idx !== -1) {
+        entryMonthNum = idx + 1
+      }
+    }
+
+    const entryPeriod = Math.max(MIN_TRACKING_PERIOD, entryYear * 100 + entryMonthNum)
+    const startYear = Math.floor(entryPeriod / 100)
+    const startMonth = entryPeriod % 100
+
+    const now = new Date()
+    const currentPeriod = now.getFullYear() * 100 + (now.getMonth() + 1)
+    const endPeriod = currentPeriod + 11
+
+    const options = []
+    let y = startYear
+    let m = startMonth
+
+    while (y * 100 + m <= endPeriod) {
+      const period = y * 100 + m
+      if (!paidPeriodsSet.has(period)) {
+        const monthLabel = MONTH_OPTIONS.find((entry) => Number(entry.value) === m)?.label || `M${m}`
+        const isPastOrCurrent = period <= currentPeriod
+        options.push({
+          period,
+          label: `${monthLabel} ${y}`,
+          isPastOrCurrent
+        })
+      }
+
+      m += 1
+      if (m > 12) {
+        m = 1
+        y += 1
+      }
+    }
+
+    return options
+  }, [form.recordId, homeowners, records])
+
+  useEffect(() => {
+    if (!form.recordId || availableUnpaidDuesOptions.length === 0) return
+
+    const validPeriodsSet = new Set(availableUnpaidDuesOptions.map((o) => o.period))
+    const currentUnpaidPeriods = availableUnpaidDuesOptions.filter((o) => o.isPastOrCurrent).map((o) => o.period)
+
+    setForm((prev) => {
+      const filteredPeriods = (prev.paymentPeriods || []).filter((p) => validPeriodsSet.has(p))
+      const finalPeriods = filteredPeriods.length > 0
+        ? filteredPeriods
+        : (currentUnpaidPeriods.length > 0 ? currentUnpaidPeriods : availableUnpaidDuesOptions.slice(0, 1).map((o) => o.period))
+
+      if (
+        Array.isArray(prev.paymentPeriods) &&
+        prev.paymentPeriods.length === finalPeriods.length &&
+        prev.paymentPeriods.every((val, i) => val === finalPeriods[i])
+      ) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        paymentPeriods: finalPeriods,
+        amount: String(finalPeriods.length * monthlyDues)
+      }
+    })
+  }, [availableUnpaidDuesOptions, form.recordId, monthlyDues])
+
+  const handlePeriodsSelectionChange = (newPeriods) => {
+    const sorted = [...newPeriods].sort((a, b) => a - b)
+    const nextAmount = String(sorted.length * monthlyDues)
+    setForm((prev) => ({
+      ...prev,
+      paymentPeriods: sorted,
+      amount: nextAmount
+    }))
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedHomeownerSearch(form.homeownerSearch)
@@ -2073,67 +2182,107 @@ export default function PaymentMonitoringPage() {
               </div>
 
               <div className={styles.fullSpan}>
-                <label className={styles.fieldLabel}>Payment Period Range</label>
-                <div className={styles.periodRangeRow}>
-                  <div>
-                    <label className={styles.subLabel}>From</label>
-                    <div className={styles.rangeFields}>
-                      <select
-                        className={styles.input}
-                        value={form.rangeStartMonth}
-                        onChange={(event) => handleFormChange('rangeStartMonth', event.target.value)}
+                <label className={styles.fieldLabel}>
+                  Select Unpaid Monthly Dues to Pay
+                </label>
+                {!form.recordId ? (
+                  <div style={{ padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1', color: '#64748b', fontSize: '0.9rem' }}>
+                    Please select a homeowner above to view their unpaid monthly dues.
+                  </div>
+                ) : availableUnpaidDuesOptions.length === 0 ? (
+                  <div style={{ padding: '0.75rem 1rem', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', color: '#166534', fontSize: '0.9rem', fontWeight: '500' }}>
+                    ✓ All past monthly dues are paid for this homeowner!
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className={styles.clearFilterButton}
+                        style={{ height: '30px', fontSize: '0.8rem', padding: '0 10px' }}
+                        onClick={() => {
+                          const allUnpaid = availableUnpaidDuesOptions.filter(o => o.isPastOrCurrent).map(o => o.period)
+                          const chosen = allUnpaid.length > 0 ? allUnpaid : availableUnpaidDuesOptions.slice(0, 1).map(o => o.period)
+                          handlePeriodsSelectionChange(chosen)
+                        }}
                       >
-                        {MONTH_OPTIONS.map((month) => (
-                          <option key={month.value} value={month.value}>
-                            {month.label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className={styles.input}
-                        value={form.rangeStartYear}
-                        onChange={(event) => handleFormChange('rangeStartYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
-                        placeholder="Year"
-                      />
+                        Select All Unpaid
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.clearFilterButton}
+                        style={{ height: '30px', fontSize: '0.8rem', padding: '0 10px' }}
+                        onClick={() => handlePeriodsSelectionChange([])}
+                      >
+                        Deselect All
+                      </button>
+                    </div>
+
+                    <div style={{
+                      maxHeight: '180px',
+                      overflowY: 'auto',
+                      border: '1px solid #d5dae0',
+                      borderRadius: '8px',
+                      padding: '0.6rem',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                      gap: '0.5rem',
+                      background: '#ffffff'
+                    }}>
+                      {availableUnpaidDuesOptions.map((opt) => {
+                        const isSelected = form.paymentPeriods.includes(opt.period)
+                        return (
+                          <label
+                            key={opt.period}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              padding: '0.45rem 0.6rem',
+                              borderRadius: '6px',
+                              border: isSelected ? '1px solid #0070C4' : '1px solid #e2e8f0',
+                              background: isSelected ? '#f0f7ff' : '#f8fafc',
+                              cursor: 'pointer',
+                              fontSize: '0.88rem',
+                              fontWeight: isSelected ? '600' : '400',
+                              color: isSelected ? '#003B75' : '#334155',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handlePeriodsSelectionChange([...form.paymentPeriods, opt.period])
+                                } else {
+                                  handlePeriodsSelectionChange(form.paymentPeriods.filter(p => p !== opt.period))
+                                }
+                              }}
+                            />
+                            <span>{opt.label}</span>
+                            {opt.isPastOrCurrent && (
+                              <span style={{ fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b', padding: '1px 5px', borderRadius: '4px', marginLeft: 'auto', fontWeight: '600' }}>
+                                Unpaid
+                              </span>
+                            )}
+                          </label>
+                        )
+                      })}
                     </div>
                   </div>
-                  <div>
-                    <label className={styles.subLabel}>To</label>
-                    <div className={styles.rangeFields}>
-                      <select
-                        className={styles.input}
-                        value={form.rangeEndMonth}
-                        onChange={(event) => handleFormChange('rangeEndMonth', event.target.value)}
-                      >
-                        {MONTH_OPTIONS.map((month) => (
-                          <option key={month.value} value={month.value}>
-                            {month.label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className={styles.input}
-                        value={form.rangeEndYear}
-                        onChange={(event) => handleFormChange('rangeEndYear', event.target.value.replace(/\D/g, '').slice(0, 4))}
-                        placeholder="Year"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.periodTags}>
-                  {rangeInfo.periods.length === 0 ? (
-                    <span className={styles.periodEmpty}>Pick a valid range.</span>
+                )}
+
+                <div className={styles.periodTags} style={{ marginTop: '0.6rem' }}>
+                  {form.paymentPeriods.length === 0 ? (
+                    <span className={styles.periodEmpty}>No monthly dues selected.</span>
                   ) : (
                     <span className={styles.periodTag}>
-                      {rangeInfo.label} ({rangeInfo.periods.length} months)
+                      {form.paymentPeriods.length} {form.paymentPeriods.length === 1 ? 'month' : 'months'} selected ({form.paymentPeriods.map(paymentPeriodToLabel).join(', ')})
                     </span>
                   )}
                 </div>
-                <p className={styles.periodHint}>The amount is calculated from the selected range.</p>
+                <p className={styles.periodHint}>The amount is automatically computed from the selected monthly dues (₱{monthlyDues}/month).</p>
               </div>
             </div>
 

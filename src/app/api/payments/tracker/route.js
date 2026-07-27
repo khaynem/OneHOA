@@ -7,6 +7,36 @@ import { getCoveredPeriodsFromPayment, inferPaymentStatus } from "@/lib/server/p
 
 export const runtime = "nodejs";
 
+const MIN_TRACKING_PERIOD = 202502; // Constant system baseline: February 2025
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+const resolveHomeownerEntryPeriod = (record) => {
+  let year = 2025;
+  let month = 2;
+
+  if (record?.entry_date) {
+    const d = new Date(record.entry_date);
+    if (!Number.isNaN(d.getTime())) {
+      year = d.getFullYear();
+      month = d.getMonth() + 1;
+    }
+  }
+
+  if (record?.entry_month) {
+    const monthIdx = MONTH_NAMES.indexOf(record.entry_month);
+    if (monthIdx !== -1) {
+      month = monthIdx + 1;
+    }
+  }
+
+  const computed = year * 100 + month;
+  return Math.max(MIN_TRACKING_PERIOD, computed);
+};
+
 export async function GET(request) {
   try {
     await requireAuth();
@@ -99,14 +129,7 @@ export async function GET(request) {
 
     const homeowners = records.map((record) => {
       const homeownerId = String(record._id);
-
-      let entryPeriod = 0;
-      if (record.entry_date) {
-        const entryDate = new Date(record.entry_date);
-        if (!Number.isNaN(entryDate.getTime())) {
-          entryPeriod = entryDate.getFullYear() * 100 + (entryDate.getMonth() + 1);
-        }
-      }
+      const entryPeriod = resolveHomeownerEntryPeriod(record);
 
       const monthly_status = months.map((monthInfo) => {
         const currentPeriod = monthInfo.year * 100 + monthInfo.month;
@@ -116,7 +139,7 @@ export async function GET(request) {
         let finalStatus = "unpaid";
         if (recordedStatus) {
           finalStatus = recordedStatus;
-        } else if (entryPeriod > 0 && currentPeriod < entryPeriod) {
+        } else if (currentPeriod < MIN_TRACKING_PERIOD || currentPeriod < entryPeriod) {
           finalStatus = "N/A";
         }
 
@@ -127,6 +150,7 @@ export async function GET(request) {
           status: finalStatus,
         };
       });
+
 
       const paidMonths = monthly_status.filter((entry) => entry.status === "paid").length;
       const unpaidMonths = monthly_status.filter((entry) => entry.status === "unpaid").length;

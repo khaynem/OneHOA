@@ -255,6 +255,7 @@ const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
     block: address.block,
     lot: address.lot,
     entryDate: toEntryYear(record.entry_date),
+    entryMonth: String(record.entry_month || ''),
     occupantStatus: String(record.occupant_status || '-'),
     householdMembers: householdMembersValue.length > 0 ? householdMembersValue : (householdFallback ? [{ name: householdFallback, relationship: 'Legacy Data' }] : []),
     residentId: generatedId || '-',
@@ -1014,6 +1015,7 @@ function HomeownerManagementInner() {
       block: homeowner.block,
       lot: homeowner.lot,
       entryDate: homeowner.entryDate,
+      entryMonth: homeowner.entryMonth || 'January',
       occupantStatus: homeowner.occupantStatus,
       householdMembers: homeowner.householdMembers,
       jobDescription: homeowner.jobDescription,
@@ -1056,6 +1058,7 @@ function HomeownerManagementInner() {
             block: fullHomeowner.block,
             lot: fullHomeowner.lot,
             entryDate: fullHomeowner.entryDate,
+            entryMonth: fullHomeowner.entryMonth || 'January',
             occupantStatus: fullHomeowner.occupantStatus,
             householdMembers: fullHomeowner.householdMembers,
             jobDescription: fullHomeowner.jobDescription,
@@ -1271,7 +1274,8 @@ function HomeownerManagementInner() {
       const payload = {
         email: editForm.email,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
-        entry_date: toEntryDateValue(normalizedEntryYear),
+        entry_month: editForm.entryMonth || 'January',
+        entry_date: toEntryDateValue(normalizedEntryYear, editForm.entryMonth || 'January'),
         occupant_status: editForm.occupantStatus,
         household_members: editForm.householdMembers,
         job_title: editForm.jobDescription,
@@ -2418,7 +2422,23 @@ function HomeownerManagementInner() {
                   )}
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Entry Date</p>
+                  <p className={styles.detailLabel}>Entry Month</p>
+                  {isEditingHomeowner ? (
+                    <select
+                      className={styles.input}
+                      value={editForm?.entryMonth || 'January'}
+                      onChange={(event) => handleEditChange('entryMonth', event.target.value)}
+                    >
+                      {MONTH_NAMES.map((month) => (
+                        <option key={month} value={month}>{month}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className={styles.detailValue}>{selectedHomeowner.entryMonth || '-'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className={styles.detailLabel}>Entry Year</p>
                   {isEditingHomeowner ? (
                     <input
                       type="text"

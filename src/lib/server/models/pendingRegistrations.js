@@ -37,6 +37,11 @@ const pendingRegistrationSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    entry_month: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     entry_date: {
       type: Date,
     },

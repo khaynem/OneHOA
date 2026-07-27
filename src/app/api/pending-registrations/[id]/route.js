@@ -151,6 +151,7 @@ export async function PATCH(request, { params }) {
       phone_number: pending.phone_number,
       job_title: pending.job_title,
       work_status: pending.work_status,
+      entry_month: pending.entry_month,
       entry_date: pending.entry_date,
       occupant_status: pending.occupant_status || "Owner",
       household_members: pending.household_members,

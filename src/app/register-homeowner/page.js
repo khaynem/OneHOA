@@ -11,7 +11,7 @@ import styles from './register-homeowner.module.css'
 const CATEGORY_MAP = {
   "Personal Details": ["first_name", "middle_name", "last_name", "suffix", "email", "phone_number"],
   "Source of Income": ["job_title", "work_status"],
-  "Residency Details": ["phase", "block", "lot", "entry_date", "occupant_status"],
+  "Residency Details": ["phase", "block", "lot", "entry_month", "entry_date", "occupant_status"],
   "Household Members": ["household_members"]
 }
 
@@ -71,6 +71,7 @@ export default function RegisterHomeownerPage() {
     phase: '',
     block: '',
     lot: '',
+    entry_month: '',
     entry_date: '',
     occupant_status: '',
     household_members: [],
@@ -114,6 +115,27 @@ export default function RegisterHomeownerPage() {
               isActive: true
             }
           )
+        }
+
+        const entryMonthExists = loadedFields.some(f => f.key === 'entry_month')
+        if (!entryMonthExists) {
+          const entryYearIdx = loadedFields.findIndex(f => f.key === 'entry_date')
+          const entryMonthDef = {
+            key: 'entry_month',
+            label: 'Entry Month',
+            type: 'select',
+            options: [
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ],
+            required: true,
+            isActive: true
+          }
+          if (entryYearIdx !== -1) {
+            loadedFields.splice(entryYearIdx, 0, entryMonthDef)
+          } else {
+            loadedFields.push(entryMonthDef)
+          }
         }
 
         setFields(loadedFields)
@@ -1084,6 +1106,7 @@ export default function RegisterHomeownerPage() {
                 <div className={styles.modalDetailRow}><strong>Email:</strong> {formData.email}</div>
                 <div className={styles.modalDetailRow}><strong>Phone:</strong> {formData.phone_number}</div>
                 <div className={styles.modalDetailRow}><strong>Address:</strong> Phase {formData.phase}, Block {formData.block}, Lot {formData.lot}</div>
+                <div className={styles.modalDetailRow}><strong>Entry Date:</strong> {formData.entry_month ? `${formData.entry_month} ` : ''}{formData.entry_date}</div>
                 <div className={styles.modalDetailRow}><strong>Occupant Status:</strong> {formData.occupant_status}</div>
                 <div className={styles.modalDetailRow}><strong>Valid IDs Attached:</strong> {validIdFiles.length}</div>
               </div>

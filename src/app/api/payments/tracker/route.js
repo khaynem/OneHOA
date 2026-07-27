@@ -44,7 +44,7 @@ export async function GET(request) {
     }
 
     const records = await Record.find({})
-      .select("_id first_name last_name household_no")
+      .select("_id first_name last_name household_no entry_date entry_month")
       .sort({ last_name: 1, first_name: 1 })
       .lean();
 
@@ -100,18 +100,36 @@ export async function GET(request) {
     const homeowners = records.map((record) => {
       const homeownerId = String(record._id);
 
+      let entryPeriod = 0;
+      if (record.entry_date) {
+        const entryDate = new Date(record.entry_date);
+        if (!Number.isNaN(entryDate.getTime())) {
+          entryPeriod = entryDate.getFullYear() * 100 + (entryDate.getMonth() + 1);
+        }
+      }
+
       const monthly_status = months.map((monthInfo) => {
+        const currentPeriod = monthInfo.year * 100 + monthInfo.month;
         const lookupKey = `${homeownerId}:${monthInfo.key}`;
+        const recordedStatus = homeownerMonthStatus.get(lookupKey);
+
+        let finalStatus = "unpaid";
+        if (recordedStatus) {
+          finalStatus = recordedStatus;
+        } else if (entryPeriod > 0 && currentPeriod < entryPeriod) {
+          finalStatus = "N/A";
+        }
+
         return {
           month: monthInfo.month,
           year: monthInfo.year,
           label: monthInfo.label,
-          status: homeownerMonthStatus.get(lookupKey) || "unpaid",
+          status: finalStatus,
         };
       });
 
       const paidMonths = monthly_status.filter((entry) => entry.status === "paid").length;
-      const unpaidMonths = monthly_status.length - paidMonths;
+      const unpaidMonths = monthly_status.filter((entry) => entry.status === "unpaid").length;
       const currentMonth = monthly_status[monthly_status.length - 1] || null;
 
       return {

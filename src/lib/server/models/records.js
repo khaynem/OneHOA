@@ -36,6 +36,10 @@ const recordsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    entry_month: {
+      type: String,
+      trim: true,
+    },
     entry_date: {
       type: Date,
     },

@@ -74,6 +74,7 @@ const EMPTY_FORM = {
   phase: '',
   block: '',
   lot: '',
+  entryMonth: 'January',
   entryDate: '',
   occupantStatus: '',
   householdMembers: [],
@@ -84,6 +85,11 @@ const EMPTY_FORM = {
 }
 
 const VALID_PHASES = ['1', '2', '3']
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
 
 const toEntryYear = (dateValue) => {
   if (!dateValue) {
@@ -98,13 +104,15 @@ const toEntryYear = (dateValue) => {
   return String(date.getFullYear())
 }
 
-const toEntryDateValue = (yearValue) => {
+const toEntryDateValue = (yearValue, monthValue = 'January') => {
   const year = digitsOnly(yearValue).slice(0, 4)
   if (year.length !== 4) {
     return ''
   }
 
-  return `${year}-01-01`
+  const monthIdx = MONTH_NAMES.indexOf(monthValue) >= 0 ? MONTH_NAMES.indexOf(monthValue) : 0
+  const monthStr = String(monthIdx + 1).padStart(2, '0')
+  return `${year}-${monthStr}-01`
 }
 
 const normalizeStatusList = (value) => {
@@ -860,7 +868,8 @@ function HomeownerManagementInner() {
         household_members: addForm.householdMembers,
         job_title: addForm.jobDescription.trim(),
         work_status: addForm.workStatus.trim(),
-        entry_date: toEntryDateValue(addForm.entryDate),
+        entry_month: addForm.entryMonth,
+        entry_date: toEntryDateValue(addForm.entryDate, addForm.entryMonth),
         occupant_status: addForm.occupantStatus.trim(),
         address: {
           phase: Number(addForm.phase),
@@ -2061,10 +2070,26 @@ function HomeownerManagementInner() {
                   </div>
                 </div>
 
-                <div className={styles.twoColGrid}>
+                <div className={styles.threeColGrid}>
                   <div>
                     <label className={styles.fieldLabel}>
-                      Entry Date <span className={styles.requiredMark}>*</span>
+                      Entry Month <span className={styles.requiredMark}>*</span>
+                    </label>
+                    <select
+                      className={styles.input}
+                      value={addForm.entryMonth || 'January'}
+                      onChange={(event) => handleFormChange('entryMonth', event.target.value)}
+                    >
+                      {MONTH_NAMES.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={styles.fieldLabel}>
+                      Entry Year <span className={styles.requiredMark}>*</span>
                     </label>
                     <input
                       type="text"

@@ -27,6 +27,17 @@ const DEFAULT_REGISTRATION_FIELDS = [
   { key: "phase", label: "Phase (1-3)", type: "select", options: ["1", "2", "3"], required: true, isActive: true },
   { key: "block", label: "Block", type: "number", required: true, isActive: true },
   { key: "lot", label: "Lot", type: "number", required: true, isActive: true },
+  {
+    key: "entry_month",
+    label: "Entry Month",
+    type: "select",
+    options: [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ],
+    required: true,
+    isActive: true,
+  },
   { key: "entry_date", label: "Entry Year", type: "number", required: true, isActive: true },
   {
     key: "occupant_status",
@@ -45,14 +56,23 @@ const normalizeRegistrationFields = (fields = []) => {
   }
 
   return fields.map((field) => {
-    if (field?.key !== "work_status") {
-      return field
+    if (field?.key === "work_status") {
+      return {
+        ...field,
+        options: WORK_STATUS_OPTIONS,
+      }
+    }
+    if (field?.key === "entry_month") {
+      return {
+        ...field,
+        options: [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
+        ],
+      }
     }
 
-    return {
-      ...field,
-      options: WORK_STATUS_OPTIONS,
-    }
+    return field
   })
 };
 
@@ -70,6 +90,16 @@ export async function GET() {
         emailField,
         ...fields.slice(3)
       ];
+    }
+
+    if (!fields.find(f => f.key === "entry_month")) {
+      const entryMonthField = DEFAULT_REGISTRATION_FIELDS.find(f => f.key === "entry_month");
+      const entryYearIndex = fields.findIndex(f => f.key === "entry_date");
+      if (entryYearIndex !== -1) {
+        fields.splice(entryYearIndex, 0, entryMonthField);
+      } else {
+        fields.push(entryMonthField);
+      }
     }
 
     return NextResponse.json({ success: true, fields }, { status: 200 });

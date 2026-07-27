@@ -31,6 +31,17 @@ const DEFAULT_REGISTRATION_FIELDS = [
   { key: "phase", label: "Phase (1-3)", type: "select", options: ["1", "2", "3"], required: true, isActive: true },
   { key: "block", label: "Block", type: "number", required: true, isActive: true },
   { key: "lot", label: "Lot", type: "number", required: true, isActive: true },
+  {
+    key: "entry_month",
+    label: "Entry Month",
+    type: "select",
+    options: [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ],
+    required: true,
+    isActive: true,
+  },
   { key: "entry_date", label: "Entry Year", type: "number", required: true, isActive: true },
   {
     key: "occupant_status",
@@ -136,6 +147,8 @@ export async function POST(request) {
               );
             }
             payload[field.key] = num;
+          } else if (field.key === "entry_month") {
+            payload.entry_month = stringVal;
           } else if (field.key === "entry_date") {
             const year = Number(stringVal);
             const currentYear = new Date().getFullYear();
@@ -145,8 +158,12 @@ export async function POST(request) {
                 { status: 400 }
               );
             }
-            // convert entry year to Date object (Jan 1 of that year)
-            payload.entry_date = new Date(year, 0, 1);
+            const MONTH_NAMES = [
+              "January", "February", "March", "April", "May", "June",
+              "July", "August", "September", "October", "November", "December"
+            ];
+            const monthIdx = MONTH_NAMES.indexOf(payload.entry_month) >= 0 ? MONTH_NAMES.indexOf(payload.entry_month) : 0;
+            payload.entry_date = new Date(year, monthIdx, 1);
           } else if (field.key === "phone_number") {
             const digits = stringVal.replace(/\D/g, "");
             if (digits.length !== 11) {

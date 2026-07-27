@@ -292,6 +292,11 @@ export default function PaymentMonitoringPage() {
   const [searchText, setSearchText] = useState('')
   const [filterStartDate, setFilterStartDate] = useState('')
   const [filterEndDate, setFilterEndDate] = useState('')
+  const [dueFilterMonth, setDueFilterMonth] = useState(() => String(new Date().getMonth() + 1).padStart(2, '0'))
+  const [dueFilterYear, setDueFilterYear] = useState(() => String(new Date().getFullYear()))
+  const [dueFilterStatus, setDueFilterStatus] = useState('all')
+  const [activeTab, setActiveTab] = useState('dueTracker')
+  const [trackerCurrentPage, setTrackerCurrentPage] = useState(1)
   const [records, setRecords] = useState([])
   const [homeowners, setHomeowners] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -517,7 +522,121 @@ export default function PaymentMonitoringPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, filterStartDate, filterEndDate])
+    setTrackerCurrentPage(1)
+  }, [searchText, filterStartDate, filterEndDate, dueFilterMonth, dueFilterYear, dueFilterStatus])
+
+  const targetPeriodNum = useMemo(() => {
+    if (dueFilterMonth !== 'all' && dueFilterYear !== 'all') {
+      return Number(dueFilterYear) * 100 + Number(dueFilterMonth)
+    }
+    return null
+  }, [dueFilterMonth, dueFilterYear])
+
+  const selectedPeriodLabel = useMemo(() => {
+    if (dueFilterMonth === 'all' && dueFilterYear === 'all') return 'All Periods'
+    if (dueFilterMonth === 'all') return `All Months ${dueFilterYear}`
+    if (dueFilterYear === 'all') {
+      const monthLabel = MONTH_OPTIONS.find((m) => m.value === dueFilterMonth)?.label || dueFilterMonth
+      return `${monthLabel} (All Years)`
+    }
+    const monthLabel = MONTH_OPTIONS.find((m) => m.value === dueFilterMonth)?.label || dueFilterMonth
+    return `${monthLabel} ${dueFilterYear}`
+  }, [dueFilterMonth, dueFilterYear])
+
+  const homeownerDueTrackerList = useMemo(() => {
+    const q = searchText.trim().toLowerCase()
+    const startObj = filterStartDate ? parseLocalDate(filterStartDate) : null
+    const endObj = filterEndDate ? parseLocalDate(filterEndDate) : null
+    if (endObj) {
+      endObj.setHours(23, 59, 59, 999)
+    }
+
+    return monitoredHomeowners
+      .map((homeowner) => {
+        const homeownerId = String(homeowner._id)
+        const name = getHomeownerName(homeowner)
+        const address = homeowner.address?._id || homeowner['address._id'] || null
+        const unitNumber = toUnitNumberFromAddress(address)
+
+        const paidRecords = records.filter(
+          (r) => r.recordId === homeownerId && r.paymentStatus === 'paid'
+        )
+
+        let isPaid = false
+        let matchingRecord = null
+
+        if (targetPeriodNum) {
+          matchingRecord = paidRecords.find(
+            (r) => Array.isArray(r.coveredPeriods) && r.coveredPeriods.includes(targetPeriodNum)
+          )
+          if (matchingRecord) {
+            isPaid = true
+          }
+        } else {
+          matchingRecord = paidRecords.find((r) => {
+            if (!Array.isArray(r.coveredPeriods) || r.coveredPeriods.length === 0) return false
+            return r.coveredPeriods.some((period) => {
+              const y = Math.floor(period / 100)
+              const m = String(period % 100).padStart(2, '0')
+              const matchYear = dueFilterYear === 'all' || String(y) === dueFilterYear
+              const matchMonth = dueFilterMonth === 'all' || m === dueFilterMonth
+              return matchYear && matchMonth
+            })
+          })
+          if (matchingRecord) {
+            isPaid = true
+          }
+        }
+
+        if (matchingRecord && (startObj || endObj)) {
+          const paidDate = parseLocalDate(matchingRecord.datePaid)
+          if (paidDate) {
+            if (startObj && paidDate < startObj) matchingRecord = null
+            if (endObj && paidDate > endObj) matchingRecord = null
+          }
+        }
+
+        const status = isPaid && matchingRecord ? 'paid' : 'unpaid'
+
+        return {
+          homeownerId,
+          name,
+          unitNumber,
+          status,
+          datePaid: matchingRecord ? matchingRecord.datePaid : null,
+          receiptNo: matchingRecord ? matchingRecord.receiptNo : '-',
+          amountPaid: matchingRecord ? matchingRecord.amount : 0,
+          coveredPeriods: matchingRecord ? matchingRecord.coveredPeriods : [],
+          recordObj: matchingRecord,
+          rawHomeowner: homeowner,
+          searchKey: `${name} ${unitNumber} ${matchingRecord?.receiptNo || ''}`.toLowerCase()
+        }
+      })
+      .filter((entry) => {
+        if (q && !entry.searchKey.includes(q)) return false
+        if (dueFilterStatus === 'paid' && entry.status !== 'paid') return false
+        if (dueFilterStatus === 'unpaid' && entry.status !== 'unpaid') return false
+        return true
+      })
+      .sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'unpaid' ? -1 : 1
+        }
+        return a.name.localeCompare(b.name)
+      })
+  }, [monitoredHomeowners, records, targetPeriodNum, dueFilterYear, dueFilterMonth, searchText, filterStartDate, filterEndDate, dueFilterStatus])
+
+  const trackerTotalPages = Math.max(Math.ceil(homeownerDueTrackerList.length / PAGE_SIZE), 1)
+  const pagedTrackerRecords = useMemo(() => {
+    const start = (trackerCurrentPage - 1) * PAGE_SIZE
+    return homeownerDueTrackerList.slice(start, start + PAGE_SIZE)
+  }, [trackerCurrentPage, homeownerDueTrackerList])
+
+  useEffect(() => {
+    if (trackerCurrentPage > trackerTotalPages) {
+      setTrackerCurrentPage(trackerTotalPages)
+    }
+  }, [trackerCurrentPage, trackerTotalPages])
 
   const filteredRecords = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -609,6 +728,43 @@ export default function PaymentMonitoringPage() {
       amount: nextAmount
     })
     setIsRecordModalOpen(true)
+  }
+
+  const openRecordModalForHomeowner = (trackerEntry) => {
+    const receiptNo = generateReceiptNo(records.map((record) => record.receiptNo))
+    const today = toYmd(new Date())
+    const startYear = dueFilterYear !== 'all' ? dueFilterYear : String(new Date().getFullYear())
+    const startMonth = dueFilterMonth !== 'all' ? dueFilterMonth : String(new Date().getMonth() + 1).padStart(2, '0')
+    const endYear = startYear
+    const endMonth = startMonth
+
+    const range = buildPeriodRange(startYear, startMonth, endYear, endMonth)
+    const periods = range.periods.length > 0 ? range.periods : [Number(startYear) * 100 + Number(startMonth)]
+    const nextAmount = String(periods.length * monthlyDues)
+
+    setForm({
+      ...EMPTY_FORM,
+      recordId: trackerEntry.homeownerId,
+      homeownerSearch: `${trackerEntry.name} (${trackerEntry.unitNumber})`,
+      receiptNo,
+      date: today,
+      rangeStartYear: startYear,
+      rangeStartMonth: startMonth,
+      rangeEndYear: endYear,
+      rangeEndMonth: endMonth,
+      paymentPeriods: periods,
+      amount: nextAmount
+    })
+    setIsRecordModalOpen(true)
+  }
+
+  const handleClearFilters = () => {
+    setSearchText('')
+    setFilterStartDate('')
+    setFilterEndDate('')
+    setDueFilterMonth('all')
+    setDueFilterYear('all')
+    setDueFilterStatus('all')
   }
 
   const closeRecordModal = () => {
@@ -1555,12 +1711,53 @@ export default function PaymentMonitoringPage() {
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
               className={styles.searchInput}
-              placeholder="Search by homeowner, unit number, or receipt number"
+              placeholder="Search homeowner, unit number, or receipt number..."
               aria-label="Search payment records"
             />
 
+            <div className={styles.dueFilterGroup}>
+              <span className={styles.dateLabel}>Monthly Due:</span>
+              <select
+                value={dueFilterMonth}
+                onChange={(e) => setDueFilterMonth(e.target.value)}
+                className={styles.dateInput}
+                aria-label="Filter by month"
+              >
+                <option value="all">All Months</option>
+                {MONTH_OPTIONS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={dueFilterYear}
+                onChange={(e) => setDueFilterYear(e.target.value)}
+                className={styles.dateInput}
+                aria-label="Filter by year"
+              >
+                <option value="all">All Years</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+              </select>
+
+              <select
+                value={dueFilterStatus}
+                onChange={(e) => setDueFilterStatus(e.target.value)}
+                className={styles.dateInput}
+                aria-label="Filter by payment status"
+              >
+                <option value="all">Status: All</option>
+                <option value="paid">Status: Paid</option>
+                <option value="unpaid">Status: Unpaid</option>
+              </select>
+            </div>
+
             <div className={styles.dateFilterGroup}>
-              <span className={styles.dateLabel}>From:</span>
+              <span className={styles.dateLabel}>Paid From:</span>
               <input
                 type="date"
                 value={filterStartDate}
@@ -1579,14 +1776,11 @@ export default function PaymentMonitoringPage() {
                 max={mounted ? toYmd(new Date()) : ''}
                 aria-label="Filter payment records end date"
               />
-              {(filterStartDate || filterEndDate) && (
+              {(filterStartDate || filterEndDate || searchText.trim() || dueFilterMonth !== 'all' || dueFilterYear !== 'all' || dueFilterStatus !== 'all') && (
                 <button
                   type="button"
                   className={styles.clearFilterButton}
-                  onClick={() => {
-                    setFilterStartDate('')
-                    setFilterEndDate('')
-                  }}
+                  onClick={handleClearFilters}
                   style={{ marginLeft: '6px' }}
                 >
                   Clear Filters
@@ -1606,56 +1800,172 @@ export default function PaymentMonitoringPage() {
         </section>
 
         <section className={styles.tableCard}>
-          <h2 className={styles.tableTitle}>Recent Payment Records</h2>
+          <div className={styles.tableHeaderContainer}>
+            <h2 className={styles.tableTitle}>
+              {activeTab === 'dueTracker'
+                ? `Monthly Due Status Tracker (${selectedPeriodLabel})`
+                : 'Recent Payment Records'}
+            </h2>
+            <div className={styles.tabGroup}>
+              <button
+                type="button"
+                className={`${styles.tabButton} ${activeTab === 'dueTracker' ? styles.tabButtonActive : ''}`}
+                onClick={() => setActiveTab('dueTracker')}
+              >
+                Monthly Due Status Tracker
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabButton} ${activeTab === 'allReceipts' ? styles.tabButtonActive : ''}`}
+                onClick={() => setActiveTab('allReceipts')}
+              >
+                All Payment Receipts ({filteredRecords.length})
+              </button>
+            </div>
+          </div>
+
           <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Homeowner</th>
-                  <th>Receipt No.</th>
-                  <th>Amount</th>
-                  <th>Date Paid</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
+            {activeTab === 'dueTracker' ? (
+              <table className={styles.table}>
+                <thead>
                   <tr>
-                    <td colSpan={5} className={styles.emptyRow}>
-                      Loading payment records...
-                    </td>
+                    <th>Homeowner</th>
+                    <th>Unit / Address</th>
+                    <th>Filtered Period</th>
+                    <th>Payment Status</th>
+                    <th>Date Paid</th>
+                    <th>Receipt No.</th>
+                    <th>Amount</th>
+                    <th>Action</th>
                   </tr>
-                ) : filteredRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className={styles.emptyRow}>
-                      No payment records found.
-                    </td>
-                  </tr>
-                ) : (
-                  pagedRecords.map((record) => (
-                    <tr key={record.id}>
-                      <td>{record.homeownerName}</td>
-                      <td>{record.receiptNo}</td>
-                      <td>{toPeso(record.amount)}</td>
-                      <td>{formatDate(record.datePaid)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          className={styles.viewButton}
-                          onClick={() => openPaymentViewModal(record)}
-                        >
-                          <HiOutlineEye />
-                        </button>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={8} className={styles.emptyRow}>
+                        Loading payment tracker data...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : homeownerDueTrackerList.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className={styles.emptyRow}>
+                        No homeowners match the current filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedTrackerRecords.map((tracker) => (
+                      <tr key={tracker.homeownerId}>
+                        <td>{tracker.name}</td>
+                        <td>{tracker.unitNumber}</td>
+                        <td>{selectedPeriodLabel}</td>
+                        <td>
+                          {tracker.status === 'paid' ? (
+                            <span className={styles.badgePaid}>✓ Paid</span>
+                          ) : (
+                            <span className={styles.badgeUnpaid}>✕ Unpaid</span>
+                          )}
+                        </td>
+                        <td>{tracker.datePaid ? formatDate(tracker.datePaid) : '-'}</td>
+                        <td>{tracker.receiptNo}</td>
+                        <td>{tracker.status === 'paid' ? toPeso(tracker.amountPaid) : '-'}</td>
+                        <td>
+                          {tracker.status === 'paid' && tracker.recordObj ? (
+                            <button
+                              type="button"
+                              className={styles.viewButton}
+                              onClick={() => openPaymentViewModal(tracker.recordObj)}
+                              title="View Payment Details"
+                            >
+                              <HiOutlineEye />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className={styles.payButton}
+                              onClick={() => openRecordModalForHomeowner(tracker)}
+                              title="Record Payment for Homeowner"
+                            >
+                              + Record Payment
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Homeowner</th>
+                    <th>Receipt No.</th>
+                    <th>Amount</th>
+                    <th>Date Paid</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={5} className={styles.emptyRow}>
+                        Loading payment records...
+                      </td>
+                    </tr>
+                  ) : filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className={styles.emptyRow}>
+                        No payment records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedRecords.map((record) => (
+                      <tr key={record.id}>
+                        <td>{record.homeownerName}</td>
+                        <td>{record.receiptNo}</td>
+                        <td>{toPeso(record.amount)}</td>
+                        <td>{formatDate(record.datePaid)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className={styles.viewButton}
+                            onClick={() => openPaymentViewModal(record)}
+                          >
+                            <HiOutlineEye />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
-        {filteredRecords.length > 0 ? (
+        {activeTab === 'dueTracker' && homeownerDueTrackerList.length > 0 ? (
+          <div className={styles.pagination}>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setTrackerCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={trackerCurrentPage === 1}
+            >
+              Prev
+            </button>
+            <span className={styles.pageInfo}>
+              Page {trackerCurrentPage} of {trackerTotalPages}
+            </span>
+            <button
+              type="button"
+              className={styles.pageButton}
+              onClick={() => setTrackerCurrentPage((prev) => Math.min(prev + 1, trackerTotalPages))}
+              disabled={trackerCurrentPage === trackerTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        ) : activeTab === 'allReceipts' && filteredRecords.length > 0 ? (
           <div className={styles.pagination}>
             <button
               type="button"
@@ -1665,7 +1975,9 @@ export default function PaymentMonitoringPage() {
             >
               Prev
             </button>
-            <span className={styles.pageInfo}>Page {currentPage} of {totalPages}</span>
+            <span className={styles.pageInfo}>
+              Page {currentPage} of {totalPages}
+            </span>
             <button
               type="button"
               className={styles.pageButton}

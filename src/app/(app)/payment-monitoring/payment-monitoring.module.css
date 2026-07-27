@@ -430,6 +430,13 @@
   box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.15);
 }
 
+.dueFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .dateFilterGroup {
   display: flex;
   align-items: center;
@@ -544,13 +551,94 @@
   max-width: 100%;
 }
 
+.tableHeaderContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #fafafa;
+}
+
+.tabGroup {
+  display: flex;
+  background: #e2e8f0;
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.tabButton {
+  padding: 6px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  font-family: poppins, sans-serif;
+}
+
+.tabButtonActive {
+  background: #ffffff;
+  color: #0a68b2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.badgePaid {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+.badgeUnpaid {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #ffe4e6;
+  color: #be123c;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+.payButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #0a68b2;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-family: poppins, sans-serif;
+}
+
+.payButton:hover {
+  background: #085490;
+}
+
 .tableTitle {
   margin: 0;
-  padding: 16px 20px;
+  padding: 0;
   color: #0f172a;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  border-bottom: 1px solid #e2e8f0;
 }
 
 .tableScroll {

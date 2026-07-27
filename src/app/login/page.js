@@ -27,16 +27,13 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const res = await apiClient.post('/auth/login', {
+      await apiClient.post('/auth/login', {
         email: email.trim().toLowerCase(),
         password,
       })
 
-      const isHomeowner = res?.user?.role === 'homeowner'
-      const redirectTo = isHomeowner ? '/my-home' : '/dashboard'
-
-      notify.success(isHomeowner ? 'Login successful.' : 'Login successful. Redirecting to dashboard...')
-      router.push(redirectTo)
+      notify.success('Login successful. Redirecting to dashboard...')
+      router.push('/dashboard')
       router.refresh()
     } catch (error) {
       if (error instanceof ApiError) {

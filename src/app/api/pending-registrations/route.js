@@ -118,8 +118,7 @@ export async function POST(request) {
           isPresent = val !== undefined && val !== null && String(val).trim() !== "";
         }
 
-        // middle_name is always optional — skip required check
-        if (field.required && field.key !== 'middle_name' && !isPresent) {
+        if (field.required && !isPresent) {
           return NextResponse.json(
             { success: false, message: `Field "${field.label}" is required.` },
             { status: 400 }

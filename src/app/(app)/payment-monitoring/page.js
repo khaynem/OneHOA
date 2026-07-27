@@ -310,6 +310,8 @@ export default function PaymentMonitoringPage() {
   const [isSavingPayment, setIsSavingPayment] = useState(false)
   const [printerType, setPrinterType] = useState('usb')
   const [mounted, setMounted] = useState(false)
+  const [periodFilterMonth, setPeriodFilterMonth] = useState('')
+  const [periodFilterYear, setPeriodFilterYear] = useState('')
 
   const printerPortRef = useRef(null)
   const printerTypeRef = useRef(null)
@@ -515,9 +517,37 @@ export default function PaymentMonitoringPage() {
     return () => window.clearTimeout(timer)
   }, [form.homeownerSearch])
 
+  const periodFilterValue = useMemo(() => {
+    if (!periodFilterMonth || !periodFilterYear) return null
+    return Number(periodFilterYear) * 100 + Number(periodFilterMonth)
+  }, [periodFilterMonth, periodFilterYear])
+
+  const periodLabel = periodFilterValue ? paymentPeriodToLabel(periodFilterValue) : ''
+
+  const periodPaidHomeownerIds = useMemo(() => {
+    if (!periodFilterValue) return new Set()
+    const ids = new Set()
+    records
+      .filter((r) => r.coveredPeriods.includes(periodFilterValue))
+      .forEach((r) => {
+        if (r.recordId) ids.add(r.recordId)
+      })
+    return ids
+  }, [records, periodFilterValue])
+
+  const periodPendingHomeowners = useMemo(() => {
+    if (!periodFilterValue) return []
+    return monitoredHomeowners.filter(
+      (h) => !periodPaidHomeownerIds.has(String(h._id))
+    )
+  }, [monitoredHomeowners, periodPaidHomeownerIds, periodFilterValue])
+
+  const periodPaidCount = periodPaidHomeownerIds.size
+  const periodTotalCount = monitoredHomeowners.length
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, filterStartDate, filterEndDate])
+  }, [searchText, filterStartDate, filterEndDate, periodFilterMonth, periodFilterYear])
 
   const filteredRecords = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -557,12 +587,16 @@ export default function PaymentMonitoringPage() {
 
         return true
       })
+      .filter((record) => {
+        if (!periodFilterValue) return true
+        return record.coveredPeriods.includes(periodFilterValue)
+      })
       .sort((a, b) => {
         const dateA = parseLocalDate(a.datePaid)
         const dateB = parseLocalDate(b.datePaid)
         return (dateB?.getTime() || 0) - (dateA?.getTime() || 0)
       })
-  }, [records, searchText, filterStartDate, filterEndDate])
+  }, [records, searchText, filterStartDate, filterEndDate, periodFilterValue])
 
   const filteredTotalPayment = useMemo(() => {
     return filteredRecords.reduce((sum, record) => {
@@ -1603,10 +1637,116 @@ export default function PaymentMonitoringPage() {
               </button>
             </div>
           </div>
+
+          {/* Monthly Due Period Filter */}
+          <div className={styles.periodFilterRow}>
+            <span className={styles.periodFilterLabel}>Filter by Monthly Due:</span>
+            <select
+              className={styles.periodFilterSelect}
+              value={periodFilterMonth}
+              onChange={(e) => setPeriodFilterMonth(e.target.value)}
+              aria-label="Select month for due period filter"
+            >
+              <option value="">Month</option>
+              {MONTH_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              inputMode="numeric"
+              className={styles.periodFilterYear}
+              value={periodFilterYear}
+              onChange={(e) => setPeriodFilterYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="Year"
+              aria-label="Enter year for due period filter"
+            />
+            {periodFilterValue && (
+              <>
+                <span className={styles.periodFilterStatus}>
+                  {periodPaidCount} of {periodTotalCount} homeowners paid
+                </span>
+                <button
+                  type="button"
+                  className={styles.clearFilterButton}
+                  onClick={() => {
+                    setPeriodFilterMonth('')
+                    setPeriodFilterYear('')
+                  }}
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
         </section>
 
+        {/* Period Paid Summary */}
+        {periodFilterValue && (
+          <section className={styles.periodSummary}>
+            <div className={styles.periodSummaryHeader}>
+              <h3 className={styles.periodSummaryTitle}>
+                Monthly Due: {periodLabel}
+              </h3>
+              <span className={styles.periodSummaryBadge}>
+                {periodPaidCount} Paid &middot; {periodTotalCount - periodPaidCount} Unpaid
+              </span>
+            </div>
+            <div className={styles.periodSummaryBar}>
+              <div
+                className={styles.periodSummaryBarFill}
+                style={{ width: periodTotalCount > 0 ? `${(periodPaidCount / periodTotalCount) * 100}%` : '0%' }}
+              />
+            </div>
+            <div className={styles.periodSummaryLists}>
+              {periodPaidCount > 0 && (
+                <div className={styles.periodSummaryCol}>
+                  <p className={styles.periodSummaryColTitle}>Paid Homeowners ({periodPaidCount})</p>
+                  <ul className={styles.periodSummaryList}>
+                    {(() => {
+                      const seen = new Set()
+                      return records
+                        .filter((r) => r.coveredPeriods.includes(periodFilterValue))
+                        .filter((r) => {
+                          if (seen.has(r.recordId)) return false
+                          seen.add(r.recordId)
+                          return true
+                        })
+                        .map((r) => (
+                          <li key={r.id} className={styles.periodSummaryItem} data-status="paid">
+                            <span className={styles.periodSummaryName}>{r.homeownerName}</span>
+                            <span className={styles.periodSummaryMeta}>{r.unitNumber} &middot; {toPeso(r.amount)} &middot; {formatDate(r.datePaid)}</span>
+                          </li>
+                        ))
+                    })()}
+                  </ul>
+                </div>
+              )}
+              {periodPendingHomeowners.length > 0 && (
+                <div className={styles.periodSummaryCol}>
+                  <p className={styles.periodSummaryColTitle}>Unpaid Homeowners ({periodPendingHomeowners.length})</p>
+                  <ul className={styles.periodSummaryList}>
+                    {periodPendingHomeowners.map((h) => {
+                      const address = h.address?._id || h['address._id'] || null
+                      const unitNumber = toUnitNumberFromAddress(address)
+                      return (
+                        <li key={String(h._id)} className={styles.periodSummaryItem} data-status="unpaid">
+                          <span className={styles.periodSummaryName}>{getHomeownerName(h)}</span>
+                          <span className={styles.periodSummaryMeta}>{unitNumber}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         <section className={styles.tableCard}>
-          <h2 className={styles.tableTitle}>Recent Payment Records</h2>
+          <h2 className={styles.tableTitle}>
+            {periodFilterValue ? `Payment Records for ${periodLabel}` : 'Recent Payment Records'}
+          </h2>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
               <thead>

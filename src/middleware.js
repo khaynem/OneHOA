@@ -10,6 +10,7 @@ const protectedRoutes = [
   "/admin/account-management",
   "/pending-registrations",
   "/admin/pending-registrations",
+  "/my-home",
 ];
 
 const routeRoleRules = {
@@ -74,13 +75,23 @@ export async function middleware(request) {
   }
 
   if (isProtectedRoute && user) {
+    // Homeowners can ONLY access /my-home — redirect everything else
+    if (user.role === "homeowner" && pathname !== "/my-home" && !pathname.startsWith("/my-home/")) {
+      return NextResponse.redirect(new URL("/my-home", request.url));
+    }
+
     const allowedRoles = getRouteRoles(pathname);
     if (allowedRoles && !allowedRoles.includes(user.role)) {
+      // Redirect non-homeowner users to dashboard; homeowners are already caught above
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }
 
   if (isLoginRoute && user) {
+    // Redirect homeowners to /my-home, everyone else to /dashboard
+    if (user.role === "homeowner") {
+      return NextResponse.redirect(new URL("/my-home", request.url));
+    }
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -97,5 +108,6 @@ export const config = {
     "/admin/account-management/:path*",
     "/pending-registrations/:path*",
     "/admin/pending-registrations/:path*",
+    "/my-home/:path*",
   ],
 };

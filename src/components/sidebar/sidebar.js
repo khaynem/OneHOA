@@ -6,7 +6,7 @@ import { HiOutlineUsers, HiOutlineArrowRightOnRectangle, HiOutlineArrowLeftOnRec
 import { apiClient, ApiError } from '@/lib/apiClient'
 import styles from './sidebar.module.css'
 
-export default function Sidebar({ isCollapsed = false, links = [], user }) {
+export default function Sidebar({ isCollapsed = false, links = [], user, profilePhotoUrl }) {
 	const pathname = usePathname()
 	const router = useRouter()
 
@@ -32,6 +32,7 @@ export default function Sidebar({ isCollapsed = false, links = [], user }) {
 	const roleLabel = formatRole(user?.role)
 	const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : roleLabel
 	const initial = roleLabel.charAt(0).toUpperCase() || 'U'
+	const photoUrl = profilePhotoUrl || null
 
 	const handleConfirmLogout = async () => {
 		setLogoutError('')
@@ -56,7 +57,11 @@ export default function Sidebar({ isCollapsed = false, links = [], user }) {
 		<>
 			<aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
 				<div className={styles.profileCard}>
-					<div className={styles.avatarCircle}>{initial}</div>
+					{photoUrl ? (
+						<img src={photoUrl} alt={displayName} className={styles.avatarImage} />
+					) : (
+						<div className={styles.avatarCircle}>{initial}</div>
+					)}
 					{!isCollapsed && (
 						<div className={styles.profileDetails}>
 							<p className={styles.profileName} title={displayName}>{displayName}</p>

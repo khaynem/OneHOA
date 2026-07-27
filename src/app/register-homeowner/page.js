@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState, useRef } from 'react'
-import { FaArrowLeft, FaCheckCircle, FaCloudUploadAlt, FaIdCard, FaCamera, FaSpinner, FaUserAlt, FaBriefcase, FaHome, FaUsers, FaPlus, FaTrash, FaEnvelope, FaLock, FaKey, FaCheck } from 'react-icons/fa'
+import { FaArrowLeft, FaCheckCircle, FaCloudUploadAlt, FaIdCard, FaCamera, FaSpinner, FaUserAlt, FaBriefcase, FaHome, FaUsers, FaPlus, FaEnvelope, FaLock, FaKey, FaCheck } from 'react-icons/fa'
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import JobTitleField from '@/components/job-title-field/job-title-field'
@@ -623,7 +623,7 @@ export default function RegisterHomeownerPage() {
                 onClick={() => removeHouseholdMember(index)}
                 title="Remove Member"
               >
-                <FaTrash />
+                X
               </button>
             </div>
           ))}

@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDays, HiOutlineIdentification } from 'react-icons/hi2'
+import { HiOutlineHome, HiOutlineUsers, HiOutlineCreditCard, HiOutlineCalendarDays, HiOutlineIdentification, HiOutlineUser } from 'react-icons/hi2'
 import { apiClient } from '@/lib/apiClient'
 import Sidebar from '../../components/sidebar/sidebar'
 import Topnav from '../../components/topnav/topnav'
@@ -36,12 +36,21 @@ export default function AppRouteGroupLayout({ children }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [isMobileView, setIsMobileView] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(null)
   const pathname = usePathname()
 
   const currentUserRole = currentUser?.role || ''
   const normalizedRole = String(currentUserRole).trim().toLowerCase()
 
-  const appLinks = [...BASE_APP_LINKS]
+  // Homeowners see separate nav links; everyone else sees the standard links
+  const appLinks = normalizedRole === 'homeowner'
+    ? [
+        { href: '/my-home/profile', label: 'My Profile', Icon: HiOutlineUser },
+        { href: '/my-home/payments', label: 'My Payments', Icon: HiOutlineCreditCard },
+        { href: '/my-home/announcements', label: 'Announcements', Icon: HiOutlineCalendarDays },
+      ]
+    : [...BASE_APP_LINKS]
+
   if (normalizedRole === 'admin' || normalizedRole === 'president') {
     appLinks.splice(2, 0, {
       href: '/pending-registrations',
@@ -71,6 +80,30 @@ export default function AppRouteGroupLayout({ children }) {
     }
 
     loadCurrentUser()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Fetch homeowner profile photo for sidebar when user is loaded
+  useEffect(() => {
+    if (normalizedRole !== 'homeowner' || !currentUser) return
+
+    let cancelled = false
+
+    apiClient.get('/homeowner/my-profile').then((res) => {
+      if (!cancelled && res?.success && res?.data?.['pictures._id']?.path) {
+        setProfilePhotoUrl(res.data['pictures._id'].path)
+      }
+    }).catch(() => {
+      // Ignore — sidebar will show initials fallback
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [normalizedRole, currentUser])
 
     return () => {
       isMounted = false
@@ -129,7 +162,7 @@ export default function AppRouteGroupLayout({ children }) {
 
   return (
     <div className={styles.shell}>
-      <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} user={currentUser} />
+      <Sidebar isCollapsed={isSidebarCollapsed} links={appLinks} user={currentUser} profilePhotoUrl={profilePhotoUrl} />
 
       {isMobileView && !isSidebarCollapsed && (
         <div

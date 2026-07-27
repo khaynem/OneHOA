@@ -535,6 +535,197 @@
   font-weight: 700;
 }
 
+.periodFilterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.periodFilterLabel {
+  font-size: 0.88rem;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.periodFilterSelect {
+  height: 38px;
+  border: 1px solid #d7dce2;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 0.88rem;
+  color: #1f2024;
+  outline: none;
+  font-family: poppins, sans-serif;
+  background: #fff;
+  min-width: 130px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.periodFilterSelect:focus {
+  border-color: #8cb6da;
+  box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.15);
+}
+
+.periodFilterYear {
+  height: 38px;
+  width: 90px;
+  border: 1px solid #d7dce2;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 0.88rem;
+  color: #1f2024;
+  outline: none;
+  font-family: poppins, sans-serif;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.periodFilterYear:focus {
+  border-color: #8cb6da;
+  box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.15);
+}
+
+.periodFilterStatus {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.periodSummary {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  padding: 20px;
+  margin-bottom: 24px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.periodSummaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.periodSummaryTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.periodSummaryBadge {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 99px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+
+.periodSummaryBar {
+  width: 100%;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.periodSummaryBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 99px;
+  transition: width 0.5s ease;
+  min-width: 0;
+}
+
+.periodSummaryLists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .periodSummaryLists {
+    grid-template-columns: 1fr;
+  }
+}
+
+.periodSummaryCol {
+  min-width: 0;
+}
+
+.periodSummaryColTitle {
+  margin: 0 0 8px;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.periodSummaryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.periodSummaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  font-size: 0.88rem;
+  border: 1px solid transparent;
+}
+
+.periodSummaryItem[data-status="paid"] {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.periodSummaryItem[data-status="unpaid"] {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.periodSummaryName {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.periodSummaryMeta {
+  font-size: 0.78rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .tableCard {
   background: #fff;
   border: 1px solid #e2e8f0;

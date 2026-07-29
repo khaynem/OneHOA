@@ -1,0 +1,291 @@
+/* ── Full-page loading overlay ─────────────────────────────── */
+.loadingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: linear-gradient(145deg, #f0f7ff 0%, #e8f4fd 40%, #fefdfb 100%);
+  overflow: hidden;
+}
+
+.loadingOverlayFadeOut {
+  composes: loadingOverlay;
+  animation: overlayFadeOut 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+
+/* ── Decorative background elements ───────────────────────── */
+.bgGrid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(0, 59, 117, 0.04) 1.2px, transparent 1.2px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+.bgBlob1 {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(0, 112, 196, 0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  top: -120px;
+  right: -60px;
+  animation: blobDrift1 12s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.bgBlob2 {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(255, 202, 40, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  bottom: -80px;
+  left: -40px;
+  animation: blobDrift2 14s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.bgSquare {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 2px solid rgba(0, 112, 196, 0.2);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(1px);
+  top: 18%;
+  left: 12%;
+  animation: floatSquare 10s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.bgSquare2 {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 202, 40, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  bottom: 22%;
+  right: 14%;
+  animation: floatSquare 13s ease-in-out infinite reverse;
+  pointer-events: none;
+}
+
+/* ── Center content ───────────────────────────────────────── */
+.loadingContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* ── Logo with pulse ring ─────────────────────────────────── */
+.logoContainer {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoImage {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 16px;
+  animation: logoBreathe 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 20px rgba(0, 59, 117, 0.15));
+}
+
+.pulseRing {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(0, 92, 162, 0.2);
+  animation: pulseExpand 2.4s ease-out infinite;
+}
+
+.pulseRing2 {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 92, 162, 0.12);
+  animation: pulseExpand 2.4s ease-out infinite 0.8s;
+}
+
+/* ── Text ─────────────────────────────────────────────────── */
+.brandName {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #003B75;
+  letter-spacing: 0.02em;
+}
+
+.loadingText {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #5a7da0;
+  letter-spacing: 0.03em;
+}
+
+/* ── Progress bar ─────────────────────────────────────────── */
+.progressTrack {
+  width: 200px;
+  height: 3px;
+  background: rgba(0, 59, 117, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBar {
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, #005CA2, #0094e8, #005CA2);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: progressSlide 1.8s ease-in-out infinite;
+}
+
+/* ── Skeleton preview (subtle dashboard hint) ─────────────── */
+.skeletonPreview {
+  margin-top: 12px;
+  display: flex;
+  gap: 14px;
+  opacity: 0.35;
+}
+
+.skeletonCard {
+  width: 80px;
+  height: 52px;
+  background: linear-gradient(110deg, rgba(0, 59, 117, 0.06) 30%, rgba(0, 59, 117, 0.12) 50%, rgba(0, 59, 117, 0.06) 70%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.skeletonCard:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.skeletonCard:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ── Keyframes ────────────────────────────────────────────── */
+@keyframes logoBreathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
+
+@keyframes pulseExpand {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@keyframes progressSlide {
+  0% {
+    transform: translateX(-100%);
+    background-position: 200% 0;
+  }
+  100% {
+    transform: translateX(350%);
+    background-position: -200% 0;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes blobDrift1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(-30px, 40px) scale(1.08);
+  }
+}
+
+@keyframes blobDrift2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(25px, -35px) scale(1.1);
+  }
+}
+
+@keyframes floatSquare {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-18px) rotate(12deg);
+  }
+}
+
+@keyframes overlayFadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .logoImage {
+    width: 56px;
+    height: 56px;
+  }
+
+  .logoContainer {
+    width: 80px;
+    height: 80px;
+  }
+
+  .brandName {
+    font-size: 1.25rem;
+  }
+
+  .progressTrack {
+    width: 160px;
+  }
+
+  .skeletonCard {
+    width: 60px;
+    height: 40px;
+  }
+}

@@ -1,0 +1,565 @@
+.container {
+  position: relative;
+  min-height: 100vh;
+  padding: 0 0 60px;
+}
+
+.backgroundContainer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.blob1 {
+  position: absolute;
+  top: -10%;
+  right: -5%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, transparent 70%);
+  filter: blur(60px);
+}
+
+.blob2 {
+  position: absolute;
+  bottom: 10%;
+  left: -5%;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  filter: blur(60px);
+}
+
+.pageContent {
+  position: relative;
+  z-index: 1;
+}
+
+.stateText {
+  color: #64748b;
+  font-size: 1rem;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.errorText {
+  color: #ef4444;
+  font-size: 1rem;
+  padding: 20px;
+  background: #fef2f2;
+  border-radius: 12px;
+  border: 1px solid #fecdd3;
+  margin-bottom: 24px;
+}
+
+/* Hero Profile Banner */
+.profileHeroCard {
+  background: linear-gradient(135deg, #003b75 0%, #005ca2 50%, #0070c4 100%);
+  border-radius: 20px;
+  padding: 36px 40px;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 59, 117, 0.18);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.profileHeroCard::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.heroLeft {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  position: relative;
+  z-index: 1;
+}
+
+.heroAvatarImage {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.heroAvatarInitials {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  font-weight: 800;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.heroTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.heroName {
+  font-size: 1.85rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.occupantStatusBadge {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badgeIcon {
+  font-size: 1rem;
+}
+
+.heroSubText {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 8px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.heroMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.metaTag {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 0.83rem;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inlineIcon {
+  font-size: 1rem;
+  color: #7dd3fc;
+}
+
+.digitalIdBox {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  padding: 20px 24px;
+  border-radius: 16px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.digitalIdLabel {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ffca28;
+  text-transform: uppercase;
+  display: block;
+}
+
+.digitalIdNum {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 4px 0;
+  font-family: monospace;
+}
+
+.digitalIdPhase {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+/* Sections */
+.sectionBlock {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  margin-bottom: 36px;
+}
+
+.sectionHeadingRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.headingIconBox {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.officerHeadingIcon {
+  background: #f0fdf4;
+  color: #10b981;
+}
+
+.headingIcon {
+  font-size: 1.6rem;
+}
+
+.sectionTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.sectionSub {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Details Grid */
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.detailCard {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.cardSubTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardHeaderIcon {
+  color: #0284c7;
+  font-size: 1.2rem;
+}
+
+.infoList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.infoList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.infoList li:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.infoVal {
+  color: #0f172a;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: right;
+}
+
+.smallIcon {
+  color: #0284c7;
+  font-size: 0.95rem;
+}
+
+.highlightVal {
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 2px 10px;
+  border-radius: 6px;
+}
+
+/* Household Members */
+.householdBox {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.emptySubText {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 8px 0 0;
+}
+
+.membersTableWrap {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.membersTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.membersTable th {
+  background: #e2e8f0;
+  color: #334155;
+  font-weight: 700;
+  padding: 10px 14px;
+}
+
+.membersTable td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.memberName {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.relBadge {
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid #bfdbfe;
+}
+
+/* Officers Masterlist Grid */
+.officersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.officerCard {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.officerCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 28px -6px rgba(0, 0, 0, 0.08);
+}
+
+.officerCardPresident {
+  border-top: 4px solid #f59e0b;
+}
+
+.officerCardAdmin {
+  border-top: 4px solid #8b5cf6;
+}
+
+.officerCardStandard {
+  border-top: 4px solid #0284c7;
+}
+
+.officerTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.officerAvatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.avatarGold {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.avatarPurple {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.avatarBlue {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+}
+
+.roleBadge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rolePresident {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.roleAdmin {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+
+.roleOfficer {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.roleSparkle {
+  color: #d97706;
+}
+
+.officerName {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.officerEmail {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.officerFooter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.activeStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.activeStatusText {
+  font-size: 0.8rem;
+  color: #10b981;
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .profileHeroCard {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 28px 32px;
+  }
+
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .heroLeft {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sectionBlock {
+    padding: 20px;
+  }
+}

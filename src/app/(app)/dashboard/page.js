@@ -38,6 +38,8 @@ const getInitials = (name) => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+import HomeownerDashboardView from './homeowner-dashboard-view'
+
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
@@ -50,16 +52,21 @@ export default function DashboardPage() {
         setIsLoading(true)
         setErrorMessage('')
 
-        const dashboardResponse = await apiClient.get('/analytics/dashboard')
-        setDashboardData(dashboardResponse?.data || null)
-
+        let meUser = null
         try {
           const userResponse = await apiClient.get('/auth/me')
           if (userResponse?.user) {
-            setCurrentUser(userResponse.user)
+            meUser = userResponse.user
+            setCurrentUser(meUser)
           }
-        } catch (e) {
-          // Fallback gracefully if auth/me fails (unauthenticated layout handles redirects)
+        } catch {
+          // Fallback gracefully
+        }
+
+        const normalizedRole = String(meUser?.role || '').trim().toLowerCase()
+        if (normalizedRole !== 'homeowner') {
+          const dashboardResponse = await apiClient.get('/analytics/dashboard')
+          setDashboardData(dashboardResponse?.data || null)
         }
       } catch (error) {
         if (error instanceof ApiError) {
@@ -118,6 +125,70 @@ export default function DashboardPage() {
     }).format(new Date())
   }, [])
 
+  if (isLoading) {
+    return (
+      <>
+        <div className={styles.backgroundContainer} aria-hidden="true">
+          <div className={styles.gridOverlay} />
+          <div className={styles.blob1} />
+          <div className={styles.blob2} />
+          <div className={styles.movingGradient} />
+        </div>
+
+        <div className={styles.pageContent}>
+          {/* Skeleton Banner */}
+          <div className={styles.skeletonBanner} aria-label="Loading dashboard">
+            <div className={styles.skeletonBannerBadge} />
+            <div className={styles.skeletonBannerTitle} />
+            <div className={styles.skeletonBannerSubtitle} />
+            <div className={styles.skeletonBannerDate} />
+          </div>
+
+          {/* Skeleton Stat Cards */}
+          <div className={styles.skeletonStatGrid}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={styles.skeletonStatCard}>
+                <div className={styles.skeletonStatInfo}>
+                  <div className={styles.skeletonStatLabel} />
+                  <div className={styles.skeletonStatValue} />
+                  <div className={styles.skeletonStatSubtext} />
+                </div>
+                <div className={styles.skeletonStatIconWrap} />
+              </div>
+            ))}
+          </div>
+
+          {/* Skeleton List Sections */}
+          <div className={styles.skeletonSectionGrid}>
+            {[0, 1].map((section) => (
+              <div key={section} className={styles.skeletonListCard}>
+                <div className={styles.skeletonSectionTitle} />
+                {[0, 1, 2, 3].map((row) => (
+                  <div key={row} className={styles.skeletonListRow}>
+                    {section === 0 ? (
+                      <div className={styles.skeletonAvatar} />
+                    ) : (
+                      <div className={styles.skeletonDot} />
+                    )}
+                    <div className={styles.skeletonRowText}>
+                      <div className={styles.skeletonRowTitle} />
+                      <div className={styles.skeletonRowSubtitle} />
+                    </div>
+                    {section === 0 && <div className={styles.skeletonRowAmount} />}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (currentUser?.role === 'homeowner') {
+    return <HomeownerDashboardView currentUser={currentUser} />
+  }
+
   return (
     <>
       <div className={styles.backgroundContainer} aria-hidden="true">
@@ -146,8 +217,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {isLoading && <p className={styles.stateText}>Loading dashboard analytics...</p>}
-        {!isLoading && errorMessage && <p className={styles.errorText}>{errorMessage}</p>}
+        {errorMessage && <p className={styles.errorText}>{errorMessage}</p>}
 
         <section className={styles.cardGrid} aria-label="Dashboard stats">
           {statCards.map(({ label, value, Icon, href, description, type }) => (

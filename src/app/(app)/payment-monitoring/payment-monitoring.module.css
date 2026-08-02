@@ -926,6 +926,13 @@
   color: #1f2937;
 }
 
+.receiptHint {
+  margin: 0 0 10px;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: #64748b;
+}
+
 .textarea {
   resize: vertical;
   min-height: 86px;

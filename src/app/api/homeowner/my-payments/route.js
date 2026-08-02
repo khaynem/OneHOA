@@ -37,19 +37,25 @@ export async function GET(request) {
     if (normalizedEmail) {
       record = await Record.findOne({
         email: { $regex: new RegExp(`^${normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
-      }).lean();
+      })
+        .populate("address._id")
+        .lean();
     }
 
     if (!record && user.first_name && user.last_name) {
       record = await Record.findOne({
         first_name: { $regex: new RegExp(`^${user.first_name.trim()}$`, "i") },
         last_name: { $regex: new RegExp(`^${user.last_name.trim()}$`, "i") },
-      }).lean();
+      })
+        .populate("address._id")
+        .lean();
     }
 
     // Fallback for testing
     if (!record) {
-      record = await Record.findOne({ archived: { $ne: true } }).lean();
+      record = await Record.findOne({ archived: { $ne: true } })
+        .populate("address._id")
+        .lean();
     }
 
     if (!record) {
@@ -139,6 +145,12 @@ export async function GET(request) {
           first_name: record.first_name,
           last_name: record.last_name,
           generated_id: record.generated_id,
+          email: record.email,
+          phone_number: record.phone_number,
+          phase: record.address?._id?.phase ?? record.address?.phase ?? null,
+          block: record.address?._id?.block ?? record.address?.block ?? null,
+          lot: record.address?._id?.lot ?? record.address?.lot ?? null,
+          unit_number: record.address?._id?.unit_number ?? record.address?.unit_number ?? null,
         },
         payments: formattedPayments,
         stats: {

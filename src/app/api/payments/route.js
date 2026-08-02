@@ -11,6 +11,7 @@ import {
   normalizePaymentForPeriods,
   parsePaymentForEntry,
   formatPeriodLabel,
+  generateNextReceiptNumber,
 } from "@/lib/server/paymentsHelpers";
 
 export const runtime = "nodejs";
@@ -25,7 +26,6 @@ export async function POST(request) {
 
     const body = await request.json();
     const {
-      receipt_no,
       amount,
       date,
       payment_method,
@@ -42,7 +42,7 @@ export async function POST(request) {
     const normalizedPaymentMethod = String(payment_method || "Cash").trim();
     const selectedRecordId = record_id || recordId;
 
-    if (!receipt_no || !amount || !date || !selectedRecordId) {
+    if (!amount || !date || !selectedRecordId) {
       return NextResponse.json({ message: "Missing required fields." }, { status: 400 });
     }
 
@@ -114,22 +114,46 @@ export async function POST(request) {
       );
     }
 
-    const newPayment = new Payment({
-      receipt_no,
-      amount,
-      date: billingInfo.parsedDate,
-      billing_month: billingInfo.billingMonth,
-      billing_year: billingInfo.billingYear,
-      billing_period: billingInfo.billingPeriod,
-      payment_for_periods: coveredPeriods,
-      payment_status: inferPaymentStatus(payment_status, payment_details, normalizedPaymentMethod),
-      payment_method: normalizedPaymentMethod,
-      payment_details,
-      recorded_by: user.id,
-      "records._id": record._id,
-    });
+    const buildPayment = (receiptNumber) =>
+      new Payment({
+        receipt_no: receiptNumber,
+        amount,
+        date: billingInfo.parsedDate,
+        billing_month: billingInfo.billingMonth,
+        billing_year: billingInfo.billingYear,
+        billing_period: billingInfo.billingPeriod,
+        payment_for_periods: coveredPeriods,
+        payment_status: inferPaymentStatus(payment_status, payment_details, normalizedPaymentMethod),
+        payment_method: normalizedPaymentMethod,
+        payment_details,
+        recorded_by: user.id,
+        "records._id": record._id,
+      });
 
-    await newPayment.save();
+    // Auto-generate the YYMMXXXX receipt number based on the payment date and
+    // retry on unique-index collisions (two requests racing for the same slot).
+    let finalReceiptNo = null;
+    let newPayment = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      finalReceiptNo = await generateNextReceiptNumber(Payment, billingInfo.parsedDate);
+      if (!finalReceiptNo) {
+        return NextResponse.json(
+          { message: "Receipt number sequence exhausted for this month." },
+          { status: 409 }
+        );
+      }
+
+      newPayment = buildPayment(finalReceiptNo);
+      try {
+        await newPayment.save();
+        break;
+      } catch (saveError) {
+        if (saveError.code === 11000 && attempt < 5) {
+          continue;
+        }
+        throw saveError;
+      }
+    }
 
     const homeownerName = `${record.first_name || ""} ${record.last_name || ""}`.trim() || "homeowner";
     const periodLabel = formatPeriodLabel(coveredPeriods);
@@ -139,10 +163,10 @@ export async function POST(request) {
         request,
         user,
         statusCode: 201,
-        detailSummary: `Added receipt ${receipt_no} for ${homeownerName} covering ${periodLabel}`,
+        detailSummary: `Added receipt ${finalReceiptNo} for ${homeownerName} covering ${periodLabel}`,
         metadata: {
           payment_id: String(newPayment._id || ""),
-          receipt_no: String(receipt_no || ""),
+          receipt_no: String(finalReceiptNo || ""),
           record_id: String(record._id || ""),
           homeowner_name: homeownerName,
           payment_periods: coveredPeriods,

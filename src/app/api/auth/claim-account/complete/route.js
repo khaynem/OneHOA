@@ -110,7 +110,8 @@ export async function POST(request) {
     await record.save();
 
     // Build activation link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const origin = req.nextUrl ? req.nextUrl.origin : (req.headers.get("origin") || req.headers.get("host") ? `http://${req.headers.get("host")}` : "http://localhost:3000");
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || origin).replace(/\/$/, "");
     const activationUrl = `${baseUrl}/activate-account?email=${encodeURIComponent(normalizedEmail)}&code=${activationCode}`;
 
     const fullName = `${record.first_name} ${record.last_name}`;

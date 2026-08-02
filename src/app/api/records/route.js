@@ -137,10 +137,6 @@ export async function POST(request) {
       payload["address._id"] = resolvedAddressId;
     }
 
-    if (body?.entry_month) {
-      payload.entry_month = body.entry_month;
-    }
-
     const entryDateVal = payload.entry_date ?? body?.entry_date;
     if (entryDateVal) {
       const parsedDate = new Date(entryDateVal);

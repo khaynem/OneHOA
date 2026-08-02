@@ -86,7 +86,7 @@
 }
 
 .printBtn {
-  background: #0f172a;
+  background: #065683;
   color: #ffffff;
   border: none;
   padding: 12px 22px;
@@ -97,12 +97,12 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 4px 12px rgba(113, 152, 245, 0.15);
   transition: all 0.2s ease;
 }
 
 .printBtn:hover {
-  background: #1e293b;
+  background: #155ca7;
   transform: translateY(-1px);
 }
 
@@ -457,7 +457,10 @@
 }
 
 @media print {
-  .backgroundContainer, .filterCard, .printBtn {
+
+  .backgroundContainer,
+  .filterCard,
+  .printBtn {
     display: none !important;
   }
 

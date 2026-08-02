@@ -76,6 +76,10 @@ export async function POST(request) {
     user.password_reset_code_expires_at = null;
     await user.save();
 
+    // Ensure associated Homeowner Record references this User ID
+    const Record = (await import("@/lib/server/models/records")).default;
+    await Record.updateOne({ email: normalizedEmail, user_id: { $exists: false } }, { user_id: user._id });
+
     return NextResponse.json(
       { success: true, message: "Account activated successfully! You can now log in with your new password." },
       { status: 200 }

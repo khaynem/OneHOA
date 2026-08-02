@@ -786,8 +786,8 @@ export default function RegisterHomeownerPage() {
       <div className={styles.square3} aria-hidden="true" />
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link href="/" className={styles.backLink}>
-            <FaArrowLeft /> Back to Home
+          <Link href="/claim-account" className={styles.backLink}>
+            <FaArrowLeft /> Claim Existing Account
           </Link>
           <div className={styles.brand}>
             <Image

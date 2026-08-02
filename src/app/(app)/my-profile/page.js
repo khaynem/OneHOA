@@ -203,11 +203,14 @@ export default function HomeownerProfilePage() {
                       <span className={styles.infoVal}>{addressObj.phase ? `Phase ${addressObj.phase}` : "-"}</span>
                     </li>
                     <li>
-                      <span className={styles.infoLabel}>Block & Lot Number</span>
+                      <span className={styles.infoLabel}>Block</span>
                       <span className={styles.infoVal}>
-                        {addressObj.block ? `Block ${addressObj.block}` : "-"},{" "}
-                        {addressObj.lot ? `Lot ${addressObj.lot}` : "-"}
+                        {addressObj.block ? `Block ${addressObj.block}` : "-"}
                       </span>
+                    </li>
+                    <li>
+                      <span className={styles.infoLabel}>Lot Number</span>
+                      <span className={styles.infoVal}>{`Lot ${addressObj.lot}` || "N/A"}</span>
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Occupant Status</span>

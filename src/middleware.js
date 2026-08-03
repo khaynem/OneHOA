@@ -8,6 +8,7 @@ const protectedRoutes = [
   "/payment-monitoring",
   "/hoa-announcements",
   "/admin/account-management",
+  "/admin/activity-logs",
   "/pending-registrations",
   "/admin/pending-registrations",
   "/my-profile",
@@ -15,12 +16,13 @@ const protectedRoutes = [
 ];
 
 const routeRoleRules = {
-  "/admin/account-management": ["admin"],
-  "/pending-registrations": ["admin", "president"],
+  "/admin/account-management": ["admin", "president"],
+  "/admin/activity-logs": ["admin", "president"],
+  "/pending-registrations": ["admin", "president", "secretary"],
   "/admin/pending-registrations": ["admin", "president"],
-  "/homeowner-management": ["admin", "president", "officer"],
-  "/payment-monitoring": ["admin", "president", "officer"],
-  "/hoa-announcements": ["admin", "president", "officer"],
+  "/homeowner-management": ["admin", "president", "officer", "secretary"],
+  "/payment-monitoring": ["admin", "president", "officer", "treasurer"],
+  "/hoa-announcements": ["admin", "president", "officer", "secretary", "treasurer"],
 };
 
 function matchesRoute(pathname, routes) {
@@ -100,6 +102,7 @@ export const config = {
     "/payment-monitoring/:path*",
     "/hoa-announcements/:path*",
     "/admin/account-management/:path*",
+    "/admin/activity-logs/:path*",
     "/pending-registrations/:path*",
     "/admin/pending-registrations/:path*",
     "/my-profile/:path*",

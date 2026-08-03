@@ -25,7 +25,7 @@ export async function PATCH(request, { params }) {
   let user;
   try {
     user = await requireAuth();
-    requireRole(user, ["admin", "president"]);
+    requireRole(user, ["admin", "president", "secretary"]);
     await connectToDatabase();
 
     const { id } = await params;

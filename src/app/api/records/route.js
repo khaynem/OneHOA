@@ -3,7 +3,7 @@ import { connectToDatabase } from "@/lib/server/db";
 import Record from "@/lib/server/models/records";
 import Address from "@/lib/server/models/address";
 import "@/lib/server/models/pictures";
-import { requireAuth } from "@/lib/server/auth";
+import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 import {
   extractAddressPayload,
@@ -64,7 +64,8 @@ const generateUniqueId = async (entryYear) => {
 
 export async function GET(request) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    requireRole(user, ["admin", "president", "secretary", "officer"]);
     await connectToDatabase();
 
     const { searchParams } = request.nextUrl;
@@ -122,6 +123,7 @@ export async function POST(request) {
   let user;
   try {
     user = await requireAuth();
+    requireRole(user, ["admin", "president", "secretary", "officer"]);
     await connectToDatabase();
 
     const body = await request.json();

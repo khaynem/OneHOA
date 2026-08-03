@@ -17,6 +17,8 @@ const EMPTY_FORM = {
 const ROLE_OPTIONS = [
   { label: 'Admin', value: 'admin' },
   { label: 'President', value: 'president' },
+  { label: 'Secretary', value: 'secretary' },
+  { label: 'Treasurer', value: 'treasurer' },
   { label: 'Officer', value: 'officer' }
 ]
 

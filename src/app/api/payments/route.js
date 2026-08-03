@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/server/db";
 import Payment from "@/lib/server/models/payments";
 import Record from "@/lib/server/models/records";
-import { requireAuth } from "@/lib/server/auth";
+import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 import {
   getBillingMonthAndYear,
@@ -22,6 +22,7 @@ export async function POST(request) {
   let user;
   try {
     user = await requireAuth();
+    requireRole(user, ["admin", "president", "treasurer", "secretary", "officer"]);
     await connectToDatabase();
 
     const body = await request.json();
@@ -195,7 +196,8 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    await requireAuth();
+    const user = await requireAuth();
+    requireRole(user, ["admin", "president", "treasurer", "secretary", "officer"]);
     await connectToDatabase();
 
     const { searchParams } = request.nextUrl;

@@ -31,7 +31,7 @@ const ACTIVITY_LOGS_LINK = {
 
 function canAccessAccountManagement(role) {
   const normalizedRole = String(role || '').trim().toLowerCase()
-  return normalizedRole === 'admin'
+  return normalizedRole === 'admin' || normalizedRole === 'president'
 }
 
 const MIN_LOADING_DISPLAY_MS = 800
@@ -55,7 +55,19 @@ export default function AppRouteGroupLayout({ children }) {
       { href: '/my-profile', label: 'My Profile', Icon: HiOutlineIdentification },
       { href: '/my-payments', label: 'My Payments', Icon: HiOutlineCreditCard },
     ]
+  } else if (normalizedRole === 'secretary') {
+    appLinks = [
+      { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
+      { href: '/homeowner-management', label: 'Masterlist Record', Icon: HiOutlineUsers },
+      { href: '/hoa-announcements', label: 'HOA Announcements', Icon: HiOutlineCalendarDays },
+    ]
+  } else if (normalizedRole === 'treasurer') {
+    appLinks = [
+      { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
+      { href: '/payment-monitoring', label: 'Payment Tracker', Icon: HiOutlineCreditCard },
+    ]
   } else {
+    // Admin, President, or general officer
     appLinks = [...BASE_APP_LINKS]
     if (normalizedRole === 'admin' || normalizedRole === 'president') {
       appLinks.splice(2, 0, {
@@ -63,8 +75,6 @@ export default function AppRouteGroupLayout({ children }) {
         label: 'Pending Registrations',
         Icon: HiOutlineIdentification,
       })
-    }
-    if (normalizedRole === 'admin') {
       appLinks.push(ACCOUNT_MANAGEMENT_LINK)
       appLinks.push(ACTIVITY_LOGS_LINK)
     }

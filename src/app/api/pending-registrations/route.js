@@ -74,7 +74,7 @@ const normalizeRegistrationFields = (fields = []) => {
 export async function GET(request) {
   try {
     const user = await requireAuth();
-    requireRole(user, ["admin", "president"]);
+    requireRole(user, ["admin", "president", "secretary"]);
     await connectToDatabase();
 
     const { searchParams } = request.nextUrl;

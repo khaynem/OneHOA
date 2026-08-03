@@ -6,7 +6,7 @@ import { writeAuditLog } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 
-const ALLOWED_ROLES = ["admin", "president", "officer"];
+const ALLOWED_ROLES = ["admin", "president", "officer", "secretary", "treasurer"];
 const ALLOWED_STATUSES = ["active", "inactive"];
 
 function normalizeName(value) {
@@ -50,7 +50,7 @@ function toUserResponse(userDoc) {
 export async function GET(request) {
   try {
     const user = await requireAuth();
-    requireRole(user, ["admin"]);
+    requireRole(user, ["admin", "president"]);
     await connectToDatabase();
 
     const { searchParams } = request.nextUrl;
@@ -89,7 +89,7 @@ export async function POST(request) {
   let actor;
   try {
     actor = await requireAuth();
-    requireRole(actor, ["admin"]);
+    requireRole(actor, ["admin", "president"]);
     await connectToDatabase();
 
     const body = await request.json();

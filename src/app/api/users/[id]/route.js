@@ -7,7 +7,7 @@ import { writeAuditLog } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 
-const ALLOWED_ROLES = ["admin", "president", "officer"];
+const ALLOWED_ROLES = ["admin", "president", "officer", "secretary", "treasurer"];
 const ALLOWED_STATUSES = ["active", "inactive"];
 
 function normalizeName(value) {
@@ -53,7 +53,7 @@ export async function PUT(request, { params }) {
   let actor;
   try {
     actor = await requireAuth();
-    requireRole(actor, ["admin"]);
+    requireRole(actor, ["admin", "president"]);
     await connectToDatabase();
 
     const normalizedId = normalizeUserId(params?.id, request.nextUrl?.pathname);
@@ -154,7 +154,7 @@ export async function DELETE(request, { params }) {
   let actor;
   try {
     actor = await requireAuth();
-    requireRole(actor, ["admin"]);
+    requireRole(actor, ["admin", "president"]);
     await connectToDatabase();
 
     const normalizedId = normalizeUserId(params?.id, request.nextUrl?.pathname);

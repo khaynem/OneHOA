@@ -100,9 +100,6 @@ export async function PUT(request, { params }) {
 
     const body = await request.json();
     const payload = pickAllowedFields(body || {});
-    if (payload.occupant_status !== undefined) {
-      delete payload.occupant_status;
-    }
     const addressPayload = extractAddressPayload(body || {});
     const normalizedStatus = normalizeStatusInput(payload.status ?? body?.status);
     if (normalizedStatus !== undefined) {

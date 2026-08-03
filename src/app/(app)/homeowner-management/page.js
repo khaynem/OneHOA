@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineNoSymbol, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi2'
+import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineNoSymbol, HiOutlineEye, HiOutlineUsers, HiOutlineArrowUpTray } from 'react-icons/hi2'
 import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
@@ -133,7 +133,7 @@ const normalizeOccupantStatus = (value) => String(value || '').trim()
 const isOwnerOccupant = (value) => normalizeOccupantStatus(value).toLowerCase() === 'owner'
 
 const getStatusForOccupant = (statusValue, occupantStatus) =>
-  isOwnerOccupant(occupantStatus) ? statusValue : NON_OWNER_STATUS
+  statusValue ? statusValue : (isOwnerOccupant(occupantStatus) ? DEFAULT_STATUS_OPTIONS[0] : NON_OWNER_STATUS)
 
 const statusListToSingleOption = (status) => {
   const list = normalizeStatusList(status)
@@ -445,6 +445,138 @@ function HomeownerManagementInner() {
   const [archiveTarget, setArchiveTarget] = useState(null)
   const [archiveNext, setArchiveNext] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
+
+  // Bulk CSV Import States
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [csvFile, setCsvFile] = useState(null)
+  const [parsedRows, setParsedRows] = useState([])
+  const [isImporting, setIsImporting] = useState(false)
+  const [importResult, setImportResult] = useState(null)
+
+  const parseCsvText = (text) => {
+    const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+    if (lines.length === 0) return []
+
+    const parseLine = (line) => {
+      const values = []
+      let insideQuote = false
+      let currentVal = ''
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+        if (char === '"') {
+          if (insideQuote && line[i + 1] === '"') {
+            currentVal += '"'
+            i++
+          } else {
+            insideQuote = !insideQuote
+          }
+        } else if (char === ',' && !insideQuote) {
+          values.push(currentVal.trim())
+          currentVal = ''
+        } else {
+          currentVal += char
+        }
+      }
+      values.push(currentVal.trim())
+      return values
+    }
+
+    const headers = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9_]/g, ''))
+    const dataRows = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseLine(lines[i])
+      if (values.every((val) => val === '')) continue
+
+      const rowObj = {}
+      headers.forEach((header, idx) => {
+        rowObj[header] = values[idx] !== undefined ? values[idx] : ''
+      })
+
+      // Validation logic for previewing: mandatory = last_name, first_name, phase, block, lot, status
+      const phaseNum = Number(rowObj.phase)
+      const blockNum = Number(rowObj.block)
+      const lotNum = Number(rowObj.lot)
+      const hasLastName = Boolean(rowObj.last_name)
+      const hasFirstName = Boolean(rowObj.first_name)
+      const hasValidPhase = [1, 2, 3].includes(phaseNum)
+      const hasValidBlock = !Number.isNaN(blockNum) && String(rowObj.block).length > 0
+      const hasValidLot = !Number.isNaN(lotNum) && String(rowObj.lot).length > 0
+      const hasStatus = Boolean(rowObj.status)
+
+      rowObj._isValid = hasLastName && hasFirstName && hasValidPhase && hasValidBlock && hasValidLot && hasStatus
+      rowObj._rowNumber = i + 1
+      dataRows.push(rowObj)
+    }
+
+    return dataRows
+  }
+
+  const handleCsvFileChange = (file) => {
+    if (!file) return
+    setCsvFile(file)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const content = String(e.target.result || '')
+      const rows = parseCsvText(content)
+      setParsedRows(rows)
+      setImportResult(null)
+    }
+    reader.readAsText(file)
+  }
+
+  const downloadCsvTemplate = () => {
+    const csvHeader = 'last_name,first_name,middle_name,phase,block,lot,phone_number,entry_date,job_title,work_status,occupant_status,status\n'
+    const csvSample = 'Dela Cruz,Juan,Santos,1,10,5,09171234567,2024-01-15,Software Engineer,Regular,Owner,"HO, HVNA member"\n'
+    const blob = new Blob([csvHeader + csvSample], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'homeowners_import_template.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const executeBulkImport = async () => {
+    if (parsedRows.length === 0) return
+    setIsImporting(true)
+
+    try {
+      const response = await apiClient.post('/records/bulk', {
+        rows: parsedRows
+      })
+
+      if (response?.success) {
+        setImportResult(response.data)
+        notify.success({
+          title: 'Bulk Import Completed',
+          description: `Successfully imported ${response.data.importedCount} homeowner record(s).`
+        })
+        fetchHomeowners()
+      } else {
+        notify.error({
+          title: 'Bulk Import Failed',
+          description: response?.message || 'Failed to process bulk import.'
+        })
+      }
+    } catch (error) {
+      notify.error({
+        title: 'Bulk Import Failed',
+        description: error.message || 'An unexpected error occurred during import.'
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  const closeImportModal = () => {
+    setIsImportModalOpen(false)
+    setCsvFile(null)
+    setParsedRows([])
+    setImportResult(null)
+  }
 
   const ownerByAddress = useMemo(() => {
     const map = new Map()
@@ -877,7 +1009,7 @@ function HomeownerManagementInner() {
           block: Number(addForm.block),
           lot: Number(addForm.lot)
         },
-        status: normalizeStatusList(getStatusForOccupant(addForm.status, addForm.occupantStatus))
+        status: normalizeStatusList(addForm.status)
       }
 
       if (addForm.pictureId) {
@@ -1003,7 +1135,7 @@ function HomeownerManagementInner() {
     })
     setActiveViewTab('info')
     setIsEditingHomeowner(false)
-    setStatusDraft(isOwnerOccupant(homeowner.occupantStatus) ? statusListToSingleOption(homeowner.status) : NON_OWNER_STATUS)
+    setStatusDraft(statusListToSingleOption(homeowner.status))
     setEditForm({
       firstName: homeowner.firstName,
       middleName: homeowner.middleName,
@@ -1280,7 +1412,7 @@ function HomeownerManagementInner() {
         household_members: editForm.householdMembers,
         job_title: editForm.jobDescription,
         work_status: editForm.workStatus,
-        status: normalizeStatusList(getStatusForOccupant(statusDraft, editForm.occupantStatus)),
+        status: normalizeStatusList(statusDraft),
         address: {
           phase: Number(normalizedPhase),
           block: Number(normalizedBlock),
@@ -1317,11 +1449,7 @@ function HomeownerManagementInner() {
       )
 
       setSelectedHomeowner(updatedHomeowner)
-      setStatusDraft(
-        isOwnerOccupant(updatedHomeowner.occupantStatus)
-          ? statusListToSingleOption(updatedHomeowner.status)
-          : NON_OWNER_STATUS
-      )
+      setStatusDraft(statusListToSingleOption(updatedHomeowner.status))
       setIsEditingHomeowner(false)
       notify.success({
         title: 'Homeowner Updated',
@@ -1617,6 +1745,10 @@ function HomeownerManagementInner() {
           </div>
 
           <div className={styles.headerActions}>
+            <button type="button" className={styles.importCsvButton} onClick={() => setIsImportModalOpen(true)}>
+              <HiOutlineArrowUpTray style={{ fontSize: '1.1rem' }} />
+              Import CSV
+            </button>
             <button type="button" className={styles.exportButton} onClick={exportToPdf}>
               Export Masterlist (PDF)
             </button>
@@ -2460,7 +2592,6 @@ function HomeownerManagementInner() {
                       className={styles.input}
                       value={editForm?.occupantStatus || ''}
                       onChange={(event) => handleEditOccupantStatusChange(event.target.value)}
-                      disabled
                     >
                       <option value="" disabled>
                         Select occupant status
@@ -2659,7 +2790,7 @@ function HomeownerManagementInner() {
                     className={`${styles.input} ${styles.statusSelect}`}
                     value={getStatusForOccupant(statusDraft, editForm?.occupantStatus)}
                     onChange={(event) => setStatusDraft(event.target.value)}
-                    disabled={!isEditingHomeowner || !isOwnerOccupant(editForm?.occupantStatus)}
+                    disabled={!isEditingHomeowner}
                   >
                     {DEFAULT_STATUS_OPTIONS.map((statusOption) => (
                       <option key={statusOption} value={statusOption}>
@@ -2762,8 +2893,172 @@ function HomeownerManagementInner() {
           </div>
         </div>
       )}
+      {isImportModalOpen && (
+        <div className={styles.modalOverlay} style={{ zIndex: 1100 }}>
+          <div className={styles.modal} style={{ maxWidth: '850px', width: '92%' }}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Bulk Import Homeowners (CSV)</h2>
+              <button type="button" className={styles.closeButton} onClick={closeImportModal}>
+                &times;
+              </button>
+            </div>
 
+            <div className={styles.modalBody} style={{ padding: '16px 0' }}>
+              <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '16px' }}>
+                Upload a standard CSV file to import homeowner records in bulk into the database.
+                Records will be created as long as mandatory fields are present: <strong>last_name</strong>, <strong>first_name</strong>, <strong>phase</strong>, <strong>block</strong>, <strong>lot</strong>, and <strong>status</strong>.
+              </p>
 
+              <div style={{ marginBottom: '16px' }}>
+                <button type="button" className={styles.templateLink} onClick={downloadCsvTemplate}>
+                  📥 Download CSV Template with Accepted Fields
+                </button>
+              </div>
+
+              <div
+                className={styles.importDropzone}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleCsvFileChange(e.dataTransfer.files[0])
+                  }
+                }}
+              >
+                <HiOutlineArrowUpTray className={styles.dropzoneIcon} />
+                <p style={{ fontWeight: 600, color: '#334155', margin: 0 }}>
+                  {csvFile ? csvFile.name : 'Drag & drop CSV file here or click to choose file'}
+                </p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  id="csvFileInput"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleCsvFileChange(e.target.files[0])
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => document.getElementById('csvFileInput')?.click()}
+                  style={{ marginTop: '6px' }}
+                >
+                  Choose CSV File
+                </button>
+              </div>
+
+              {parsedRows.length > 0 && !importResult && (
+                <div style={{ marginTop: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+                      File Preview ({parsedRows.length} rows found)
+                    </h3>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Valid rows: {parsedRows.filter((r) => r._isValid).length} | Invalid rows: {parsedRows.filter((r) => !r._isValid).length}
+                    </span>
+                  </div>
+
+                  <div className={styles.previewTableContainer}>
+                    <table className={styles.previewTable}>
+                      <thead>
+                        <tr>
+                          <th>Row</th>
+                          <th>Status</th>
+                          <th>Last Name</th>
+                          <th>First Name</th>
+                          <th>Phase</th>
+                          <th>Block</th>
+                          <th>Lot</th>
+                          <th>Membership Status</th>
+                          <th>Phone</th>
+                          <th>Entry Date</th>
+                          <th>Job Title</th>
+                          <th>Work Status</th>
+                          <th>Occupant Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedRows.map((row, idx) => (
+                          <tr key={idx} className={!row._isValid ? styles.previewTableRowInvalid : ''}>
+                            <td>{row._rowNumber}</td>
+                            <td>
+                              {row._isValid ? (
+                                <span className={styles.statusTagValid}>Ready</span>
+                              ) : (
+                                <span className={styles.statusTagInvalid}>Incomplete</span>
+                              )}
+                            </td>
+                            <td>{row.last_name || '-'}</td>
+                            <td>{row.first_name || '-'}</td>
+                            <td>{row.phase || '-'}</td>
+                            <td>{row.block || '-'}</td>
+                            <td>{row.lot || '-'}</td>
+                            <td>{row.status || '-'}</td>
+                            <td>{row.phone_number || '-'}</td>
+                            <td>{row.entry_date || '-'}</td>
+                            <td>{row.job_title || '-'}</td>
+                            <td>{row.work_status || '-'}</td>
+                            <td>{row.occupant_status || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {importResult && (
+                <div style={{ marginTop: '20px' }}>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: importResult.errorCount > 0 ? '#fff7ed' : '#f0fdf4',
+                      border: `1px solid ${importResult.errorCount > 0 ? '#ffedd5' : '#bbf7d0'}`,
+                      color: importResult.errorCount > 0 ? '#c2410c' : '#15803d',
+                      fontSize: '0.9rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    Import Summary: {importResult.importedCount} homeowner record(s) successfully created.
+                    {importResult.errorCount > 0 && ` ${importResult.errorCount} row(s) could not be imported.`}
+                  </div>
+
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div className={styles.errorList}>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 700 }}>Row Errors / Warnings:</h4>
+                      {importResult.errors.map((err, i) => (
+                        <div key={i}>
+                          <strong>Row {err.row} ({err.name}):</strong> {err.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closeImportModal} disabled={isImporting}>
+                {importResult ? 'Close' : 'Cancel'}
+              </button>
+              {!importResult && (
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={executeBulkImport}
+                  disabled={isImporting || parsedRows.length === 0}
+                >
+                  {isImporting ? 'Importing Records...' : `Import ${parsedRows.length} Record(s)`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   )

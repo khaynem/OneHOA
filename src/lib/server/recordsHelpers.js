@@ -20,6 +20,7 @@ const ALLOWED_FIELDS = [
   "address._id",
   "pictures._id",
   "status",
+  "generated_id",
 ];
 
 const FIELD_LABELS = {

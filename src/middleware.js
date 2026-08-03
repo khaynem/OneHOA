@@ -19,7 +19,7 @@ const routeRoleRules = {
   "/admin/account-management": ["admin", "president"],
   "/admin/activity-logs": ["admin", "president"],
   "/pending-registrations": ["admin", "president", "secretary"],
-  "/admin/pending-registrations": ["admin", "president"],
+  "/admin/pending-registrations": ["admin", "president", "secretary"],
   "/homeowner-management": ["admin", "president", "officer", "secretary"],
   "/payment-monitoring": ["admin", "president", "officer", "treasurer"],
   "/hoa-announcements": ["admin", "president", "officer", "secretary", "treasurer"],

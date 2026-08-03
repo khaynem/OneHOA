@@ -65,7 +65,7 @@ const generateUniqueId = async (entryYear) => {
 export async function GET(request) {
   try {
     const user = await requireAuth();
-    requireRole(user, ["admin", "president", "secretary", "officer"]);
+    requireRole(user, ["admin", "president", "secretary", "officer", "treasurer"]);
     await connectToDatabase();
 
     const { searchParams } = request.nextUrl;

@@ -59,12 +59,14 @@ export default function AppRouteGroupLayout({ children }) {
     appLinks = [
       { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
       { href: '/homeowner-management', label: 'Masterlist Record', Icon: HiOutlineUsers },
+      { href: '/pending-registrations', label: 'Pending Registrations', Icon: HiOutlineIdentification },
       { href: '/hoa-announcements', label: 'HOA Announcements', Icon: HiOutlineCalendarDays },
     ]
   } else if (normalizedRole === 'treasurer') {
     appLinks = [
       { href: '/dashboard', label: 'Dashboard', Icon: HiOutlineHome },
       { href: '/payment-monitoring', label: 'Payment Tracker', Icon: HiOutlineCreditCard },
+      { href: '/hoa-announcements', label: 'HOA Announcements', Icon: HiOutlineCalendarDays },
     ]
   } else {
     // Admin, President, or general officer

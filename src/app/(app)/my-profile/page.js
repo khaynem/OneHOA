@@ -13,8 +13,14 @@ import {
   HiOutlineCheckBadge,
   HiOutlineShieldCheck,
   HiOutlineSparkles,
+  HiOutlinePencilSquare,
+  HiOutlineTrash,
+  HiOutlinePlus,
+  HiOutlineXMark,
+  HiOutlineCheck,
 } from "react-icons/hi2"
 import { ApiError, apiClient } from "@/lib/apiClient"
+import { notify } from "@/lib/notify"
 import styles from "./my-profile.module.css"
 
 const formatDateTime = (dateValue) => {
@@ -38,6 +44,16 @@ export default function HomeownerProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
 
+  const [isEditing, setIsEditing] = useState(false)
+  const [formValues, setFormValues] = useState({
+    phone_number: "",
+    email: "",
+    job_title: "",
+    work_status: "",
+    household_members: []
+  })
+  const [isSaving, setIsSaving] = useState(false)
+
   useEffect(() => {
     async function loadProfile() {
       try {
@@ -45,6 +61,18 @@ export default function HomeownerProfilePage() {
         setErrorMsg("")
         const res = await apiClient.get("/homeowner/my-profile")
         setData(res || null)
+        if (res?.record) {
+          const rec = res.record;
+          setFormValues({
+            phone_number: rec.phone_number || "",
+            email: rec.email || res.userAccount?.email || "",
+            job_title: rec.job_title || "",
+            work_status: rec.work_status || "",
+            household_members: Array.isArray(rec.household_members)
+              ? JSON.parse(JSON.stringify(rec.household_members))
+              : []
+          })
+        }
       } catch (err) {
         if (err instanceof ApiError) {
           setErrorMsg(err.message)
@@ -57,6 +85,130 @@ export default function HomeownerProfilePage() {
     }
     loadProfile()
   }, [])
+
+  const handleStartEdit = () => {
+    if (data?.record) {
+      const rec = data.record;
+      setFormValues({
+        phone_number: rec.phone_number || "",
+        email: rec.email || data.userAccount?.email || "",
+        job_title: rec.job_title || "",
+        work_status: rec.work_status || "",
+        household_members: Array.isArray(rec.household_members)
+          ? JSON.parse(JSON.stringify(rec.household_members))
+          : []
+      })
+    }
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    if (data?.record) {
+      const rec = data.record;
+      setFormValues({
+        phone_number: rec.phone_number || "",
+        email: rec.email || data.userAccount?.email || "",
+        job_title: rec.job_title || "",
+        work_status: rec.work_status || "",
+        household_members: Array.isArray(rec.household_members)
+          ? JSON.parse(JSON.stringify(rec.household_members))
+          : []
+      })
+    }
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormValues(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleHouseholdChange = (index, key, value) => {
+    const newList = [...formValues.household_members]
+    newList[index] = {
+      ...newList[index],
+      [key]: value
+    }
+    setFormValues(prev => ({
+      ...prev,
+      household_members: newList
+    }))
+  }
+
+  const addHouseholdMember = () => {
+    setFormValues(prev => ({
+      ...prev,
+      household_members: [...prev.household_members, { name: "", relationship: "" }]
+    }))
+  }
+
+  const removeHouseholdMember = (index) => {
+    const newList = [...formValues.household_members]
+    newList.splice(index, 1)
+    setFormValues(prev => ({
+      ...prev,
+      household_members: newList
+    }))
+  }
+
+  const handleSaveChanges = async (e) => {
+    if (e) e.preventDefault()
+
+    if (!formValues.email.trim()) {
+      notify.error("Email address cannot be empty.")
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues.email.trim())) {
+      notify.error("Invalid email format.")
+      return
+    }
+
+    const emptyMember = formValues.household_members.find(m => !m.name.trim());
+    if (emptyMember) {
+      notify.error("All household members must have a name.")
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      const res = await apiClient.patch("/homeowner/my-profile/update", formValues)
+      if (res?.success) {
+        notify.success("Profile updated successfully!")
+        setIsEditing(false)
+
+        const updated = await apiClient.get("/homeowner/my-profile")
+        setData(updated || null)
+        if (updated?.record) {
+          const rec = updated.record;
+          setFormValues({
+            phone_number: rec.phone_number || "",
+            email: rec.email || updated.userAccount?.email || "",
+            job_title: rec.job_title || "",
+            work_status: rec.work_status || "",
+            household_members: Array.isArray(rec.household_members)
+              ? JSON.parse(JSON.stringify(rec.household_members))
+              : []
+          })
+        }
+      } else {
+        notify.error(res?.message || "Failed to update profile.")
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        notify.error({
+          title: "Update Failed",
+          description: err.message
+        })
+      } else {
+        notify.error("An unexpected error occurred while updating profile.")
+      }
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const record = data?.record || {}
   const userAccount = data?.userAccount || {}
@@ -134,12 +286,45 @@ export default function HomeownerProfilePage() {
             {/* Section 1: Homeowner's Own Full Details */}
             <section className={styles.sectionBlock}>
               <div className={styles.sectionHeadingRow}>
-                <div className={styles.headingIconBox}>
-                  <HiOutlineUser className={styles.headingIcon} />
+                <div className={styles.headingLeft}>
+                  <div className={styles.headingIconBox}>
+                    <HiOutlineUser className={styles.headingIcon} />
+                  </div>
+                  <div>
+                    <h2 className={styles.sectionTitle}>My Homeowner Registration Record</h2>
+                    <p className={styles.sectionSub}>Full details submitted during registration and stored in official HOA records.</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className={styles.sectionTitle}>My Homeowner Registration Record</h2>
-                  <p className={styles.sectionSub}>Full details submitted during registration and stored in official HOA records.</p>
+
+                <div className={styles.editActions}>
+                  {isEditing ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        disabled={isSaving}
+                        className={styles.cancelBtn}
+                      >
+                        <HiOutlineXMark className={styles.btnIcon} /> Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveChanges}
+                        disabled={isSaving}
+                        className={styles.saveBtn}
+                      >
+                        <HiOutlineCheck className={styles.btnIcon} /> {isSaving ? "Saving..." : "Save Changes"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleStartEdit}
+                      className={styles.editBtn}
+                    >
+                      <HiOutlinePencilSquare className={styles.btnIcon} /> Edit Profile
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -165,28 +350,80 @@ export default function HomeownerProfilePage() {
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Email Address</span>
-                      <span className={styles.infoVal}>
-                        <HiOutlineEnvelope className={styles.smallIcon} />
-                        {record.email || userAccount.email || "-"}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          type="email"
+                          name="email"
+                          value={formValues.email}
+                          onChange={handleInputChange}
+                          className={styles.editInput}
+                          placeholder="Email Address"
+                          required
+                          disabled={isSaving}
+                        />
+                      ) : (
+                        <span className={styles.infoVal}>
+                          <HiOutlineEnvelope className={styles.smallIcon} />
+                          {record.email || userAccount.email || "-"}
+                        </span>
+                      )}
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Phone / Mobile Number</span>
-                      <span className={styles.infoVal}>
-                        <HiOutlinePhone className={styles.smallIcon} />
-                        {record.phone_number || "Not provided"}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="phone_number"
+                          value={formValues.phone_number}
+                          onChange={handleInputChange}
+                          className={styles.editInput}
+                          placeholder="Phone / Mobile Number"
+                          disabled={isSaving}
+                        />
+                      ) : (
+                        <span className={styles.infoVal}>
+                          <HiOutlinePhone className={styles.smallIcon} />
+                          {record.phone_number || "Not provided"}
+                        </span>
+                      )}
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Job Title</span>
-                      <span className={styles.infoVal}>
-                        <HiOutlineBriefcase className={styles.smallIcon} />
-                        {record.job_title || "N/A"}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          name="job_title"
+                          value={formValues.job_title}
+                          onChange={handleInputChange}
+                          className={styles.editInput}
+                          placeholder="Job Title"
+                          disabled={isSaving}
+                        />
+                      ) : (
+                        <span className={styles.infoVal}>
+                          <HiOutlineBriefcase className={styles.smallIcon} />
+                          {record.job_title || "N/A"}
+                        </span>
+                      )}
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Work Status</span>
-                      <span className={styles.infoVal}>{record.work_status || "N/A"}</span>
+                      {isEditing ? (
+                        <select
+                          name="work_status"
+                          value={formValues.work_status}
+                          onChange={handleInputChange}
+                          className={styles.editSelect}
+                          disabled={isSaving}
+                        >
+                          <option value="">Select Work Status</option>
+                          {["Contractual", "Regular", "Self-Employed", "Freelance", "Unemployed", "Other"].map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={styles.infoVal}>{record.work_status || "N/A"}</span>
+                      )}
                     </li>
                   </ul>
                 </article>
@@ -237,34 +474,87 @@ export default function HomeownerProfilePage() {
               <div className={styles.householdBox}>
                 <h3 className={styles.cardSubTitle}>
                   <HiOutlineUsers className={styles.cardHeaderIcon} />
-                  Registered Household Members ({householdMembers.length})
+                  Registered Household Members ({isEditing ? formValues.household_members.length : householdMembers.length})
                 </h3>
 
-                {householdMembers.length === 0 ? (
-                  <p className={styles.emptySubText}>No additional household members listed in record.</p>
-                ) : (
-                  <div className={styles.membersTableWrap}>
-                    <table className={styles.membersTable}>
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>Full Name</th>
-                          <th>Relationship</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {householdMembers.map((member, idx) => (
-                          <tr key={idx}>
-                            <td>{idx + 1}</td>
-                            <td className={styles.memberName}>{member.name || "-"}</td>
-                            <td>
-                              <span className={styles.relBadge}>{member.relationship || "Member"}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {isEditing ? (
+                  <div className={styles.householdEditList}>
+                    {formValues.household_members.map((member, idx) => (
+                      <div key={idx} className={styles.householdEditRow}>
+                        <div className={styles.householdEditInputGroup}>
+                          <span className={styles.householdEditLabel}>Full Name</span>
+                          <input
+                            type="text"
+                            value={member.name || ""}
+                            onChange={(e) => handleHouseholdChange(idx, "name", e.target.value)}
+                            className={styles.editInput}
+                            placeholder="Name of member"
+                            required
+                            disabled={isSaving}
+                          />
+                        </div>
+                        <div className={styles.householdEditInputGroup}>
+                          <span className={styles.householdEditLabel}>Relationship</span>
+                          <input
+                            type="text"
+                            value={member.relationship || ""}
+                            onChange={(e) => handleHouseholdChange(idx, "relationship", e.target.value)}
+                            className={styles.editInput}
+                            placeholder="Relationship (e.g., Spouse, Child)"
+                            required
+                            disabled={isSaving}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeHouseholdMember(idx)}
+                          className={styles.removeMemberBtn}
+                          title="Remove Member"
+                          disabled={isSaving}
+                        >
+                          <HiOutlineTrash />
+                        </button>
+                      </div>
+                    ))}
+                    {formValues.household_members.length === 0 && (
+                      <p className={styles.emptySubText}>No additional household members listed in record.</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={addHouseholdMember}
+                      className={styles.addMemberBtn}
+                      disabled={isSaving}
+                    >
+                      <HiOutlinePlus /> Add Member
+                    </button>
                   </div>
+                ) : (
+                  householdMembers.length === 0 ? (
+                    <p className={styles.emptySubText}>No additional household members listed in record.</p>
+                  ) : (
+                    <div className={styles.membersTableWrap}>
+                      <table className={styles.membersTable}>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Full Name</th>
+                            <th>Relationship</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {householdMembers.map((member, idx) => (
+                            <tr key={idx}>
+                              <td>{idx + 1}</td>
+                              <td className={styles.memberName}>{member.name || "-"}</td>
+                              <td>
+                                <span className={styles.relBadge}>{member.relationship || "Member"}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </div>
             </section>

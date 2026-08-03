@@ -106,6 +106,10 @@
   transform: translateY(-1px);
 }
 
+.printBtn svg {
+  color: #ffffff !important;
+}
+
 .btnIcon {
   font-size: 1.1rem;
 }

@@ -46,12 +46,10 @@ const printViaIframe = (contentHtml) => {
   }, 500)
 }
 
-const formatPeso = (amount) =>
-  new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    currencyDisplay: 'symbol'
-  }).format(Number(amount) || 0)
+const formatPeso = (amount) => {
+  const val = Number(amount) || 0
+  return `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
 
 const formatDate = (dateValue) => {
   if (!dateValue) return "-"

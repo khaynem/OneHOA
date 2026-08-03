@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/server/db";
 import Record from "@/lib/server/models/records";
 import Payment from "@/lib/server/models/payments";
 import "@/lib/server/models/users";
+import "@/lib/server/models/address";
 import { requireAuth } from "@/lib/server/auth";
 
 export const runtime = "nodejs";

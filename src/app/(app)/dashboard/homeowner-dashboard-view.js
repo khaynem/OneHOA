@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import {
   HiOutlineCheckCircle,
@@ -10,11 +11,15 @@ import {
   HiOutlineMegaphone,
   HiOutlineCalendar,
   HiOutlineUser,
-  HiOutlineMagnifyingGlass,
-  HiOutlineSparkles,
 } from "react-icons/hi2"
 import { ApiError, apiClient } from "@/lib/apiClient"
 import styles from "./dashboard.module.css"
+
+const getAnnouncementImageUrl = (item) => {
+  if (item?.["pictures._id"]?.path) return item["pictures._id"].path
+  if (item?.pictures?._id?.path) return item.pictures._id.path
+  return null
+}
 
 const formatDateTime = (dateValue) => {
   if (!dateValue) return "-"
@@ -31,7 +36,6 @@ export default function HomeownerDashboardView({ currentUser }) {
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
-  const [searchTerm, setSearchTerm] = useState("")
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null)
 
   useEffect(() => {
@@ -57,6 +61,7 @@ export default function HomeownerDashboardView({ currentUser }) {
   const stats = data?.stats || {}
   const record = data?.record || {}
   const announcements = data?.announcements || []
+  const recentAnnouncements = announcements.slice(0, 3)
 
   const formattedDate = useMemo(() => {
     return new Intl.DateTimeFormat("en-PH", {
@@ -66,16 +71,6 @@ export default function HomeownerDashboardView({ currentUser }) {
       day: "numeric",
     }).format(new Date())
   }, [])
-
-  const filteredAnnouncements = useMemo(() => {
-    if (!searchTerm.trim()) return announcements
-    const q = searchTerm.toLowerCase().trim()
-    return announcements.filter(
-      (item) =>
-        (item.title && item.title.toLowerCase().includes(q)) ||
-        (item.content && item.content.toLowerCase().includes(q))
-    )
-  }, [announcements, searchTerm])
 
   const homeownerName = record.first_name || currentUser?.first_name || "Homeowner"
 
@@ -252,20 +247,9 @@ export default function HomeownerDashboardView({ currentUser }) {
                 </p>
               </div>
             </div>
-
-            <div className={styles.searchBox}>
-              <HiOutlineMagnifyingGlass className={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search announcements..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={styles.searchInput}
-              />
-            </div>
           </div>
 
-          {filteredAnnouncements.length === 0 && !isLoading && (
+          {recentAnnouncements.length === 0 && !isLoading && (
             <div className={styles.emptyAnnouncementsCard}>
               <HiOutlineMegaphone className={styles.emptyIcon} />
               <h3>No announcements posted yet</h3>
@@ -273,28 +257,15 @@ export default function HomeownerDashboardView({ currentUser }) {
             </div>
           )}
 
-          <div className={styles.announcementsGrid}>
-            {filteredAnnouncements.map((item) => {
-              const photoUrl = item["pictures._id"]?.path || null
+          <div className={styles.announcementsVerticalList}>
+            {recentAnnouncements.map((item) => {
               const authorName = item["users._id"]
                 ? `${item["users._id"].first_name || ""} ${item["users._id"].last_name || ""}`.trim() || "HOA Board"
                 : "HOA Officer"
 
               return (
-                <article key={item._id} className={styles.announcementCard}>
-                  {photoUrl && (
-                    <div className={styles.announcementImgWrap}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={photoUrl}
-                        alt={item.title}
-                        className={styles.announcementImage}
-                        onClick={() => setSelectedAnnouncement(item)}
-                      />
-                    </div>
-                  )}
-
-                  <div className={styles.announcementBody}>
+                <article key={item._id} className={styles.announcementRowCard}>
+                  <div className={styles.announcementRowBody}>
                     <div className={styles.announcementMeta}>
                       <span className={styles.authorBadge}>
                         <HiOutlineUser className={styles.metaIcon} />
@@ -326,7 +297,7 @@ export default function HomeownerDashboardView({ currentUser }) {
         </section>
 
         {/* Modal for Full Announcement View */}
-        {selectedAnnouncement && (
+        {selectedAnnouncement && createPortal(
           <div
             className={styles.modalBackdrop}
             onClick={() => setSelectedAnnouncement(null)}
@@ -357,11 +328,11 @@ export default function HomeownerDashboardView({ currentUser }) {
               </div>
 
               <div className={styles.modalBody}>
-                {selectedAnnouncement["pictures._id"]?.path && (
+                {getAnnouncementImageUrl(selectedAnnouncement) && (
                   <div className={styles.modalImgWrap}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={selectedAnnouncement["pictures._id"].path}
+                      src={getAnnouncementImageUrl(selectedAnnouncement)}
                       alt={selectedAnnouncement.title}
                       className={styles.modalImage}
                     />
@@ -388,7 +359,8 @@ export default function HomeownerDashboardView({ currentUser }) {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </>

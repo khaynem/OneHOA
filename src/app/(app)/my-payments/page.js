@@ -46,14 +46,12 @@ const printViaIframe = (contentHtml) => {
   }, 500)
 }
 
-const formatPeso = (amount) => {
-  const num = Number(amount) || 0
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    minimumFractionDigits: 2,
-  }).format(num)
-}
+const formatPeso = (amount) =>
+  new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    currencyDisplay: 'symbol'
+  }).format(Number(amount) || 0)
 
 const formatDate = (dateValue) => {
   if (!dateValue) return "-"

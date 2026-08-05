@@ -63,7 +63,7 @@
 .banner {
   background: linear-gradient(135deg, #002244 0%, #003B75 50%, #005CA2 100%);
   color: #fff;
-  padding: 4.5rem 2rem;
+  padding: 3rem 2rem;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -329,6 +329,7 @@
   0% {
     background-color: #ffffff;
   }
+
   100% {
     background-color: #bae6fd;
   }
@@ -373,11 +374,25 @@
 }
 
 @keyframes floatSquare1 {
-  0%, 100% { transform: rotate(20deg) translateY(0px); }
-  50% { transform: rotate(20deg) translateY(-10px); }
+
+  0%,
+  100% {
+    transform: rotate(20deg) translateY(0px);
+  }
+
+  50% {
+    transform: rotate(20deg) translateY(-10px);
+  }
 }
 
 @keyframes floatSquare2 {
-  0%, 100% { transform: rotate(-12deg) translateY(0px); }
-  50% { transform: rotate(-12deg) translateY(-8px); }
+
+  0%,
+  100% {
+    transform: rotate(-12deg) translateY(0px);
+  }
+
+  50% {
+    transform: rotate(-12deg) translateY(-8px);
+  }
 }

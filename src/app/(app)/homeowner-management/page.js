@@ -2070,7 +2070,9 @@ function HomeownerManagementInner() {
                       onChange={(event) => handleFormChange('firstName', normalizeName(event.target.value))}
                     />
 
-                    <label className={styles.fieldLabel}>Middle Name</label>
+                    <label className={styles.fieldLabel}>
+                      Middle Name <span style={{ opacity: 0.7, fontStyle: 'italic', fontWeight: 'normal' }}>(Optional)</span>
+                    </label>
                     <input
                       type="text"
                       className={styles.input}

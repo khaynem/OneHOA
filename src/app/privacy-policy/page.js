@@ -13,8 +13,7 @@ const SECTIONS = [
   { id: 'purpose', label: '3. Purpose of Processing' },
   { id: 'sharing', label: '4. Disclosure & Sharing' },
   { id: 'security', label: '5. Security & Retention' },
-  { id: 'rights', label: '6. Your Rights under DPA' },
-  { id: 'dpo', label: '7. Data Protection Officer' }
+  { id: 'rights', label: '6. Your Rights under DPA' }
 ]
 
 export default function PrivacyPolicyPage() {
@@ -69,11 +68,11 @@ export default function PrivacyPolicyPage() {
         </Link>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => router.push('/')}
           className={styles.backLink}
         >
           <FiArrowLeft aria-hidden="true" />
-          Back
+          Back to Homepage
         </button>
       </header>
 
@@ -178,38 +177,6 @@ export default function PrivacyPolicyPage() {
                 <li><strong>Right to Damages:</strong> You have the right to be indemnified for any damages sustained due to inaccurate, incomplete, outdated, false, or unauthorized use of personal data.</li>
               </ul>
 
-              <h2 id="dpo">7. Contact the Data Protection Officer (DPO)</h2>
-              <p>
-                In compliance with National Privacy Commission regulations, FCHVHOA has appointed a dedicated <strong>Data Protection Officer (DPO)</strong> to oversee our data collection practices and handle requests regarding data subject rights.
-              </p>
-              <p>
-                If you wish to access, correct, or request the removal of your personal records, or if you have any questions concerning our privacy practices, please contact our DPO:
-              </p>
-
-              <div className={styles.dpoCard}>
-                <h3>
-                  <FiShield aria-hidden="true" />
-                  FCHVHOA Data Privacy &amp; Security Office
-                </h3>
-                <div className={styles.dpoGrid}>
-
-                  <span className={styles.dpoLabel}>Email:</span>
-                  <span className={styles.dpoValue}>
-                    <a href="mailto:onehoa22@gmail.com">onehoa22@gmail.com</a>
-                  </span>
-
-                  <span className={styles.dpoLabel}>General Contact:</span>
-                  <span className={styles.dpoValue}>
-                    <a href="mailto:vinalacentrohvhoa11@gmail.com">vinalacentrohvhoa11@gmail.com</a>
-                  </span>
-
-                  <span className={styles.dpoLabel}>Address:</span>
-                  <span className={styles.dpoValue}>Castillejos, Zambales, Philippines</span>
-
-                  <span className={styles.dpoLabel}>Response SLA:</span>
-                  <span className={styles.dpoValue}>All official privacy requests are reviewed and responded to within fifteen (15) business days.</span>
-                </div>
-              </div>
             </article>
           </main>
         </div>

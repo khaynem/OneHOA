@@ -121,31 +121,13 @@ export function getCoveredPeriodsFromPayment(payment, startPeriod, endPeriod) {
     .filter((period) => Number.isInteger(period) && period >= startPeriod && period <= endPeriod);
 }
 
-/**
- * Generates the next sequential receipt number in YYMMXXXX format, where:
- *   YY  = last two digits of the year of the payment date
- *   MM  = month of the payment date
- *   XXXX = next sequential four-digit number within that year-month
- *
- * Example: a payment dated 2026-08-03 with no prior August 2026 receipts
- * returns 26080001.
- *
- * @param {import("mongoose").Model} PaymentModel - the Payment model
- * @param {string | Date} dateValue - the payment date used to derive YYMM
- * @returns {Promise<number | null>} the next receipt number, or null when the
- *   month sequence is exhausted (9999 receipts in one month)
- */
-export async function generateNextReceiptNumber(PaymentModel, dateValue) {
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  const yy = String(date.getFullYear()).slice(-2);
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const prefix = Number(`${yy}${mm}`);
-  const minReceipt = prefix * 10000;
-  const maxReceipt = prefix * 10000 + 9999;
+export async function generateNextReceiptNumber(PaymentModel, _dateValue) {
+  // Global sequential range (10000001-99999999): the next number is always one
+  // past the highest receipt across ALL billing periods, so the sequence never
+  // restarts per period. Existing in-range receipts (including legacy YYMMXXXX
+  // ones) simply set the high-water mark.
+  const minReceipt = 10000001;
+  const maxReceipt = 99999999;
 
   const lastInRange = await PaymentModel.findOne({
     receipt_no: { $gte: minReceipt, $lte: maxReceipt },
@@ -154,28 +136,12 @@ export async function generateNextReceiptNumber(PaymentModel, dateValue) {
     .select("receipt_no")
     .lean();
 
-  const nextNumber = lastInRange ? lastInRange.receipt_no + 1 : minReceipt + 1;
+  const nextNumber = lastInRange ? lastInRange.receipt_no + 1 : minReceipt;
 
-  if (nextNumber <= maxReceipt) {
-    return nextNumber;
-  }
-
-  // The sequential tail is exhausted for this month; fall back to the lowest
-  // unused slot in the range so the sequence can still continue.
-  const used = await PaymentModel.find({
-    receipt_no: { $gte: minReceipt, $lte: maxReceipt },
-  })
-    .select("receipt_no")
-    .lean();
-
-  const usedSet = new Set(used.map((payment) => payment.receipt_no));
-  for (let candidate = minReceipt + 1; candidate <= maxReceipt; candidate += 1) {
-    if (!usedSet.has(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
+  // The sequence never restarts or reuses numbers: once 99999999 is taken,
+  // it is exhausted and no further receipts can be generated (caller returns
+  // an error). Only ever strictly increasing, across all billing periods.
+  return nextNumber <= maxReceipt ? nextNumber : null;
 }
 
 export function formatPeriodLabel(periods) {

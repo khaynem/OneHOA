@@ -76,11 +76,11 @@ export default function TermsAndConditionsPage() {
         </Link>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => router.push('/')}
           className={styles.backLink}
         >
           <FiArrowLeft aria-hidden="true" />
-          Back
+          Back to Homepage
         </button>
       </header>
 

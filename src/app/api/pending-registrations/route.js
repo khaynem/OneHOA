@@ -60,14 +60,14 @@ const normalizeRegistrationFields = (fields = []) => {
   }
 
   return fields.map((field) => {
-    if (field?.key !== "work_status") {
-      return field
+    let updated = { ...field };
+    if (updated.key === "middle_name") {
+      updated.required = false;
     }
-
-    return {
-      ...field,
-      options: WORK_STATUS_OPTIONS,
+    if (updated.key === "work_status") {
+      updated.options = WORK_STATUS_OPTIONS;
     }
+    return updated;
   })
 };
 

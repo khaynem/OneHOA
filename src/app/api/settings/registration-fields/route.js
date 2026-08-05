@@ -56,23 +56,14 @@ const normalizeRegistrationFields = (fields = []) => {
   }
 
   return fields.map((field) => {
-    if (field?.key === "work_status") {
-      return {
-        ...field,
-        options: WORK_STATUS_OPTIONS,
-      }
+    let updated = { ...field };
+    if (updated.key === "middle_name") {
+      updated.required = false;
     }
-    if (field?.key === "entry_month") {
-      return {
-        ...field,
-        options: [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
-        ],
-      }
+    if (updated.key === "work_status") {
+      updated.options = WORK_STATUS_OPTIONS;
     }
-
-    return field
+    return updated;
   })
 };
 

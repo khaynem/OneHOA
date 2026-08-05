@@ -131,7 +131,7 @@ export async function POST(request) {
         "records._id": record._id,
       });
 
-    // Auto-generate the YYMMXXXX receipt number based on the payment date and
+    // Auto-generate the next sequential receipt number (10000001-99999999) and
     // retry on unique-index collisions (two requests racing for the same slot).
     let finalReceiptNo = null;
     let newPayment = null;
@@ -139,7 +139,7 @@ export async function POST(request) {
       finalReceiptNo = await generateNextReceiptNumber(Payment, billingInfo.parsedDate);
       if (!finalReceiptNo) {
         return NextResponse.json(
-          { message: "Receipt number sequence exhausted for this month." },
+          { message: "Receipt number sequence exhausted." },
           { status: 409 }
         );
       }

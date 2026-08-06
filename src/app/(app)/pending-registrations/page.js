@@ -24,40 +24,46 @@ export default function PendingRegistrationsPage() {
   const [declineReason, setDeclineReason] = useState('')
   const [showDeclineModal, setShowDeclineModal] = useState(false)
   const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showDuplicateWarningModal, setShowDuplicateWarningModal] = useState(false)
+  const [duplicatePendingList, setDuplicatePendingList] = useState([])
   const [isProcessingAction, setIsProcessingAction] = useState(false)
   const [activeLightboxImage, setActiveLightboxImage] = useState(null)
 
-  const fetchRegistrations = async () => {
-    try {
-      setIsLoadingRegs(true)
-      const response = await apiClient.get('/pending-registrations')
-      if (response?.success && Array.isArray(response?.data)) {
-        setRegistrations(response.data)
-      }
-    } catch (error) {
-      notify.error({
-        title: 'Failed to Load Registrations',
-        description: error.message || 'Unable to retrieve pending registrations.'
-      })
-    } finally {
-      setIsLoadingRegs(false)
-    }
+  const cleanForMatching = (str) => {
+    if (!str || typeof str !== 'string') return ''
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '')
   }
 
-  useEffect(() => {
-    fetchRegistrations()
-  }, [])
+  const getDuplicatePendingRegistrations = (reg) => {
+    if (!reg || !Array.isArray(registrations)) return []
+    const fn = cleanForMatching(reg.first_name)
+    const ln = cleanForMatching(reg.last_name)
+    const p = reg.phase
+    const b = reg.block
+    const l = reg.lot
 
-  const filteredRegs = registrations.filter((reg) => {
-    const q = searchText.trim().toLowerCase()
-    const fullName = `${reg.first_name || ''} ${reg.middle_name || ''} ${reg.last_name || ''}`.toLowerCase()
-    const phaseBlockLot = `phase ${reg.phase || ''} block ${reg.block || ''} lot ${reg.lot || ''}`.toLowerCase()
+    return registrations.filter((item) => {
+      if (item.status !== 'pending') return false
+      return (
+        cleanForMatching(item.first_name) === fn &&
+        cleanForMatching(item.last_name) === ln &&
+        item.phase === p &&
+        item.block === b &&
+        item.lot === l
+      )
+    })
+  }
 
-    const matchesSearch = fullName.includes(q) || phaseBlockLot.includes(q)
-    const matchesStatus = statusFilter === 'all' ? true : reg.status === statusFilter
-
-    return matchesSearch && matchesStatus
-  })
+  const handleInitiateApprove = () => {
+    if (!selectedReg) return
+    const duplicates = getDuplicatePendingRegistrations(selectedReg)
+    if (duplicates.length > 1) {
+      setDuplicatePendingList(duplicates)
+      setShowDuplicateWarningModal(true)
+    } else {
+      setShowApproveModal(true)
+    }
+  }
 
   const handleApprove = async () => {
     if (!selectedReg || isProcessingAction) return
@@ -81,6 +87,7 @@ export default function PendingRegistrationsPage() {
         fetchRegistrations()
         setSelectedReg(null)
         setShowApproveModal(false)
+        setShowDuplicateWarningModal(false)
       }
     } catch (error) {
       if (error.isOffline) {
@@ -89,6 +96,7 @@ export default function PendingRegistrationsPage() {
           description: "Saved offline. Your changes will be submitted automatically when you're back online."
         })
         setShowApproveModal(false)
+        setShowDuplicateWarningModal(false)
       } else {
         notify.error({
           title: 'Approval Failed',
@@ -456,7 +464,7 @@ export default function PendingRegistrationsPage() {
                     </button>
                     <button
                       className={`${styles.actionBtn} ${styles.approveBtn}`}
-                      onClick={() => setShowApproveModal(true)}
+                      onClick={handleInitiateApprove}
                     >
                       <FaCheck /> Approve & Add Homeowner
                     </button>
@@ -526,6 +534,65 @@ export default function PendingRegistrationsPage() {
                 disabled={isProcessingAction}
               >
                 {isProcessingAction ? <FaSpinner className={styles.spinner} /> : 'Decline Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDuplicateWarningModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal} style={{ maxWidth: '560px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#b45309', marginBottom: '12px' }}>
+              <FaExclamationCircle style={{ fontSize: '1.5rem', flexShrink: 0 }} />
+              <h3 className={styles.modalTitle} style={{ margin: 0, color: '#92400e' }}>
+                Duplicate Pending Registrations Detected
+              </h3>
+            </div>
+            <p className={styles.modalText}>
+              Warning: <strong>{duplicatePendingList.length} pending registrations</strong> exist for homeowner{' '}
+              <strong>{selectedReg?.first_name} {selectedReg?.last_name}</strong> at{' '}
+              <strong>Phase {selectedReg?.phase}, Block {selectedReg?.block}, Lot {selectedReg?.lot}</strong>.
+            </p>
+            
+            <div style={{ maxHeight: '200px', overflowY: 'auto', margin: '14px 0', border: '1px solid #fef3c7', borderRadius: '8px', padding: '10px', backgroundColor: '#fffbeb' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '0.82rem', fontWeight: 600, color: '#92400e' }}>
+                Conflicting Applications:
+              </p>
+              {duplicatePendingList.map((item, index) => (
+                <div key={item._id} style={{ fontSize: '0.82rem', padding: '6px 8px', borderRadius: '4px', backgroundColor: item._id === selectedReg?._id ? '#fef08a' : '#ffffff', border: '1px solid #fde68a', marginBottom: index === duplicatePendingList.length - 1 ? 0 : '6px' }}>
+                  <div style={{ fontWeight: 600, color: '#78350f' }}>
+                    {index + 1}. {item.first_name} {item.middle_name ? `${item.middle_name} ` : ''}{item.last_name} {item._id === selectedReg?._id ? '(Currently Selected)' : ''}
+                  </div>
+                  <div style={{ color: '#92400e', fontSize: '0.78rem', marginTop: '2px' }}>
+                    Email: {item.email || 'N/A'} | Phone: {item.phone_number || 'N/A'}
+                  </div>
+                  <div style={{ color: '#b45309', fontSize: '0.74rem', marginTop: '2px' }}>
+                    Submitted: {new Date(item.createdAt).toLocaleString('en-PH')}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className={styles.modalSubtext} style={{ color: '#b45309' }}>
+              Accepting this registration will approve <strong>{selectedReg?.first_name} {selectedReg?.last_name}</strong> and update the existing masterlist record. Please verify which application is accurate before confirming.
+            </p>
+
+            <div className={styles.modalActions}>
+              <button
+                className={styles.modalCancel}
+                onClick={() => setShowDuplicateWarningModal(false)}
+                disabled={isProcessingAction}
+              >
+                Cancel / Review Requests
+              </button>
+              <button
+                className={styles.modalConfirmApprove}
+                style={{ backgroundColor: '#d97706' }}
+                onClick={handleApprove}
+                disabled={isProcessingAction}
+              >
+                {isProcessingAction ? <FaSpinner className={styles.spinner} /> : 'Proceed & Accept Registration'}
               </button>
             </div>
           </div>

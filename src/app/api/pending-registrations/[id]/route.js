@@ -113,16 +113,32 @@ export async function PATCH(request, { params }) {
     let finalRecord = null;
     let isExistingLinked = false;
 
-    // Check if matched to an existing Masterlist record
+    // 1. Try finding record by stored matched_record_id or dynamically search by first_name, last_name, and address
     if (pending.matched_record_id) {
       finalRecord = await Record.findById(pending.matched_record_id);
-      if (finalRecord) {
-        isExistingLinked = true;
-      }
+    }
+
+    if (!finalRecord && addressId && pending.first_name && pending.last_name) {
+      const candidateRecords = await Record.find({ "address._id": addressId });
+      const targetFirst = cleanNameForMatching(pending.first_name);
+      const targetLast = cleanNameForMatching(pending.last_name);
+
+      finalRecord = candidateRecords.find((rec) => {
+        const recFirst = cleanNameForMatching(rec.first_name);
+        const recLast = cleanNameForMatching(rec.last_name);
+        return recFirst === targetFirst && recLast === targetLast;
+      }) || null;
+    }
+
+    if (finalRecord) {
+      isExistingLinked = true;
     }
 
     if (isExistingLinked && finalRecord) {
-      // Update existing record's missing/new details
+      // Update existing record's details with the newly verified registration data
+      if (pending.first_name) finalRecord.first_name = pending.first_name;
+      if (pending.last_name) finalRecord.last_name = pending.last_name;
+      if (pending.middle_name !== undefined) finalRecord.middle_name = pending.middle_name;
       if (pending.email) finalRecord.email = pending.email;
       if (pending.phone_number) finalRecord.phone_number = pending.phone_number;
       if (pending.job_title) finalRecord.job_title = pending.job_title;
@@ -139,7 +155,7 @@ export async function PATCH(request, { params }) {
       if (pending.picture_id) {
         finalRecord["pictures._id"] = pending.picture_id;
       }
-      if (addressId && !finalRecord["address._id"]) {
+      if (addressId) {
         finalRecord["address._id"] = addressId;
       }
       await finalRecord.save();

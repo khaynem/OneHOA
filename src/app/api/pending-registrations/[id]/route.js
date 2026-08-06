@@ -9,6 +9,8 @@ import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 import { sendRegistrationStatusEmail, sendAccountActivationEmail } from "@/lib/server/services/emailService";
 
+import { occupantStatusFromMembership } from "@/lib/server/utils/stringHelpers";
+
 const ACTIVATION_CODE_EXPIRY_HOURS = 72;
 
 function generateActivationCode() {
@@ -129,6 +131,7 @@ export async function PATCH(request, { params }) {
       if (pending.entry_date) finalRecord.entry_date = pending.entry_date;
       if (pending.membership_status) {
         finalRecord.status = [pending.membership_status];
+        finalRecord.occupant_status = occupantStatusFromMembership(pending.membership_status);
       }
       if (Array.isArray(pending.household_members) && pending.household_members.length > 0) {
         finalRecord.household_members = pending.household_members;
@@ -159,6 +162,7 @@ export async function PATCH(request, { params }) {
         generatedId = `${entryYear}${String(Date.now()).slice(-4)}`;
       }
 
+      const memStatus = pending.membership_status || "HO not HVNA member";
       const recordPayload = {
         last_name: pending.last_name,
         first_name: pending.first_name,
@@ -171,7 +175,8 @@ export async function PATCH(request, { params }) {
         household_members: pending.household_members,
         email: pending.email,
         "address._id": addressId,
-        status: pending.membership_status ? [pending.membership_status] : ["HO not HVNA member"],
+        status: [memStatus],
+        occupant_status: occupantStatusFromMembership(memStatus),
         generated_id: generatedId,
       };
 

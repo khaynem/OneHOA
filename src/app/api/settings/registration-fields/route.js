@@ -98,6 +98,20 @@ export async function GET() {
       }
     }
 
+    // Remove legacy occupant_status field if still present in stored settings
+    fields = fields.filter(f => f.key !== "occupant_status");
+
+    // Inject membership_status if missing from stored settings
+    if (!fields.find(f => f.key === "membership_status")) {
+      const membershipField = DEFAULT_REGISTRATION_FIELDS.find(f => f.key === "membership_status");
+      const householdIndex = fields.findIndex(f => f.key === "household_members");
+      if (householdIndex !== -1) {
+        fields.splice(householdIndex, 0, membershipField);
+      } else {
+        fields.push(membershipField);
+      }
+    }
+
     return NextResponse.json({ success: true, fields }, { status: 200 });
   } catch (error) {
     return NextResponse.json(

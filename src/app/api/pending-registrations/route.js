@@ -8,7 +8,7 @@ import Setting from "@/lib/server/models/settings";
 import "@/lib/server/models/pictures";
 import { requireAuth, requireRole, normalizeEmail } from "@/lib/server/auth";
 import { sendRegistrationSubmittedEmail } from "@/lib/server/services/emailService";
-import { cleanAndProperCase, cleanNameForMatching, MEMBERSHIP_STATUS_OPTIONS } from "@/lib/server/utils/stringHelpers";
+import { cleanAndProperCase, cleanNameForMatching, MEMBERSHIP_STATUS_OPTIONS, occupantStatusFromMembership } from "@/lib/server/utils/stringHelpers";
 import mongoose from "mongoose";
 
 export const runtime = "nodejs";
@@ -64,7 +64,7 @@ const normalizeRegistrationFields = (fields = []) => {
 
   return fields.map((field) => {
     let updated = { ...field };
-    if (updated.key === "middle_name") {
+    if (updated.key === "middle_name" || updated.key === "occupant_status") {
       updated.required = false;
     }
     if (updated.key === "work_status") {
@@ -242,6 +242,11 @@ export async function POST(request) {
       } catch (matchErr) {
         console.error("[Registration] Error during background masterlist matching:", matchErr);
       }
+    }
+
+    // 3.6 Automatically derive occupant_status from membership_status
+    if (payload.membership_status) {
+      payload.occupant_status = occupantStatusFromMembership(payload.membership_status);
     }
 
     // 4. Create Pending Registration Record

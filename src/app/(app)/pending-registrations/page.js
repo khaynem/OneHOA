@@ -262,15 +262,15 @@ export default function PendingRegistrationsPage() {
                             </div>
                           </td>
                           <td>{addressStr}</td>
-                          <td>{reg.membership_status || reg.occupant_status || '-'}</td>
+                          <td>{reg.membership_status || '-'}</td>
                           <td>{dateStr}</td>
                           <td>
                             <span
                               className={`${styles.statusPill} ${reg.status === 'approved'
-                                  ? styles.statusApproved
-                                  : reg.status === 'declined'
-                                    ? styles.statusDeclined
-                                    : styles.statusPending
+                                ? styles.statusApproved
+                                : reg.status === 'declined'
+                                  ? styles.statusDeclined
+                                  : styles.statusPending
                                 }`}
                             >
                               {reg.status}
@@ -313,10 +313,10 @@ export default function PendingRegistrationsPage() {
                   <div className={styles.detailsHeaderRight}>
                     <span
                       className={`${styles.statusBadge} ${selectedReg.status === 'approved'
-                          ? styles.statusApproved
-                          : selectedReg.status === 'declined'
-                            ? styles.statusDeclined
-                            : styles.statusPending
+                        ? styles.statusApproved
+                        : selectedReg.status === 'declined'
+                          ? styles.statusDeclined
+                          : styles.statusPending
                         }`}
                     >
                       {selectedReg.status.toUpperCase()}
@@ -352,7 +352,7 @@ export default function PendingRegistrationsPage() {
                     </div>
                     <div>
                       <span className={styles.detailLabel}>Membership Status</span>
-                      <span className={styles.detailValue}>{selectedReg.membership_status || selectedReg.occupant_status || '-'}</span>
+                      <span className={styles.detailValue}>{selectedReg.membership_status || '-'}</span>
                     </div>
                     <div>
                       <span className={styles.detailLabel}>Entry Year</span>

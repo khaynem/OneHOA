@@ -254,14 +254,6 @@ export default function HomeownerProfilePage() {
                 )}
 
                 <div className={styles.heroMainInfo}>
-                  <div className={styles.heroTitleRow}>
-                    <h1 className={styles.heroName}>{fullName}</h1>
-                    <span className={styles.occupantStatusBadge}>
-                      <HiOutlineCheckBadge className={styles.badgeIcon} />
-                      {record.occupant_status || "Registered Homeowner"}
-                    </span>
-                  </div>
-
                   <p className={styles.heroSubText}>
                     <HiOutlineBuildingOffice className={styles.inlineIcon} />
                     {formattedAddress} &bull; Fiesta Community Hanjin Village
@@ -448,12 +440,6 @@ export default function HomeownerProfilePage() {
                     <li>
                       <span className={styles.infoLabel}>Lot Number</span>
                       <span className={styles.infoVal}>{`Lot ${addressObj.lot}` || "N/A"}</span>
-                    </li>
-                    <li>
-                      <span className={styles.infoLabel}>Occupant Status</span>
-                      <span className={`${styles.infoVal} ${styles.highlightVal}`}>
-                        {record.occupant_status || "Owner"}
-                      </span>
                     </li>
                     <li>
                       <span className={styles.infoLabel}>System Generated ID</span>

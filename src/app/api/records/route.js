@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import Record from "@/lib/server/models/records";
 import Address from "@/lib/server/models/address";
+import { occupantStatusFromMembership } from "@/lib/server/utils/stringHelpers";
 import "@/lib/server/models/pictures";
 import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
@@ -132,6 +133,10 @@ export async function POST(request) {
     const normalizedStatus = normalizeStatusInput(payload.status ?? body?.status);
     if (normalizedStatus !== undefined) {
       payload.status = normalizedStatus;
+      const memStatus = Array.isArray(normalizedStatus) ? normalizedStatus[0] : normalizedStatus;
+      if (memStatus) {
+        payload.occupant_status = occupantStatusFromMembership(memStatus);
+      }
     }
 
     const resolvedAddressId = await resolveAddressIdFromPayload(body || {});

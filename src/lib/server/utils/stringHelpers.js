@@ -54,3 +54,27 @@ export const MEMBERSHIP_STATUS_OPTIONS = [
   "SURRENDER",
   "OTHER"
 ];
+
+/**
+ * Derives occupant_status from a membership status value.
+ */
+const MEMBERSHIP_TO_OCCUPANT_MAP = {
+  "HO HVNA member": "Owner",
+  "HO not HVNA member": "Owner",
+  "HO NON HANJIN (Commercial)": "Owner",
+  "HO NON HANJIN": "Owner",
+  "RENTER": "Renter",
+  "CARETAKER": "Care taker",
+  "IN HOUSE": "In House",
+  "SECURITY": "Security",
+  "HVNA ABANDON": "Other",
+  "SURRENDER": "Surrendered",
+  "OTHER": "Other",
+  "Other": "Other",
+};
+
+export function occupantStatusFromMembership(membershipStatus) {
+  if (!membershipStatus || typeof membershipStatus !== "string") return "Other";
+  const trimmed = membershipStatus.trim();
+  return MEMBERSHIP_TO_OCCUPANT_MAP[trimmed] || "Other";
+}

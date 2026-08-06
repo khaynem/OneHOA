@@ -90,30 +90,13 @@ export async function PATCH(request, { params }) {
     }
 
     // action === "approve"
-    // 1. If owner, verify no other owner exists at this address
-    const isOwner = String(pending.occupant_status || "").toLowerCase() === "owner";
     let addressId = null;
-
     if (pending.phase !== undefined && pending.block !== undefined && pending.lot !== undefined) {
       let address = await Address.findOne({
         phase: pending.phase,
         block: pending.block,
         lot: pending.lot,
       }).select("_id");
-
-      if (address && isOwner) {
-        const existingOwner = await Record.findOne({
-          "address._id": address._id,
-          occupant_status: { $regex: /^owner$/i },
-        }).select("_id");
-
-        if (existingOwner) {
-          return NextResponse.json(
-            { success: false, message: `An owner already exists for the address Phase ${pending.phase}, Block ${pending.block}, Lot ${pending.lot}.` },
-            { status: 409 }
-          );
-        }
-      }
 
       if (!address) {
         address = await Address.create({
@@ -125,48 +108,80 @@ export async function PATCH(request, { params }) {
       addressId = address._id;
     }
 
-    // 2. Generate Unique Generated ID
-    const entryYear = pending.entry_date ? new Date(pending.entry_date).getFullYear() : new Date().getFullYear();
-    let generatedId = "";
+    let finalRecord = null;
+    let isExistingLinked = false;
 
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const suffix = String(Math.floor(1000 + Math.random() * 9000));
-      const candidate = `${entryYear}${suffix}`;
-      const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
-      if (!exists) {
-        generatedId = candidate;
-        break;
+    // Check if matched to an existing Masterlist record
+    if (pending.matched_record_id) {
+      finalRecord = await Record.findById(pending.matched_record_id);
+      if (finalRecord) {
+        isExistingLinked = true;
       }
     }
 
-    if (!generatedId) {
-      generatedId = `${entryYear}${String(Date.now()).slice(-4)}`;
+    if (isExistingLinked && finalRecord) {
+      // Update existing record's missing/new details
+      if (pending.email) finalRecord.email = pending.email;
+      if (pending.phone_number) finalRecord.phone_number = pending.phone_number;
+      if (pending.job_title) finalRecord.job_title = pending.job_title;
+      if (pending.work_status) finalRecord.work_status = pending.work_status;
+      if (pending.entry_month) finalRecord.entry_month = pending.entry_month;
+      if (pending.entry_date) finalRecord.entry_date = pending.entry_date;
+      if (pending.membership_status) {
+        finalRecord.status = [pending.membership_status];
+      }
+      if (Array.isArray(pending.household_members) && pending.household_members.length > 0) {
+        finalRecord.household_members = pending.household_members;
+      }
+      if (pending.picture_id) {
+        finalRecord["pictures._id"] = pending.picture_id;
+      }
+      if (addressId && !finalRecord["address._id"]) {
+        finalRecord["address._id"] = addressId;
+      }
+      await finalRecord.save();
+    } else {
+      // Create brand new Masterlist Record
+      const entryYear = pending.entry_date ? new Date(pending.entry_date).getFullYear() : new Date().getFullYear();
+      let generatedId = "";
+
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const suffix = String(Math.floor(1000 + Math.random() * 9000));
+        const candidate = `${entryYear}${suffix}`;
+        const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
+        if (!exists) {
+          generatedId = candidate;
+          break;
+        }
+      }
+
+      if (!generatedId) {
+        generatedId = `${entryYear}${String(Date.now()).slice(-4)}`;
+      }
+
+      const recordPayload = {
+        last_name: pending.last_name,
+        first_name: pending.first_name,
+        middle_name: pending.middle_name,
+        phone_number: pending.phone_number,
+        job_title: pending.job_title,
+        work_status: pending.work_status,
+        entry_month: pending.entry_month,
+        entry_date: pending.entry_date,
+        household_members: pending.household_members,
+        email: pending.email,
+        "address._id": addressId,
+        status: pending.membership_status ? [pending.membership_status] : ["HO not HVNA member"],
+        generated_id: generatedId,
+      };
+
+      if (pending.picture_id) {
+        recordPayload["pictures._id"] = pending.picture_id;
+      }
+
+      finalRecord = await Record.create(recordPayload);
     }
 
-    // 3. Construct Record Payload
-    const recordPayload = {
-      last_name: pending.last_name,
-      first_name: pending.first_name,
-      middle_name: pending.middle_name,
-      phone_number: pending.phone_number,
-      job_title: pending.job_title,
-      work_status: pending.work_status,
-      entry_month: pending.entry_month,
-      entry_date: pending.entry_date,
-      occupant_status: pending.occupant_status || "Owner",
-      household_members: pending.household_members,
-      email: pending.email,
-      "address._id": addressId,
-      status: isOwner ? ["HO, not HVNA member"] : ["N/A"],
-      generated_id: generatedId,
-    };
-
-    if (pending.picture_id) {
-      recordPayload["pictures._id"] = pending.picture_id;
-    }
-
-    // 4. Create Homeowner Record & Update Pending Request
-    const newRecord = await Record.create(recordPayload);
     pending.status = "approved";
     await pending.save();
 
@@ -178,9 +193,10 @@ export async function PATCH(request, { params }) {
         detailSummary: `Approved homeowner registration request for ${fullName}`,
         metadata: {
           pending_id: id,
-          record_id: String(newRecord._id),
-          generated_id: generatedId,
+          record_id: String(finalRecord._id),
+          generated_id: finalRecord.generated_id || "",
           homeowner_name: fullName,
+          is_existing_linked: isExistingLinked,
         },
       });
     } catch (auditError) {
@@ -245,7 +261,7 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    return NextResponse.json({ success: true, data: pending, record: newRecord }, { status: 200 });
+    return NextResponse.json({ success: true, data: pending, record: finalRecord }, { status: 200 });
   } catch (error) {
     console.error("Action on pending registration failed:", error);
     const status = error.status || 500;

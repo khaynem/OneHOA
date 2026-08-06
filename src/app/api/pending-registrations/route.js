@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import PendingRegistration from "@/lib/server/models/pendingRegistrations";
+import Record from "@/lib/server/models/records";
+import Address from "@/lib/server/models/address";
 import EmailVerification from "@/lib/server/models/emailVerification";
 import Setting from "@/lib/server/models/settings";
 import "@/lib/server/models/pictures";
 import { requireAuth, requireRole, normalizeEmail } from "@/lib/server/auth";
 import { sendRegistrationSubmittedEmail } from "@/lib/server/services/emailService";
+import { cleanAndProperCase, cleanNameForMatching, MEMBERSHIP_STATUS_OPTIONS } from "@/lib/server/utils/stringHelpers";
 import mongoose from "mongoose";
 
 export const runtime = "nodejs";
@@ -44,10 +47,10 @@ const DEFAULT_REGISTRATION_FIELDS = [
   },
   { key: "entry_date", label: "Entry Year", type: "number", required: true, isActive: true },
   {
-    key: "occupant_status",
-    label: "Occupant Status",
+    key: "membership_status",
+    label: "Membership Status",
     type: "select",
-    options: ["Owner", "Relative", "Renter", "Caretaker"],
+    options: MEMBERSHIP_STATUS_OPTIONS,
     required: true,
     isActive: true,
   },
@@ -175,6 +178,8 @@ export async function POST(request) {
             payload.phone_number = digits;
           } else if (field.type === "household_list") {
             payload[field.key] = val;
+          } else if (["first_name", "last_name", "middle_name", "job_title"].includes(field.key)) {
+            payload[field.key] = cleanAndProperCase(stringVal);
           } else {
             payload[field.key] = stringVal;
           }
@@ -208,6 +213,36 @@ export async function POST(request) {
       );
     }
     payload.picture_id = pictureId;
+
+    // 3.5 Silent Masterlist Background Matching
+    if (payload.phase && payload.block && payload.lot && payload.first_name && payload.last_name) {
+      try {
+        const address = await Address.findOne({
+          phase: payload.phase,
+          block: payload.block,
+          lot: payload.lot,
+        }).select("_id").lean();
+
+        if (address) {
+          const candidateRecords = await Record.find({ "address._id": address._id }).lean();
+          const cleanedFirst = cleanNameForMatching(payload.first_name);
+          const cleanedLast = cleanNameForMatching(payload.last_name);
+
+          const matched = candidateRecords.find((rec) => {
+            const recFirst = cleanNameForMatching(rec.first_name);
+            const recLast = cleanNameForMatching(rec.last_name);
+            return recFirst === cleanedFirst && recLast === cleanedLast;
+          });
+
+          if (matched) {
+            payload.matched_record_id = matched._id;
+            payload.is_masterlist_match = true;
+          }
+        }
+      } catch (matchErr) {
+        console.error("[Registration] Error during background masterlist matching:", matchErr);
+      }
+    }
 
     // 4. Create Pending Registration Record
     const newReg = await PendingRegistration.create(payload);

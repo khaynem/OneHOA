@@ -4,6 +4,8 @@ import Setting from "@/lib/server/models/settings";
 import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 
+import { MEMBERSHIP_STATUS_OPTIONS } from "@/lib/server/utils/stringHelpers";
+
 export const runtime = "nodejs";
 
 const SETTING_KEY = "registration_fields";
@@ -40,10 +42,10 @@ const DEFAULT_REGISTRATION_FIELDS = [
   },
   { key: "entry_date", label: "Entry Year", type: "number", required: true, isActive: true },
   {
-    key: "occupant_status",
-    label: "Occupant Status",
+    key: "membership_status",
+    label: "Membership Status",
     type: "select",
-    options: ["Owner", "Relative", "Renter", "Caretaker"],
+    options: MEMBERSHIP_STATUS_OPTIONS,
     required: true,
     isActive: true,
   },
@@ -62,6 +64,9 @@ const normalizeRegistrationFields = (fields = []) => {
     }
     if (updated.key === "work_status") {
       updated.options = WORK_STATUS_OPTIONS;
+    }
+    if (updated.key === "membership_status") {
+      updated.options = MEMBERSHIP_STATUS_OPTIONS;
     }
     return updated;
   })

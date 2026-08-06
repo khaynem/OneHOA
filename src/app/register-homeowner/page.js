@@ -11,7 +11,7 @@ import styles from './register-homeowner.module.css'
 const CATEGORY_MAP = {
   "Personal Details": ["first_name", "middle_name", "last_name", "suffix", "email", "phone_number"],
   "Source of Income": ["job_title", "work_status"],
-  "Residency Details": ["phase", "block", "lot", "entry_month", "entry_date", "occupant_status"],
+  "Residency Details": ["phase", "block", "lot", "entry_month", "entry_date", "membership_status"],
   "Household Members": ["household_members"]
 }
 
@@ -73,7 +73,7 @@ export default function RegisterHomeownerPage() {
     lot: '',
     entry_month: '',
     entry_date: '',
-    occupant_status: '',
+    membership_status: '',
     household_members: [],
   })
 
@@ -786,8 +786,8 @@ export default function RegisterHomeownerPage() {
       <div className={styles.square3} aria-hidden="true" />
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link href="/claim-account" className={styles.backLink}>
-            <FaArrowLeft /> Claim Existing Account
+          <Link href="/" className={styles.backLink}>
+            <FaArrowLeft /> Back to Home
           </Link>
           <div className={styles.brand}>
             <Image
@@ -1107,7 +1107,7 @@ export default function RegisterHomeownerPage() {
                 <div className={styles.modalDetailRow}><strong>Phone:</strong> {formData.phone_number}</div>
                 <div className={styles.modalDetailRow}><strong>Address:</strong> Phase {formData.phase}, Block {formData.block}, Lot {formData.lot}</div>
                 <div className={styles.modalDetailRow}><strong>Entry Date:</strong> {formData.entry_month ? `${formData.entry_month} ` : ''}{formData.entry_date}</div>
-                <div className={styles.modalDetailRow}><strong>Occupant Status:</strong> {formData.occupant_status}</div>
+                <div className={styles.modalDetailRow}><strong>Membership Status:</strong> {formData.membership_status}</div>
                 <div className={styles.modalDetailRow}><strong>Valid IDs Attached:</strong> {validIdFiles.length}</div>
               </div>
 

@@ -249,13 +249,20 @@ export default function PendingRegistrationsPage() {
                                 </div>
                               )}
                               <div>
-                                <div className={styles.rowName}>{fullName}</div>
+                                <div className={styles.rowName}>
+                                  {fullName}
+                                  {reg.is_masterlist_match && (
+                                    <span style={{ marginLeft: '6px', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#166534', fontWeight: 600 }}>
+                                      Matches Masterlist
+                                    </span>
+                                  )}
+                                </div>
                                 <div className={styles.rowPhone}>{reg.phone_number || 'No Phone'}</div>
                               </div>
                             </div>
                           </td>
                           <td>{addressStr}</td>
-                          <td>{reg.occupant_status || 'Owner'}</td>
+                          <td>{reg.membership_status || reg.occupant_status || '-'}</td>
                           <td>{dateStr}</td>
                           <td>
                             <span
@@ -344,8 +351,8 @@ export default function PendingRegistrationsPage() {
                       </span>
                     </div>
                     <div>
-                      <span className={styles.detailLabel}>Occupant Status</span>
-                      <span className={styles.detailValue}>{selectedReg.occupant_status || '-'}</span>
+                      <span className={styles.detailLabel}>Membership Status</span>
+                      <span className={styles.detailValue}>{selectedReg.membership_status || selectedReg.occupant_status || '-'}</span>
                     </div>
                     <div>
                       <span className={styles.detailLabel}>Entry Year</span>

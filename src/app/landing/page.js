@@ -153,7 +153,7 @@ export default function LandingPage() {
           </nav>
 
           <div className={styles.headerActions}>
-            <Link href="/claim-account" onClick={() => setMenuOpen(false)} className={styles.registerBtn}>Create Account</Link>
+            <Link href="/register-homeowner" onClick={() => setMenuOpen(false)} className={styles.registerBtn}>Register as Homeowner</Link>
             <Link href="/login" onClick={() => setMenuOpen(false)} className={styles.loginBtn}>Login</Link>
           </div>
         </div>
@@ -355,7 +355,7 @@ export default function LandingPage() {
         <div className={styles.registrationInner}>
           <h2>Join Our Community</h2>
           <p>Register as a homeowner</p>
-          <Link href="/claim-account" className={`${styles.btn} ${styles.btnPrimary}`}>Create Account</Link>
+          <Link href="/register-homeowner" className={`${styles.btn} ${styles.btnPrimary}`}>Register as Homeowner</Link>
         </div>
       </section>
 

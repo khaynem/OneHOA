@@ -45,10 +45,18 @@ const pendingRegistrationSchema = new mongoose.Schema(
     entry_date: {
       type: Date,
     },
-    occupant_status: {
+    membership_status: {
       type: String,
       trim: true,
       default: "",
+    },
+    matched_record_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Record",
+    },
+    is_masterlist_match: {
+      type: Boolean,
+      default: false,
     },
     household_members: {
       type: [

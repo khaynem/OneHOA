@@ -47,7 +47,19 @@ const toSelectOptions = (options, currentValue) => {
   return options
 }
 
-const OCCUPANT_STATUS_OPTIONS = ['Owner', 'Relative', 'Renter', 'Caretaker']
+const MEMBERSHIP_STATUS_OPTIONS = [
+  'HO HVNA member',
+  'HO not HVNA member',
+  'HO NON HANJIN (Commercial)',
+  'RENTER',
+  'CARETAKER',
+  'IN HOUSE',
+  'SECURITY',
+  'HVNA ABANDON',
+  'SURRENDER',
+  'OTHER'
+]
+const OCCUPANT_STATUS_OPTIONS = MEMBERSHIP_STATUS_OPTIONS
 
 const STATUS_ALIASES = new Map([
   ['homeowner (ho), not hvna member', 'HO, not HVNA member'],

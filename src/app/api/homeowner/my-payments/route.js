@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import Record from "@/lib/server/models/records";
 import Payment from "@/lib/server/models/payments";
+import Setting from "@/lib/server/models/settings";
 import "@/lib/server/models/users";
 import "@/lib/server/models/address";
 import { requireAuth } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
+const MIN_TRACKING_PERIOD = 202601;
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -24,6 +26,58 @@ function formatPeriod(periodNum) {
     return `${MONTH_NAMES[month - 1]} ${year}`;
   }
   return String(periodNum);
+}
+
+function resolveHomeownerEntryPeriod(record) {
+  let year = 2025;
+  let month = 2;
+
+  if (record?.entry_date) {
+    const d = new Date(record.entry_date);
+    if (!Number.isNaN(d.getTime())) {
+      year = d.getFullYear();
+      month = d.getMonth() + 1;
+    }
+  }
+
+  if (record?.entry_month) {
+    const monthIdx = MONTH_NAMES.indexOf(record.entry_month);
+    if (monthIdx !== -1) {
+      month = monthIdx + 1;
+    }
+  }
+
+  const computed = year * 100 + month;
+  return Math.max(MIN_TRACKING_PERIOD, computed);
+}
+
+function generateEligiblePeriods(startPeriod, endPeriod) {
+  const periods = [];
+  let currentYear = Math.floor(startPeriod / 100);
+  let currentMonth = startPeriod % 100;
+
+  const endYear = Math.floor(endPeriod / 100);
+  const endMonth = endPeriod % 100;
+
+  while (
+    currentYear < endYear ||
+    (currentYear === endYear && currentMonth <= endMonth)
+  ) {
+    periods.push({
+      period: currentYear * 100 + currentMonth,
+      year: currentYear,
+      month: currentMonth,
+      label: `${MONTH_NAMES[currentMonth - 1]} ${currentYear}`,
+    });
+
+    currentMonth += 1;
+    if (currentMonth > 12) {
+      currentMonth = 1;
+      currentYear += 1;
+    }
+  }
+
+  return periods;
 }
 
 export async function GET(request) {
@@ -59,12 +113,28 @@ export async function GET(request) {
         .lean();
     }
 
+    // Fetch monthly dues setting
+    const duesSetting = await Setting.findOne({ key: "monthly_dues" }).lean();
+    const monthlyDues = Number(duesSetting?.value) > 0 ? Number(duesSetting.value) : 100;
+
     if (!record) {
       return NextResponse.json(
         {
           success: true,
           payments: [],
-          stats: { totalAmountPaid: 0, totalReceipts: 0 },
+          stats: {
+            totalAmountPaid: 0,
+            totalReceipts: 0,
+            monthlyDues,
+            outstandingBalance: 0,
+            pendingMonthsCount: 0,
+            pendingPeriodLabels: [],
+            isCurrentMonthPaid: true,
+            currentMonthLabel: `${MONTH_NAMES[new Date().getMonth()]} ${new Date().getFullYear()}`,
+            currentPeriod: new Date().getFullYear() * 100 + (new Date().getMonth() + 1),
+            statusLabel: "Up to Date",
+            warningLevel: "none",
+          },
         },
         { status: 200 }
       );
@@ -102,11 +172,21 @@ export async function GET(request) {
       .lean();
 
     let totalAmountPaid = 0;
+    const paidPeriodSet = new Set();
+
     const formattedPayments = rawPayments.map((p) => {
       const amount = p.amount || 0;
       const status = String(p.payment_status || "paid").toLowerCase();
       if (status === "paid") {
         totalAmountPaid += amount;
+
+        if (Array.isArray(p.payment_for_periods) && p.payment_for_periods.length > 0) {
+          p.payment_for_periods.forEach((per) => paidPeriodSet.add(Number(per)));
+        } else if (p.billing_period) {
+          paidPeriodSet.add(Number(p.billing_period));
+        } else if (p.billing_month && p.billing_year) {
+          paidPeriodSet.add(p.billing_year * 100 + p.billing_month);
+        }
       }
 
       let periodsFormatted = [];
@@ -138,6 +218,34 @@ export async function GET(request) {
       };
     });
 
+    // Calculate balance and payment warnings
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentPeriod = currentYear * 100 + currentMonth;
+    const currentMonthLabel = `${MONTH_NAMES[currentMonth - 1]} ${currentYear}`;
+
+    const entryPeriod = resolveHomeownerEntryPeriod(record);
+    const eligiblePeriods = generateEligiblePeriods(entryPeriod, currentPeriod);
+
+    const pendingPeriods = eligiblePeriods.filter((item) => !paidPeriodSet.has(item.period));
+    const pendingMonthsCount = pendingPeriods.length;
+    const outstandingBalance = pendingMonthsCount * monthlyDues;
+    const isCurrentMonthPaid = paidPeriodSet.has(currentPeriod);
+    const pendingPeriodLabels = pendingPeriods.map((p) => p.label);
+
+    let statusLabel = "Up to Date";
+    if (pendingMonthsCount > 0) {
+      statusLabel = isCurrentMonthPaid ? "Past Dues Pending" : "Payment Due";
+    }
+
+    let warningLevel = "none";
+    if (pendingMonthsCount > 2) {
+      warningLevel = "high";
+    } else if (pendingMonthsCount > 0) {
+      warningLevel = "medium";
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -157,6 +265,15 @@ export async function GET(request) {
         stats: {
           totalAmountPaid,
           totalReceipts: formattedPayments.length,
+          monthlyDues,
+          outstandingBalance,
+          pendingMonthsCount,
+          pendingPeriodLabels,
+          isCurrentMonthPaid,
+          currentMonthLabel,
+          currentPeriod,
+          statusLabel,
+          warningLevel,
         },
       },
       { status: 200 }
@@ -169,3 +286,4 @@ export async function GET(request) {
     );
   }
 }
+

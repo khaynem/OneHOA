@@ -85,7 +85,7 @@ export async function GET(request) {
 
     const filter = {};
     if (statusFilter) {
-      filter.status = statusFilter;
+      filter.$or = [{ request_status: statusFilter }, { status: statusFilter }];
     }
 
     const items = await PendingRegistration.find(filter)
@@ -187,6 +187,21 @@ export async function POST(request) {
       }
     }
 
+    // Explicitly check for entry_month in body if not caught by fields loop or if stored settings were missing it
+    if (!payload.entry_month && body.entry_month) {
+      payload.entry_month = String(body.entry_month).trim();
+    }
+
+    // Explicitly check for membership_status in body if not caught by fields loop or if stored settings were missing it
+    if (!payload.membership_status && body.membership_status) {
+      payload.membership_status = String(body.membership_status).trim();
+    }
+
+    // Automatically derive occupant_status from membership_status if present
+    if (payload.membership_status) {
+      payload.occupant_status = occupantStatusFromMembership(payload.membership_status);
+    }
+
     // 3. Validate files
     const validIdPictureIds = body.valid_id_picture_ids;
     if (!Array.isArray(validIdPictureIds) || validIdPictureIds.length === 0 || validIdPictureIds.length > 4) {
@@ -248,6 +263,10 @@ export async function POST(request) {
     if (payload.membership_status) {
       payload.occupant_status = occupantStatusFromMembership(payload.membership_status);
     }
+
+    // 3.7 Set registration request workflow status
+    payload.request_status = "pending";
+    payload.status = "pending";
 
     // 4. Create Pending Registration Record
     const newReg = await PendingRegistration.create(payload);

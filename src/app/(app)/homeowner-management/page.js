@@ -2284,7 +2284,7 @@ function HomeownerManagementInner() {
                           <input type="text" className={styles.input} value={member.relationship} onChange={(e) => handleHouseholdMemberChange(index, 'relationship', e.target.value)} required />
                         </div>
                         <button type="button" onClick={() => handleRemoveHouseholdMember(index)} style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} title="Remove Member">
-                          ✕
+                          X
                         </button>
                       </div>
                     ))}

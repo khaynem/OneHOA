@@ -49,9 +49,10 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    if (pending.status !== "pending") {
+    const currentReqStatus = pending.request_status || pending.status;
+    if (currentReqStatus !== "pending") {
       return NextResponse.json(
-        { success: false, message: `This request has already been ${pending.status}.` },
+        { success: false, message: `This request has already been ${currentReqStatus}.` },
         { status: 400 }
       );
     }
@@ -59,6 +60,7 @@ export async function PATCH(request, { params }) {
     const fullName = [pending.first_name, pending.middle_name, pending.last_name].filter(Boolean).join(" ");
 
     if (action === "decline") {
+      pending.request_status = "declined";
       pending.status = "declined";
       pending.decline_reason = String(decline_reason || "").trim() || "No reason provided.";
       await pending.save();
@@ -113,15 +115,38 @@ export async function PATCH(request, { params }) {
     let finalRecord = null;
     let isExistingLinked = false;
 
-    // 1. Try finding record by stored matched_record_id or dynamically search by first_name, last_name, and address
+    // 1. Try finding record by stored matched_record_id or dynamically search by first_name, last_name, and address/phase/block/lot
     if (pending.matched_record_id) {
       finalRecord = await Record.findById(pending.matched_record_id);
     }
 
-    if (!finalRecord && addressId && pending.first_name && pending.last_name) {
-      const candidateRecords = await Record.find({ "address._id": addressId });
+    if (!finalRecord && pending.first_name && pending.last_name) {
       const targetFirst = cleanNameForMatching(pending.first_name);
       const targetLast = cleanNameForMatching(pending.last_name);
+
+      let candidateRecords = [];
+      if (addressId) {
+        candidateRecords = await Record.find({ "address._id": addressId });
+      }
+
+      // If address ID query returned nothing or wasn't present, search by address phase/block/lot via populated addresses
+      if (candidateRecords.length === 0 && pending.phase && pending.block && pending.lot) {
+        const matchedAddressIds = await Address.find({
+          phase: pending.phase,
+          block: pending.block,
+          lot: pending.lot,
+        }).select("_id").lean();
+
+        if (matchedAddressIds.length > 0) {
+          const ids = matchedAddressIds.map(a => a._id);
+          candidateRecords = await Record.find({ "address._id": { $in: ids } });
+        }
+      }
+
+      // Fallback: search all records if still empty
+      if (candidateRecords.length === 0) {
+        candidateRecords = await Record.find({});
+      }
 
       finalRecord = candidateRecords.find((rec) => {
         const recFirst = cleanNameForMatching(rec.first_name);
@@ -154,6 +179,7 @@ export async function PATCH(request, { params }) {
       }
       if (pending.picture_id) {
         finalRecord["pictures._id"] = pending.picture_id;
+        finalRecord.picture_id = pending.picture_id;
       }
       if (addressId) {
         finalRecord["address._id"] = addressId;
@@ -201,11 +227,13 @@ export async function PATCH(request, { params }) {
 
       if (pending.picture_id) {
         recordPayload["pictures._id"] = pending.picture_id;
+        recordPayload.picture_id = pending.picture_id;
       }
 
       finalRecord = await Record.create(recordPayload);
     }
 
+    pending.request_status = "approved";
     pending.status = "approved";
     await pending.save();
 

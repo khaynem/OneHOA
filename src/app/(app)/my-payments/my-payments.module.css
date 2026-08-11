@@ -135,7 +135,7 @@
 .statsBar {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 20px;
   margin-bottom: 28px;
 }
 
@@ -143,20 +143,39 @@
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   border-radius: 20px;
-  padding: 24px;
+  padding: 22px;
   border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  min-height: 110px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.statTilePrimary {
+.statTile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px -6px rgba(0, 0, 0, 0.08);
+}
+
+.statTileEmerald {
   border-top: 4px solid #10b981;
+}
+
+.statTileAmber {
+  border-top: 4px solid #f59e0b;
+}
+
+.statTileRed {
+  border-top: 4px solid #ef4444;
 }
 
 .statTileTeal {
   border-top: 4px solid #0284c7;
+}
+
+.statTilePurple {
+  border-top: 4px solid #8b5cf6;
 }
 
 .statTileBlue {
@@ -164,60 +183,90 @@
 }
 
 .tileIconBox {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
-  background: #f0fdf4;
-  color: #10b981;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.statTileTeal .tileIconBox {
+.iconBoxEmerald {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.iconBoxAmber {
+  background-color: #fffbe0;
+  color: #d97706;
+}
+
+.iconBoxRed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.iconBoxTeal {
   background: #e0f2fe;
   color: #0284c7;
 }
 
-.statTileBlue .tileIconBox {
+.iconBoxPurple {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.iconBoxBlue {
   background: #e0e7ff;
   color: #4f46e5;
 }
 
 .tileIcon {
-  font-size: 1.7rem;
+  font-size: 1.6rem;
+}
+
+.tileContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .tileLabel {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 4px;
 }
 
-.tileValue {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 2px;
-
-}
-
+.tileValue,
+.tileValueText,
 .tileValueName {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0 0 2px;
+  line-height: 1.3;
+  min-height: 1.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tileSub {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #64748b;
   margin: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 
 /* Filter Card */
 .filterCard {
@@ -454,7 +503,13 @@
   font-size: 0.95rem;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
+  .statsBar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
   .statsBar {
     grid-template-columns: 1fr;
   }

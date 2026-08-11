@@ -57,7 +57,8 @@ export default function PendingRegistrationsPage() {
   }, [])
 
   const filteredRegs = registrations.filter((reg) => {
-    if (statusFilter !== 'all' && reg.status !== statusFilter) {
+    const currentReqStatus = reg.request_status || reg.status
+    if (statusFilter !== 'all' && currentReqStatus !== statusFilter) {
       return false
     }
     if (searchText.trim()) {
@@ -659,6 +660,11 @@ export default function PendingRegistrationsPage() {
               </strong>
               ?
             </p>
+            {selectedReg?.membership_status && (
+              <p className={styles.modalText} style={{ marginTop: '0.25rem', fontSize: '0.9rem', color: '#475569' }}>
+                <strong>Membership Status:</strong> {selectedReg.membership_status}
+              </p>
+            )}
             <p className={styles.modalSubtext}>
               On approval, they will be registered as a homeowner in the system database and dynamically listed in the Homeowner Masterlist.
             </p>

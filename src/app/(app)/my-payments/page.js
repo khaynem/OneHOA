@@ -10,6 +10,12 @@ import {
   HiOutlineCalendarDays,
   HiOutlineCheckCircle,
   HiOutlineArrowDownTray,
+  HiOutlineWallet,
+  HiOutlineExclamationTriangle,
+  HiOutlineClock,
+  HiOutlineShieldCheck,
+  HiOutlineUserCircle,
+  HiOutlineReceiptPercent,
 } from "react-icons/hi2"
 import { ApiError, apiClient } from "@/lib/apiClient"
 import { buildHomeownerPaymentReportHtml } from "@/lib/homeownerPaymentReportTemplate"
@@ -60,6 +66,12 @@ const formatDate = (dateValue) => {
     day: "2-digit",
     year: "numeric",
   }).format(parsed)
+}
+
+const formatPendingPeriodsSummary = (labels) => {
+  if (!labels || labels.length === 0) return "Account is in good standing"
+  if (labels.length === 1) return `Due: ${labels[0]}`
+  return `Due: ${labels[0]} (+${labels.length - 1} more)`
 }
 
 export default function HomeownerPaymentsPage() {
@@ -268,33 +280,117 @@ export default function HomeownerPaymentsPage() {
           <>
             {/* Top Stat Summary Bar */}
             <section className={styles.statsBar}>
-              <div className={`${styles.statTile} ${styles.statTilePrimary}`}>
-                <div className={styles.tileIconBox}>
-                  <HiOutlineBanknotes className={styles.tileIcon} />
+              <div
+                className={`${styles.statTile} ${(stats.outstandingBalance || 0) > 0 ? styles.statTileAmber : styles.statTileEmerald
+                  }`}
+              >
+                <div
+                  className={`${styles.tileIconBox} ${(stats.outstandingBalance || 0) > 0 ? styles.iconBoxAmber : styles.iconBoxEmerald
+                    }`}
+                >
+                  <HiOutlineWallet className={styles.tileIcon} />
                 </div>
-                <div>
-                  <p className={styles.tileLabel}>Total Amount Paid</p>
-                  <h2 className={styles.tileValue}>{formatPeso(stats.totalAmountPaid)}</h2>
-                  <p className={styles.tileSub}>Cumulative settled HOA dues</p>
+                <div className={styles.tileContent}>
+                  <p className={styles.tileLabel}>Homeowner Balance</p>
+                  <h2 className={styles.tileValue}>{formatPeso(stats.outstandingBalance || 0)}</h2>
+                  <p className={styles.tileSub}>
+                    {stats.pendingMonthsCount > 0
+                      ? `${stats.pendingMonthsCount} month${stats.pendingMonthsCount > 1 ? "s" : ""} unpaid (${formatPeso(stats.monthlyDues || 100)}/mo)`
+                      : "No outstanding dues balance"}
+                  </p>
                 </div>
               </div>
 
-              <div className={`${styles.statTile} ${styles.statTileTeal}`}>
-                <div className={styles.tileIconBox}>
-                  <HiOutlineDocumentText className={styles.tileIcon} />
+              <div
+                className={`${styles.statTile} ${stats.warningLevel === "high"
+                    ? styles.statTileRed
+                    : stats.warningLevel === "medium"
+                      ? styles.statTileAmber
+                      : styles.statTileEmerald
+                  }`}
+              >
+                <div
+                  className={`${styles.tileIconBox} ${stats.warningLevel === "high"
+                      ? styles.iconBoxRed
+                      : stats.warningLevel === "medium"
+                        ? styles.iconBoxAmber
+                        : styles.iconBoxEmerald
+                    }`}
+                >
+                  {stats.warningLevel === "none" ? (
+                    <HiOutlineShieldCheck className={styles.tileIcon} />
+                  ) : (
+                    <HiOutlineExclamationTriangle className={styles.tileIcon} />
+                  )}
                 </div>
-                <div>
-                  <p className={styles.tileLabel}>Total Official Receipts</p>
-                  <h2 className={styles.tileValue}>{stats.totalReceipts || 0} Receipts</h2>
-                  <p className={styles.tileSub}>Recorded payments in database</p>
+                <div className={styles.tileContent}>
+                  <p className={styles.tileLabel}>Payment Warnings</p>
+                  <h2 className={styles.tileValueText}>
+                    {stats.warningLevel === "high"
+                      ? "Critical Warning"
+                      : stats.warningLevel === "medium"
+                        ? "Payment Due Notice"
+                        : "No Warnings"}
+                  </h2>
+                  <p className={styles.tileSub} title={stats.pendingPeriodLabels?.join(", ") || ""}>
+                    {formatPendingPeriodsSummary(stats.pendingPeriodLabels)}
+                  </p>
+                </div>
+              </div>
+
+
+              <div
+                className={`${styles.statTile} ${stats.isCurrentMonthPaid ? styles.statTileTeal : styles.statTilePurple
+                  }`}
+              >
+                <div
+                  className={`${styles.tileIconBox} ${stats.isCurrentMonthPaid ? styles.iconBoxTeal : styles.iconBoxPurple
+                    }`}
+                >
+                  {stats.isCurrentMonthPaid ? (
+                    <HiOutlineCheckCircle className={styles.tileIcon} />
+                  ) : (
+                    <HiOutlineClock className={styles.tileIcon} />
+                  )}
+                </div>
+                <div className={styles.tileContent}>
+                  <p className={styles.tileLabel}>Current Payment Status</p>
+                  <h2 className={styles.tileValue}>
+                    {stats.isCurrentMonthPaid ? "Paid" : "Unpaid"}
+                  </h2>
+                  <p className={styles.tileSub}>
+                    {stats.currentMonthLabel || "Current Month"} — {stats.statusLabel || "Up to Date"}
+                  </p>
                 </div>
               </div>
 
               <div className={`${styles.statTile} ${styles.statTileBlue}`}>
-                <div className={styles.tileIconBox}>
-                  <HiOutlineCalendarDays className={styles.tileIcon} />
+                <div className={`${styles.tileIconBox} ${styles.iconBoxBlue}`}>
+                  <HiOutlineBanknotes className={styles.tileIcon} />
                 </div>
-                <div>
+                <div className={styles.tileContent}>
+                  <p className={styles.tileLabel}>Total Dues Paid</p>
+                  <h2 className={styles.tileValue}>{formatPeso(stats.totalAmountPaid)}</h2>
+                  <p className={styles.tileSub}>{stats.totalReceipts || 0} receipts recorded</p>
+                </div>
+              </div>
+
+              <div className={`${styles.statTile} ${styles.statTileEmerald}`}>
+                <div className={`${styles.tileIconBox} ${styles.iconBoxEmerald}`}>
+                  <HiOutlineReceiptPercent className={styles.tileIcon} />
+                </div>
+                <div className={styles.tileContent}>
+                  <p className={styles.tileLabel}>Monthly Dues Rate</p>
+                  <h2 className={styles.tileValue}>{formatPeso(stats.monthlyDues || 100)}</h2>
+                  <p className={styles.tileSub}>Per month HOA assessment</p>
+                </div>
+              </div>
+
+              <div className={`${styles.statTile} ${styles.statTileTeal}`}>
+                <div className={`${styles.tileIconBox} ${styles.iconBoxTeal}`}>
+                  <HiOutlineUserCircle className={styles.tileIcon} />
+                </div>
+                <div className={styles.tileContent}>
                   <p className={styles.tileLabel}>Homeowner Record</p>
                   <h2 className={styles.tileValueName}>
                     {record.first_name ? `${record.first_name} ${record.last_name}` : "Homeowner Account"}

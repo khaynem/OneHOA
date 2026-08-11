@@ -8,6 +8,7 @@ import { notify } from '@/lib/notify'
 import JobTitleField from '@/components/job-title-field/job-title-field'
 import LegalModal from '@/components/legal-modal/legal-modal'
 import styles from './register-homeowner.module.css'
+import { HiOutlineTrash } from 'react-icons/hi2'
 
 const CATEGORY_MAP = {
   "Personal Details": ["first_name", "middle_name", "last_name", "suffix", "email", "phone_number"],
@@ -137,6 +138,24 @@ export default function RegisterHomeownerPage() {
             loadedFields.splice(entryYearIdx, 0, entryMonthDef)
           } else {
             loadedFields.push(entryMonthDef)
+          }
+        }
+
+        const membershipStatusExists = loadedFields.some(f => f.key === 'membership_status')
+        if (!membershipStatusExists) {
+          const householdIdx = loadedFields.findIndex(f => f.key === 'household_members')
+          const membershipDef = {
+            key: 'membership_status',
+            label: 'Membership Status',
+            type: 'select',
+            options: ['Owner', 'Tenant', 'Authorized Representative'],
+            required: true,
+            isActive: true
+          }
+          if (householdIdx !== -1) {
+            loadedFields.splice(householdIdx, 0, membershipDef)
+          } else {
+            loadedFields.push(membershipDef)
           }
         }
 
@@ -647,7 +666,7 @@ export default function RegisterHomeownerPage() {
                 onClick={() => removeHouseholdMember(index)}
                 title="Remove Member"
               >
-                <FaTrash />
+                ✕
               </button>
             </div>
           ))}

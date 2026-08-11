@@ -95,6 +95,11 @@ const pendingRegistrationSchema = new mongoose.Schema(
       default: [],
       validate: [v => v.length > 0 && v.length <= 4, 'Must have at least 1 and up to 4 valid ID pictures']
     },
+    request_status: {
+      type: String,
+      enum: ["pending", "approved", "declined"],
+      default: "pending",
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "declined"],

@@ -243,7 +243,7 @@ export default function HomeownerProfilePage() {
 
         {!isLoading && (
           <>
-            {/* Hero Profile Banner */}
+            {/* Hero Profile Banner
             <div className={styles.profileHeroCard}>
               <div className={styles.heroLeft}>
                 {photoUrl ? (
@@ -273,7 +273,7 @@ export default function HomeownerProfilePage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Section 1: Homeowner's Own Full Details */}
             <section className={styles.sectionBlock}>
@@ -498,7 +498,7 @@ export default function HomeownerProfilePage() {
                           title="Remove Member"
                           disabled={isSaving}
                         >
-                          <HiOutlineTrash />
+                          X
                         </button>
                       </div>
                     ))}

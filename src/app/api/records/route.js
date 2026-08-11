@@ -48,19 +48,21 @@ const resolveEntryYear = (entryDate) => {
   return Number.isNaN(parsed.getTime()) ? new Date().getFullYear() : parsed.getFullYear();
 };
 
-const generateUniqueId = async (entryYear) => {
-  const yearText = String(entryYear || new Date().getFullYear());
+const generateUniqueId = async (block, lot) => {
+  const blockText = String(block || "0").padStart(2, "0").slice(-2);
+  const lotText = String(lot || "0").padStart(3, "0").slice(-3);
+  const prefix = `${blockText}${lotText}`;
 
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const suffix = String(Math.floor(1000 + Math.random() * 9000));
-    const candidate = `${yearText}${suffix}`;
+    const candidate = `${prefix}${suffix}`;
     const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
     if (!exists) {
       return candidate;
     }
   }
 
-  return `${yearText}${String(Date.now()).slice(-4)}`;
+  return `${prefix}${String(Date.now()).slice(-4)}`;
 };
 
 export async function GET(request) {
@@ -88,7 +90,7 @@ export async function GET(request) {
 
     if (summary) {
       recordsQuery
-        .select("first_name last_name middle_name email phone_number address._id pictures._id occupant_status archived generated_id entry_date entry_month createdAt updatedAt")
+        .select("first_name last_name middle_name email phone_number address._id pictures._id occupant_status status archived generated_id entry_date entry_month createdAt updatedAt")
         .populate("address._id", "phase block lot");
       recordsQuery.populate("pictures._id", "path");
     } else {
@@ -155,8 +157,9 @@ export async function POST(request) {
       }
     }
 
-    const entryYear = resolveEntryYear(entryDateVal);
-    payload.generated_id = await generateUniqueId(entryYear);
+    const blockVal = addressPayload?.block ?? body?.address?.block ?? body?.block;
+    const lotVal = addressPayload?.lot ?? body?.address?.lot ?? body?.lot;
+    payload.generated_id = await generateUniqueId(blockVal, lotVal);
 
     const occupantStatus = payload.occupant_status ?? body?.occupant_status;
     if (isOwnerOccupant(occupantStatus)) {

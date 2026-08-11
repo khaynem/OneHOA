@@ -11,6 +11,7 @@ import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
 import { buildHomeownerMasterlistHtml } from '@/lib/homeownerMasterlistTemplate'
 import JobTitleField from '@/components/job-title-field/job-title-field'
+import { occupantStatusFromMembership } from '@/lib/server/utils/stringHelpers'
 import styles from './homeowner-management.module.css'
 
 const WORK_STATUS_OPTIONS = [
@@ -60,11 +61,7 @@ const STATUS_ALIASES = new Map([
   ['commercial', 'COMMERCIAL'],
   ['renter', 'RENTER'],
   ['caretaker', 'CARETAKER'],
-  ['other', 'OTHER'],
-  ['homeowner (ho), not hvna member', 'HANJIN WORKER'],
-  ['homeowner (ho), hvna member', 'HANJIN WORKER'],
-  ['homeowner', 'HANJIN WORKER'],
-  ['hvna member', 'HANJIN WORKER']
+  ['other', 'OTHER']
 ])
 
 const NON_OWNER_STATUS = 'N/A'
@@ -87,7 +84,7 @@ const EMPTY_FORM = {
   entryDate: '',
   occupantStatus: '',
   householdMembers: [],
-  status: DEFAULT_STATUS_OPTIONS[0],
+  status: '',
   imageName: '',
   pictureId: '',
   imageUrl: ''
@@ -142,7 +139,7 @@ const normalizeOccupantStatus = (value) => String(value || '').trim()
 const isOwnerOccupant = (value) => normalizeOccupantStatus(value).toLowerCase() === 'owner'
 
 const getStatusForOccupant = (statusValue, occupantStatus) =>
-  statusValue ? statusValue : (isOwnerOccupant(occupantStatus) ? DEFAULT_STATUS_OPTIONS[0] : NON_OWNER_STATUS)
+  statusValue ? statusValue : NON_OWNER_STATUS
 
 const statusListToSingleOption = (status) => {
   const list = normalizeStatusList(status)
@@ -154,7 +151,7 @@ const statusListToSingleOption = (status) => {
     .filter(Boolean)
 
   if (list.length === 0) {
-    return MEMBERSHIP_STATUS_OPTIONS[0]
+    return '-'
   }
 
   const rawUpper = list[0].toUpperCase()
@@ -168,7 +165,7 @@ const statusListToSingleOption = (status) => {
     return aliasMatch
   }
 
-  return MEMBERSHIP_STATUS_OPTIONS[0]
+  return list[0]
 }
 
 const STATUS_FILTER_OPTIONS = [
@@ -450,7 +447,7 @@ function HomeownerManagementInner() {
   const [editForm, setEditForm] = useState(null)
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false)
   const [isLoadingHomeownerPayments, setIsLoadingHomeownerPayments] = useState(false)
-  const [statusDraft, setStatusDraft] = useState(DEFAULT_STATUS_OPTIONS[0])
+  const [statusDraft, setStatusDraft] = useState('')
   const [workStatusOptions, setWorkStatusOptions] = useState(WORK_STATUS_OPTIONS)
   const [monthlyDues, setMonthlyDues] = useState(DEFAULT_MONTHLY_DUES)
   const [isSaving, setIsSaving] = useState(false)
@@ -497,7 +494,19 @@ function HomeownerManagementInner() {
       return values
     }
 
-    const headers = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9_]/g, ''))
+    const normalizeHeader = (rawHeader) => {
+      const h = String(rawHeader || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+      if (['membership_status', 'member_status', 'membership', 'status_membership'].includes(h)) return 'status'
+      if (['firstname', 'first'].includes(h)) return 'first_name'
+      if (['lastname', 'last'].includes(h)) return 'last_name'
+      if (['middlename', 'middle'].includes(h)) return 'middle_name'
+      if (['phone', 'contact', 'mobile'].includes(h)) return 'phone_number'
+      if (['occupant', 'occupancy_status'].includes(h)) return 'occupant_status'
+      if (['job', 'job_description', 'title'].includes(h)) return 'job_title'
+      return h
+    }
+
+    const headers = parseLine(lines[0]).map(normalizeHeader)
     const dataRows = []
 
     for (let i = 1; i < lines.length; i++) {
@@ -1217,7 +1226,7 @@ function HomeownerManagementInner() {
     setActiveViewTab('info')
     setIsEditingHomeowner(false)
     setEditForm(null)
-    setStatusDraft(DEFAULT_STATUS_OPTIONS[0])
+    setStatusDraft('')
   }
 
 
@@ -1234,7 +1243,7 @@ function HomeownerManagementInner() {
     }
 
     if (statusDraft === NON_OWNER_STATUS) {
-      setStatusDraft(DEFAULT_STATUS_OPTIONS[0])
+      setStatusDraft('')
     }
   }
 
@@ -2782,21 +2791,6 @@ function HomeownerManagementInner() {
 
             {activeViewTab === 'info' ? (
               <div className={`${styles.modalActions} ${styles.viewActions}`}>
-                <div className={styles.statusFieldRow}>
-                  <span className={styles.statusLabel}>Status:</span>
-                  <select
-                    className={`${styles.input} ${styles.statusSelect}`}
-                    value={getStatusForOccupant(statusDraft, editForm?.occupantStatus)}
-                    onChange={(event) => setStatusDraft(event.target.value)}
-                    disabled={!isEditingHomeowner}
-                  >
-                    {DEFAULT_STATUS_OPTIONS.map((statusOption) => (
-                      <option key={statusOption} value={statusOption}>
-                        {statusOption}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <button
                   type="button"
                   className={styles.primaryButton}
@@ -2993,7 +2987,7 @@ function HomeownerManagementInner() {
                             <td>{row.entry_date || '-'}</td>
                             <td>{row.job_title || '-'}</td>
                             <td>{row.work_status || '-'}</td>
-                            <td>{row.occupant_status || '-'}</td>
+                            <td>{row.occupant_status || occupantStatusFromMembership(row.status) || '-'}</td>
                           </tr>
                         ))}
                       </tbody>

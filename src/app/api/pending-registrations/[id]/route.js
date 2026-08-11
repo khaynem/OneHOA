@@ -163,13 +163,13 @@ export async function PATCH(request, { params }) {
       // // Create brand new Masterlist Record
       // const entryYear = pending.entry_date ? new Date(pending.entry_date).getFullYear() : new Date().getFullYear();
       const addressDoc = await Address.findById(addressId);
-      const block = addressDoc?.block || 0;
-      const lot = addressDoc?.lot || 0;
+      const blockStr = String(addressDoc?.block || 0).padStart(2, "0").slice(-2);
+      const lotStr = String(addressDoc?.lot || 0).padStart(3, "0").slice(-3);
       let generatedId = "";
 
       for (let attempt = 0; attempt < 20; attempt += 1) {
         const suffix = String(Math.floor(1000 + Math.random() * 9000));
-        const candidate = `${block}${lot}${suffix}`;
+        const candidate = `${blockStr}${lotStr}${suffix}`;
         const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
         if (!exists) {
           generatedId = candidate;

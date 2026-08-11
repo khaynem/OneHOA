@@ -9,6 +9,7 @@ import {
   normalizeStatusInput,
   pickAllowedFields,
 } from "@/lib/server/recordsHelpers";
+import { occupantStatusFromMembership } from "@/lib/server/utils/stringHelpers";
 
 export const runtime = "nodejs";
 
@@ -32,17 +33,19 @@ const resolveEntryMonth = (entryDate, fallbackMonth) => {
   return MONTH_NAMES[parsed.getMonth()] || "January";
 };
 
-const generateUniqueId = async (entryYear) => {
-  const yearText = String(entryYear || new Date().getFullYear());
+const generateUniqueId = async (block, lot) => {
+  const blockText = String(block || "0").padStart(2, "0").slice(-2);
+  const lotText = String(lot || "0").padStart(3, "0").slice(-3);
+  const prefix = `${blockText}${lotText}`;
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const suffix = String(Math.floor(1000 + Math.random() * 9000));
-    const candidate = `${yearText}${suffix}`;
+    const candidate = `${prefix}${suffix}`;
     const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
     if (!exists) {
       return candidate;
     }
   }
-  return `${yearText}${String(Date.now()).slice(-4)}`;
+  return `${prefix}${String(Date.now()).slice(-4)}`;
 };
 
 export async function POST(request) {
@@ -87,7 +90,7 @@ export async function POST(request) {
       const jobTitle = String(rawRow.job_title || "").trim();
       const workStatus = String(rawRow.work_status || "").trim();
       const occupantStatus = String(rawRow.occupant_status || "").trim();
-      const rawStatus = rawRow.status;
+      const rawStatus = rawRow.status || rawRow.membership_status || rawRow.membership || rawRow.member_status;
 
       // Mandatory validation check according to requirements:
       // last_name, first_name, phase, block, lot, status
@@ -140,9 +143,11 @@ export async function POST(request) {
           }
         }
 
-        const entryYear = resolveEntryYear(entryDateValue);
         const entryMonth = resolveEntryMonth(entryDateValue, rawRow.entry_month);
-        const generatedId = await generateUniqueId(entryYear);
+        const generatedId = await generateUniqueId(blockNum, lotNum);
+
+        const firstStatus = Array.isArray(normalizedStatus) && normalizedStatus.length > 0 ? normalizedStatus[0] : "";
+        const derivedOccupantStatus = occupantStatus || occupantStatusFromMembership(firstStatus);
 
         const payload = pickAllowedFields({
           last_name: lastName,
@@ -151,7 +156,7 @@ export async function POST(request) {
           phone_number: phoneNumber || undefined,
           job_title: jobTitle || undefined,
           work_status: workStatus || undefined,
-          occupant_status: occupantStatus || undefined,
+          occupant_status: derivedOccupantStatus,
           entry_date: entryDateValue,
           entry_month: entryMonth,
           status: normalizedStatus,

@@ -50,6 +50,11 @@ const pendingRegistrationSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    occupant_status: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     matched_record_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Record",

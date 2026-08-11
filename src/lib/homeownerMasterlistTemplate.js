@@ -21,11 +21,13 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
 
   if (filters.statusFilter && filters.statusFilter !== "all") {
     const statusLabels = {
-      "ho-non-hvna": "HO, not HVNA member",
-      "ho-hvna": "HO, HVNA member",
-      "na": "N/A"
+      "hanjin-worker": "HANJIN WORKER",
+      "commercial": "COMMERCIAL",
+      "renter": "RENTER",
+      "caretaker": "CARETAKER",
+      "other": "OTHER"
     };
-    filterParts.push(`Membership: ${statusLabels[filters.statusFilter] || filters.statusFilter}`);
+    filterParts.push(`Membership: ${statusLabels[filters.statusFilter] || filters.statusFilter.toUpperCase()}`);
   }
 
   if (filters.occupantFilter && filters.occupantFilter !== "all") {
@@ -92,15 +94,13 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
     const contactInfo = [h.phone, h.email].filter(Boolean).join(" / ") || "-";
 
     // Membership badge classes
-    const memStatus = String(h.status || "ho, not hvna member").toLowerCase();
-    let memBadgeClass = "badge-nonmember";
-    let memLabel = "HO, not HVNA member";
-    if (memStatus.includes("hvna member")) {
-      memBadgeClass = "badge-member";
-      memLabel = "HO, HVNA member";
-    } else if (memStatus.includes("n/a")) {
-      memBadgeClass = "badge-na";
-      memLabel = "N/A";
+    const rawMem = Array.isArray(h.status) ? (h.status[0] || "") : String(h.status || "");
+    const memStatus = String(rawMem).trim().toUpperCase();
+    let memBadgeClass = "badge-member";
+    let memLabel = memStatus || "HANJIN WORKER";
+
+    if (memStatus === "RENTER" || memStatus === "CARETAKER" || memStatus === "OTHER") {
+      memBadgeClass = "badge-nonmember";
     }
 
     // Occupant status badge classes

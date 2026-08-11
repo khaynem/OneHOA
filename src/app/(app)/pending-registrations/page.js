@@ -29,6 +29,51 @@ export default function PendingRegistrationsPage() {
   const [isProcessingAction, setIsProcessingAction] = useState(false)
   const [activeLightboxImage, setActiveLightboxImage] = useState(null)
 
+  const fetchRegistrations = async () => {
+    setIsLoadingRegs(true)
+    try {
+      const response = await apiClient.get('/pending-registrations')
+      if (response?.success && Array.isArray(response.data)) {
+        setRegistrations(response.data)
+      } else if (Array.isArray(response)) {
+        setRegistrations(response)
+      } else {
+        setRegistrations([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch pending registrations:', error)
+      notify.error({
+        title: 'Error',
+        description: error.message || 'Failed to retrieve registration requests.'
+      })
+      setRegistrations([])
+    } finally {
+      setIsLoadingRegs(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRegistrations()
+  }, [])
+
+  const filteredRegs = registrations.filter((reg) => {
+    if (statusFilter !== 'all' && reg.status !== statusFilter) {
+      return false
+    }
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase().trim()
+      const fullName = `${reg.first_name || ''} ${reg.last_name || ''}`.toLowerCase()
+      const address = `p${reg.phase} b${reg.block} l${reg.lot}`.toLowerCase()
+      return (
+        fullName.includes(q) ||
+        address.includes(q) ||
+        (reg.phone_number && reg.phone_number.includes(q)) ||
+        (reg.membership_status && reg.membership_status.toLowerCase().includes(q))
+      )
+    }
+    return true
+  })
+
   const cleanForMatching = (str) => {
     if (!str || typeof str !== 'string') return ''
     return str.toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -225,7 +270,7 @@ export default function PendingRegistrationsPage() {
                     <tr>
                       <th>Registrant</th>
                       <th>Address</th>
-                      <th>Occupant Status</th>
+                      <th>Membership Status</th>
                       <th>Submission Date</th>
                       <th>Status</th>
                       <th>Action</th>
@@ -361,6 +406,10 @@ export default function PendingRegistrationsPage() {
                     <div>
                       <span className={styles.detailLabel}>Membership Status</span>
                       <span className={styles.detailValue}>{selectedReg.membership_status || '-'}</span>
+                    </div>
+                    <div>
+                      <span className={styles.detailLabel}>Occupant Status</span>
+                      <span className={styles.detailValue}>{selectedReg.occupant_status || '-'}</span>
                     </div>
                     <div>
                       <span className={styles.detailLabel}>Entry Year</span>

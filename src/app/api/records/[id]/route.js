@@ -5,6 +5,7 @@ import Address from "@/lib/server/models/address";
 import "@/lib/server/models/pictures";
 import { requireAuth } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
+import { occupantStatusFromMembership } from "@/lib/server/utils/stringHelpers";
 import {
   extractAddressPayload,
   formatHomeownerName,
@@ -104,6 +105,10 @@ export async function PUT(request, { params }) {
     const normalizedStatus = normalizeStatusInput(payload.status ?? body?.status);
     if (normalizedStatus !== undefined) {
       payload.status = normalizedStatus;
+      const memStatus = Array.isArray(normalizedStatus) ? normalizedStatus[0] : normalizedStatus;
+      if (memStatus && !payload.occupant_status) {
+        payload.occupant_status = occupantStatusFromMembership(memStatus);
+      }
     }
 
     const entryDateVal = payload.entry_date ?? body?.entry_date;

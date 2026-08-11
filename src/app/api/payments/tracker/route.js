@@ -74,9 +74,61 @@ export async function GET(request) {
     }
 
     const records = await Record.find({})
-      .select("_id first_name last_name household_no entry_date entry_month")
+      .select("_id first_name last_name household_no entry_date entry_month occupant_status address._id")
+      .populate("address._id", "phase block lot")
       .sort({ last_name: 1, first_name: 1 })
       .lean();
+
+    // Group records by Address
+    const addressMap = new Map();
+
+    for (const record of records) {
+      const addrObj = record.address?._id || record["address._id"];
+      let addressKey = "";
+      let unitNumber = "-";
+
+      if (addrObj && typeof addrObj === "object" && addrObj._id) {
+        addressKey = String(addrObj._id);
+        if (addrObj.phase !== undefined && addrObj.block !== undefined && addrObj.lot !== undefined) {
+          unitNumber = `${addrObj.phase}-${addrObj.block}-${addrObj.lot}`;
+        }
+      } else if (record.household_no) {
+        addressKey = `household_${record.household_no}`;
+        unitNumber = `Household #${record.household_no}`;
+      } else {
+        addressKey = `record_${record._id}`;
+      }
+
+      if (!addressMap.has(addressKey)) {
+        addressMap.set(addressKey, {
+          key: addressKey,
+          addressId: addrObj?._id ? String(addrObj._id) : null,
+          unitNumber,
+          records: [],
+          oldestEntryPeriod: 999999,
+          recordIdsSet: new Set(),
+        });
+      }
+
+      const group = addressMap.get(addressKey);
+      group.records.push(record);
+      group.recordIdsSet.add(String(record._id));
+
+      const recordEntryPeriod = resolveHomeownerEntryPeriod(record);
+      if (recordEntryPeriod < group.oldestEntryPeriod) {
+        group.oldestEntryPeriod = recordEntryPeriod;
+      }
+    }
+
+    const recordToAddressKey = new Map();
+    for (const [addressKey, group] of addressMap.entries()) {
+      if (group.oldestEntryPeriod === 999999) {
+        group.oldestEntryPeriod = MIN_TRACKING_PERIOD;
+      }
+      for (const recId of group.recordIdsSet) {
+        recordToAddressKey.set(recId, addressKey);
+      }
+    }
 
     const payments = await Payment.find({
       $or: [
@@ -98,11 +150,16 @@ export async function GET(request) {
       )
       .lean();
 
-    const homeownerMonthStatus = new Map();
+    const addressMonthStatus = new Map();
 
     for (const payment of payments) {
       const homeownerId = payment.records && payment.records._id ? String(payment.records._id) : null;
       if (!homeownerId) {
+        continue;
+      }
+
+      const addressKey = recordToAddressKey.get(homeownerId);
+      if (!addressKey) {
         continue;
       }
 
@@ -118,23 +175,32 @@ export async function GET(request) {
           continue;
         }
 
-        const compositeKey = `${homeownerId}:${monthKey}`;
-        const current = homeownerMonthStatus.get(compositeKey);
+        const compositeKey = `${addressKey}:${monthKey}`;
+        const current = addressMonthStatus.get(compositeKey);
 
         if (current !== "paid") {
-          homeownerMonthStatus.set(compositeKey, status);
+          addressMonthStatus.set(compositeKey, status);
         }
       }
     }
 
-    const homeowners = records.map((record) => {
-      const homeownerId = String(record._id);
-      const entryPeriod = resolveHomeownerEntryPeriod(record);
+    const homeowners = Array.from(addressMap.values()).map((group) => {
+      // Pick primary homeowner (owner or first record)
+      const primaryOwnerRecord = group.records.find(
+        (r) => String(r.occupant_status || "").trim().toLowerCase() === "owner"
+      ) || group.records[0];
+
+      const names = group.records
+        .map((r) => `${r.first_name || ""} ${r.last_name || ""}`.trim())
+        .filter(Boolean);
+      const displayName = names.length > 1 ? names.join(", ") : (names[0] || "Unknown");
+
+      const entryPeriod = group.oldestEntryPeriod;
 
       const monthly_status = months.map((monthInfo) => {
         const currentPeriod = monthInfo.year * 100 + monthInfo.month;
-        const lookupKey = `${homeownerId}:${monthInfo.key}`;
-        const recordedStatus = homeownerMonthStatus.get(lookupKey);
+        const lookupKey = `${group.key}:${monthInfo.key}`;
+        const recordedStatus = addressMonthStatus.get(lookupKey);
 
         let finalStatus = "unpaid";
         if (recordedStatus) {
@@ -151,15 +217,18 @@ export async function GET(request) {
         };
       });
 
-
       const paidMonths = monthly_status.filter((entry) => entry.status === "paid").length;
       const unpaidMonths = monthly_status.filter((entry) => entry.status === "unpaid").length;
       const currentMonth = monthly_status[monthly_status.length - 1] || null;
 
       return {
-        id: homeownerId,
-        homeowner: `${record.first_name || ""} ${record.last_name || ""}`.trim(),
-        household_no: record.household_no,
+        id: String(primaryOwnerRecord._id),
+        address_id: group.addressId,
+        unit_number: group.unitNumber,
+        homeowner: displayName,
+        household_no: primaryOwnerRecord.household_no,
+        record_ids: Array.from(group.recordIdsSet),
+        oldest_entry_period: entryPeriod,
         monthly_status,
         summary: {
           paidMonths,

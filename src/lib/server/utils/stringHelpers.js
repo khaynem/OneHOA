@@ -9,7 +9,7 @@
  */
 export function cleanAndProperCase(str) {
   if (!str || typeof str !== "string") return "";
-  
+
   // Normalize whitespace
   const normalized = str.trim().replace(/\s+/g, " ");
   if (!normalized) return "";
@@ -43,38 +43,23 @@ export function cleanNameForMatching(str) {
  * List of standard membership status options.
  */
 export const MEMBERSHIP_STATUS_OPTIONS = [
-  "HO HVNA member",
-  "HO not HVNA member",
-  "HO NON HANJIN (Commercial)",
+  "HANJIN WORKER",
+  "COMMERCIAL",
   "RENTER",
   "CARETAKER",
-  "IN HOUSE",
-  "SECURITY",
-  "HVNA ABANDON",
-  "SURRENDER",
   "OTHER"
 ];
 
-/**
- * Derives occupant_status from a membership status value.
- */
 const MEMBERSHIP_TO_OCCUPANT_MAP = {
-  "HO HVNA member": "Owner",
-  "HO not HVNA member": "Owner",
-  "HO NON HANJIN (Commercial)": "Owner",
-  "HO NON HANJIN": "Owner",
-  "RENTER": "Renter",
-  "CARETAKER": "Care taker",
-  "IN HOUSE": "In House",
-  "SECURITY": "Security",
-  "HVNA ABANDON": "Other",
-  "SURRENDER": "Surrendered",
-  "OTHER": "Other",
-  "Other": "Other",
+  "HANJIN WORKER": "Owner",
+  "COMMERCIAL": "Owner",
+  "RENTER": "Other",
+  "CARETAKER": "Other",
+  "OTHER": "Other"
 };
 
 export function occupantStatusFromMembership(membershipStatus) {
   if (!membershipStatus || typeof membershipStatus !== "string") return "Other";
-  const trimmed = membershipStatus.trim();
-  return MEMBERSHIP_TO_OCCUPANT_MAP[trimmed] || "Other";
+  const upper = membershipStatus.trim().toUpperCase();
+  return MEMBERSHIP_TO_OCCUPANT_MAP[upper] || "Other";
 }

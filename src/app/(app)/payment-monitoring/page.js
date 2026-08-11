@@ -515,44 +515,68 @@ export default function PaymentMonitoringPage() {
     })
   }, [rangeInfo, monthlyDues])
 
+  const getAddressKey = (h) => {
+    const addr = h?.address?._id || h?.['address._id']
+    if (addr && typeof addr === 'object' && addr._id) return String(addr._id)
+    if (addr && typeof addr === 'string') return addr
+    if (h?.household_no) return `household_${h.household_no}`
+    return `record_${h?._id}`
+  }
+
+  const resolveHomeownerEntryPeriod = (h) => {
+    const MIN_TRACKING_PERIOD = 202502
+    const MONTH_NAMES = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ]
+    let year = 2025
+    let month = 2
+
+    if (h?.entry_date) {
+      const d = new Date(h.entry_date)
+      if (!Number.isNaN(d.getTime())) {
+        year = d.getFullYear()
+        month = d.getMonth() + 1
+      }
+    }
+    if (h?.entry_month) {
+      const idx = MONTH_NAMES.indexOf(h.entry_month)
+      if (idx !== -1) {
+        month = idx + 1
+      }
+    }
+    return Math.max(MIN_TRACKING_PERIOD, year * 100 + month)
+  }
+
   const availableUnpaidDuesOptions = useMemo(() => {
-    const MIN_TRACKING_PERIOD = 202502 // System baseline: February 2025
+    const MIN_TRACKING_PERIOD = 202502
 
     if (!form.recordId) return []
 
     const selectedHomeowner = homeowners.find((h) => String(h._id) === String(form.recordId))
     if (!selectedHomeowner) return []
 
+    const targetAddressKey = getAddressKey(selectedHomeowner)
+    const coHomeowners = homeowners.filter((h) => getAddressKey(h) === targetAddressKey)
+    const addressRecordIds = new Set(coHomeowners.map((h) => String(h._id)))
+
     const paidPeriodsSet = new Set(
       records
-        .filter((r) => r.recordId === form.recordId && r.paymentStatus === 'paid')
+        .filter((r) => addressRecordIds.has(r.recordId) && r.paymentStatus === 'paid')
         .flatMap((r) => r.coveredPeriods || [])
     )
 
-    const MONTH_NAMES = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ]
-
-    let entryYear = 2025
-    let entryMonthNum = 2
-
-    if (selectedHomeowner.entry_date) {
-      const d = new Date(selectedHomeowner.entry_date)
-      if (!Number.isNaN(d.getTime())) {
-        entryYear = d.getFullYear()
-        entryMonthNum = d.getMonth() + 1
+    let entryPeriod = 999999
+    for (const h of coHomeowners) {
+      const p = resolveHomeownerEntryPeriod(h)
+      if (p < entryPeriod) {
+        entryPeriod = p
       }
     }
-
-    if (selectedHomeowner.entry_month) {
-      const idx = MONTH_NAMES.indexOf(selectedHomeowner.entry_month)
-      if (idx !== -1) {
-        entryMonthNum = idx + 1
-      }
+    if (entryPeriod === 999999) {
+      entryPeriod = MIN_TRACKING_PERIOD
     }
 
-    const entryPeriod = Math.max(MIN_TRACKING_PERIOD, entryYear * 100 + entryMonthNum)
     const startYear = Math.floor(entryPeriod / 100)
     const startMonth = entryPeriod % 100
 
@@ -663,15 +687,29 @@ export default function PaymentMonitoringPage() {
       endObj.setHours(23, 59, 59, 999)
     }
 
-    return monitoredHomeowners
-      .map((homeowner) => {
-        const homeownerId = String(homeowner._id)
-        const name = getHomeownerName(homeowner)
-        const address = homeowner.address?._id || homeowner['address._id'] || null
+    const addressGroupsMap = new Map()
+
+    for (const homeowner of monitoredHomeowners) {
+      const key = getAddressKey(homeowner)
+      if (!addressGroupsMap.has(key)) {
+        addressGroupsMap.set(key, [])
+      }
+      addressGroupsMap.get(key).push(homeowner)
+    }
+
+    return Array.from(addressGroupsMap.values())
+      .map((group) => {
+        const primaryOwner = group.find((h) => isOwnerOccupant(h.occupant_status)) || group[0]
+        const homeownerId = String(primaryOwner._id)
+        const names = group.map((h) => getHomeownerName(h)).filter(Boolean)
+        const name = names.length > 1 ? names.join(', ') : (names[0] || 'Unknown')
+        const address = primaryOwner.address?._id || primaryOwner['address._id'] || null
         const unitNumber = toUnitNumberFromAddress(address)
 
+        const recordIdsSet = new Set(group.map((h) => String(h._id)))
+
         const paidRecords = records.filter(
-          (r) => r.recordId === homeownerId && r.paymentStatus === 'paid'
+          (r) => recordIdsSet.has(r.recordId) && r.paymentStatus === 'paid'
         )
 
         let isPaid = false
@@ -720,7 +758,7 @@ export default function PaymentMonitoringPage() {
           amountPaid: matchingRecord ? matchingRecord.amount : 0,
           coveredPeriods: matchingRecord ? matchingRecord.coveredPeriods : [],
           recordObj: matchingRecord,
-          rawHomeowner: homeowner,
+          rawHomeowner: primaryOwner,
           searchKey: `${name} ${unitNumber} ${matchingRecord?.receiptNo || ''}`.toLowerCase()
         }
       })

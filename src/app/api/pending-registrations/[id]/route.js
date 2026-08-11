@@ -9,7 +9,7 @@ import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 import { sendRegistrationStatusEmail, sendAccountActivationEmail } from "@/lib/server/services/emailService";
 
-import { occupantStatusFromMembership } from "@/lib/server/utils/stringHelpers";
+import { occupantStatusFromMembership, cleanNameForMatching } from "@/lib/server/utils/stringHelpers";
 
 const ACTIVATION_CODE_EXPIRY_HOURS = 72;
 
@@ -160,13 +160,16 @@ export async function PATCH(request, { params }) {
       }
       await finalRecord.save();
     } else {
-      // Create brand new Masterlist Record
-      const entryYear = pending.entry_date ? new Date(pending.entry_date).getFullYear() : new Date().getFullYear();
+      // // Create brand new Masterlist Record
+      // const entryYear = pending.entry_date ? new Date(pending.entry_date).getFullYear() : new Date().getFullYear();
+      const addressDoc = await Address.findById(addressId);
+      const block = addressDoc?.block || 0;
+      const lot = addressDoc?.lot || 0;
       let generatedId = "";
 
       for (let attempt = 0; attempt < 20; attempt += 1) {
         const suffix = String(Math.floor(1000 + Math.random() * 9000));
-        const candidate = `${entryYear}${suffix}`;
+        const candidate = `${block}${lot}${suffix}`;
         const exists = await Record.findOne({ generated_id: candidate }).select("_id").lean();
         if (!exists) {
           generatedId = candidate;
@@ -175,10 +178,10 @@ export async function PATCH(request, { params }) {
       }
 
       if (!generatedId) {
-        generatedId = `${entryYear}${String(Date.now()).slice(-4)}`;
+        generatedId = `${block}${lot}${String(Date.now()).slice(-4)}`;
       }
 
-      const memStatus = pending.membership_status || "HO not HVNA member";
+      const memStatus = pending.membership_status;
       const recordPayload = {
         last_name: pending.last_name,
         first_name: pending.first_name,
@@ -193,7 +196,7 @@ export async function PATCH(request, { params }) {
         "address._id": addressId,
         status: [memStatus],
         occupant_status: occupantStatusFromMembership(memStatus),
-        generated_id: generatedId,
+        generated_id: generatedId
       };
 
       if (pending.picture_id) {

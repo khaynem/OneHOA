@@ -13,8 +13,6 @@ import { buildHomeownerMasterlistHtml } from '@/lib/homeownerMasterlistTemplate'
 import JobTitleField from '@/components/job-title-field/job-title-field'
 import styles from './homeowner-management.module.css'
 
-const DEFAULT_STATUS_OPTIONS = ['HO, not HVNA member', 'HO, HVNA member', 'N/A']
-
 const WORK_STATUS_OPTIONS = [
   'Contractual',
   'Regular',
@@ -48,26 +46,25 @@ const toSelectOptions = (options, currentValue) => {
 }
 
 const MEMBERSHIP_STATUS_OPTIONS = [
-  'HO HVNA member',
-  'HO not HVNA member',
-  'HO NON HANJIN (Commercial)',
+  'HANJIN WORKER',
+  'COMMERCIAL',
   'RENTER',
   'CARETAKER',
-  'IN HOUSE',
-  'SECURITY',
-  'HVNA ABANDON',
-  'SURRENDER',
   'OTHER'
 ]
+const DEFAULT_STATUS_OPTIONS = MEMBERSHIP_STATUS_OPTIONS
 const OCCUPANT_STATUS_OPTIONS = MEMBERSHIP_STATUS_OPTIONS
 
 const STATUS_ALIASES = new Map([
-  ['homeowner (ho), not hvna member', 'HO, not HVNA member'],
-  ['homeowner (ho), hvna member', 'HO, HVNA member'],
-  ['homeowner', 'HO, not HVNA member'],
-  ['hvna member', 'HO, HVNA member'],
-  ['renter', 'N/A'],
-  ['caretaker', 'N/A']
+  ['hanjin worker', 'HANJIN WORKER'],
+  ['commercial', 'COMMERCIAL'],
+  ['renter', 'RENTER'],
+  ['caretaker', 'CARETAKER'],
+  ['other', 'OTHER'],
+  ['homeowner (ho), not hvna member', 'HANJIN WORKER'],
+  ['homeowner (ho), hvna member', 'HANJIN WORKER'],
+  ['homeowner', 'HANJIN WORKER'],
+  ['hvna member', 'HANJIN WORKER']
 ])
 
 const NON_OWNER_STATUS = 'N/A'
@@ -155,26 +152,32 @@ const statusListToSingleOption = (status) => {
       return alias || normalized
     })
     .filter(Boolean)
+
   if (list.length === 0) {
-    return DEFAULT_STATUS_OPTIONS[0]
+    return MEMBERSHIP_STATUS_OPTIONS[0]
   }
 
-  const joined = list.join(', ').toLowerCase()
-  const matching = DEFAULT_STATUS_OPTIONS.find((option) => option.toLowerCase() === joined)
+  const rawUpper = list[0].toUpperCase()
+  const matching = MEMBERSHIP_STATUS_OPTIONS.find((option) => option.toUpperCase() === rawUpper)
   if (matching) {
     return matching
   }
 
-  const first = list[0]
-  const fallback = DEFAULT_STATUS_OPTIONS.find((option) => option.toLowerCase() === first.toLowerCase())
-  return fallback || DEFAULT_STATUS_OPTIONS[0]
+  const aliasMatch = STATUS_ALIASES.get(list[0].toLowerCase())
+  if (aliasMatch && MEMBERSHIP_STATUS_OPTIONS.includes(aliasMatch)) {
+    return aliasMatch
+  }
+
+  return MEMBERSHIP_STATUS_OPTIONS[0]
 }
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All membership status', type: 'all' },
-  { value: 'ho-non-hvna', label: 'HO, not HVNA member', type: 'status', match: 'HO, not HVNA member' },
-  { value: 'ho-hvna', label: 'HO, HVNA member', type: 'status', match: 'HO, HVNA member' },
-  { value: 'na', label: 'N/A', type: 'status', match: 'N/A' }
+  { value: 'hanjin-worker', label: 'HANJIN WORKER', type: 'status', match: 'HANJIN WORKER' },
+  { value: 'commercial', label: 'COMMERCIAL', type: 'status', match: 'COMMERCIAL' },
+  { value: 'renter', label: 'RENTER', type: 'status', match: 'RENTER' },
+  { value: 'caretaker', label: 'CARETAKER', type: 'status', match: 'CARETAKER' },
+  { value: 'other', label: 'OTHER', type: 'status', match: 'OTHER' }
 ]
 
 const PAYMENT_FILTER_OPTIONS = [
@@ -536,19 +539,6 @@ function HomeownerManagementInner() {
       setImportResult(null)
     }
     reader.readAsText(file)
-  }
-
-  const downloadCsvTemplate = () => {
-    const csvHeader = 'last_name,first_name,middle_name,phase,block,lot,phone_number,entry_date,job_title,work_status,occupant_status,status\n'
-    const csvSample = 'Dela Cruz,Juan,Santos,1,10,5,09171234567,2024-01-15,Software Engineer,Regular,Owner,"HO, HVNA member"\n'
-    const blob = new Blob([csvHeader + csvSample], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', 'homeowners_import_template.csv')
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   const executeBulkImport = async () => {
@@ -960,32 +950,33 @@ function HomeownerManagementInner() {
     handleFormChange('entryDate', digitsOnly(value).slice(0, 4))
   }
 
-  const handleOccupantStatusChange = (value) => {
-    handleFormChange('occupantStatus', value)
+  const handleMembershipStatusChange = (value) => {
+    const upperVal = String(value || '').trim().toUpperCase()
+    handleFormChange('status', upperVal)
 
-    if (!isOwnerOccupant(value)) {
-      handleFormChange('status', NON_OWNER_STATUS)
-      return
-    }
+    const derivedOccupant = (upperVal === 'HANJIN WORKER' || upperVal === 'COMMERCIAL') ? 'Owner' : 'Other'
+    handleFormChange('occupantStatus', derivedOccupant)
+  }
 
-    if (addForm.status === NON_OWNER_STATUS) {
-      handleFormChange('status', DEFAULT_STATUS_OPTIONS[0])
+  const handleEditMembershipStatusChange = (value) => {
+    const upperVal = String(value || '').trim().toUpperCase()
+    setStatusDraft(upperVal)
+
+    const derivedOccupant = (upperVal === 'HANJIN WORKER' || upperVal === 'COMMERCIAL') ? 'Owner' : 'Other'
+    if (editForm) {
+      setEditForm((prev) => ({ ...prev, occupantStatus: derivedOccupant }))
     }
   }
 
   const getStatusPillClass = (statusValue) => {
-    const status = String(statusValue || '').trim().toLowerCase()
+    const status = String(statusValue || '').trim().toUpperCase()
 
-    if (status.includes('renter')) {
-      return styles.statusInactive
-    }
-
-    if (status.includes('caretaker')) {
-      return styles.statusInactive
-    }
-
-    if (status.includes('hvna') || status.includes('ho')) {
+    if (status === 'HANJIN WORKER' || status === 'COMMERCIAL') {
       return styles.statusActive
+    }
+
+    if (status === 'RENTER' || status === 'CARETAKER' || status === 'OTHER') {
+      return styles.statusInactive
     }
 
     return styles.statusDefault
@@ -2253,17 +2244,14 @@ function HomeownerManagementInner() {
                   </div>
                   <div>
                     <label className={styles.fieldLabel}>
-                      Occupant Status <span className={styles.requiredMark}>*</span>
+                      Membership Status <span className={styles.requiredMark}>*</span>
                     </label>
                     <select
                       className={styles.input}
-                      value={addForm.occupantStatus}
-                      onChange={(event) => handleOccupantStatusChange(event.target.value)}
+                      value={statusListToSingleOption(addForm.status)}
+                      onChange={(event) => handleMembershipStatusChange(event.target.value)}
                     >
-                      <option value="" disabled>
-                        Select occupant status
-                      </option>
-                      {OCCUPANT_STATUS_OPTIONS.map((statusOption) => (
+                      {MEMBERSHIP_STATUS_OPTIONS.map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
                           {statusOption}
                         </option>
@@ -2298,19 +2286,14 @@ function HomeownerManagementInner() {
 
                 <div className={styles.twoColGrid}>
                   <div>
-                    <label className={styles.fieldLabel}>Status</label>
-                    <select
+                    <label className={styles.fieldLabel}>Occupant Status (Mapped)</label>
+                    <input
+                      type="text"
                       className={styles.input}
-                      value={getStatusForOccupant(addForm.status, addForm.occupantStatus)}
-                      onChange={(event) => handleFormChange('status', event.target.value)}
-                      disabled={!isOwnerOccupant(addForm.occupantStatus)}
-                    >
-                      {DEFAULT_STATUS_OPTIONS.map((statusOption) => (
-                        <option key={statusOption} value={statusOption}>
-                          {statusOption}
-                        </option>
-                      ))}
-                    </select>
+                      value={addForm.occupantStatus || 'Owner'}
+                      disabled
+                      readOnly
+                    />
                   </div>
                 </div>
 
@@ -2600,25 +2583,26 @@ function HomeownerManagementInner() {
                   )}
                 </div>
                 <div>
-                  <p className={styles.detailLabel}>Occupant Status</p>
+                  <p className={styles.detailLabel}>Membership Status</p>
                   {isEditingHomeowner ? (
                     <select
                       className={styles.input}
-                      value={editForm?.occupantStatus || ''}
-                      onChange={(event) => handleEditOccupantStatusChange(event.target.value)}
+                      value={statusDraft}
+                      onChange={(event) => handleEditMembershipStatusChange(event.target.value)}
                     >
-                      <option value="" disabled>
-                        Select occupant status
-                      </option>
-                      {toSelectOptions(OCCUPANT_STATUS_OPTIONS, editForm?.occupantStatus).map((statusOption) => (
+                      {toSelectOptions(MEMBERSHIP_STATUS_OPTIONS, statusDraft).map((statusOption) => (
                         <option key={statusOption} value={statusOption}>
                           {statusOption}
                         </option>
                       ))}
                     </select>
                   ) : (
-                    <p className={styles.detailValue}>{selectedHomeowner.occupantStatus}</p>
+                    <p className={styles.detailValue}>{statusListToSingleOption(selectedHomeowner.status)}</p>
                   )}
+                </div>
+                <div>
+                  <p className={styles.detailLabel}>Occupant Status</p>
+                  <p className={styles.detailValue}>{editForm?.occupantStatus || selectedHomeowner.occupantStatus}</p>
                 </div>
                 <div>
                   {isEditingHomeowner ? (
@@ -2922,12 +2906,6 @@ function HomeownerManagementInner() {
                 Upload a standard CSV file to import homeowner records in bulk into the database.
                 Records will be created as long as mandatory fields are present: <strong>last_name</strong>, <strong>first_name</strong>, <strong>phase</strong>, <strong>block</strong>, <strong>lot</strong>, and <strong>status</strong>.
               </p>
-
-              <div style={{ marginBottom: '16px' }}>
-                <button type="button" className={styles.templateLink} onClick={downloadCsvTemplate}>
-                  📥 Download CSV Template with Accepted Fields
-                </button>
-              </div>
 
               <div
                 className={styles.importDropzone}

@@ -130,14 +130,14 @@
 .welcomeBanner {
   background: linear-gradient(135deg, #003B75 0%, #0070C4 100%);
   border-radius: 14px;
-  padding: 36px 44px;
+  padding: 24px 44px;
   color: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: relative;
   overflow: hidden;
-  margin-bottom: 28px;
+  margin-bottom: 16px;
   box-shadow: 0 10px 30px rgba(0, 59, 117, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 1;

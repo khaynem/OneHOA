@@ -57,7 +57,7 @@ export default function PendingRegistrationsPage() {
   }, [])
 
   const filteredRegs = registrations.filter((reg) => {
-    const currentReqStatus = reg.request_status || reg.status
+    const currentReqStatus = reg.status
     if (statusFilter !== 'all' && currentReqStatus !== statusFilter) {
       return false
     }
@@ -604,7 +604,7 @@ export default function PendingRegistrationsPage() {
               <strong>{selectedReg?.first_name} {selectedReg?.last_name}</strong> at{' '}
               <strong>Phase {selectedReg?.phase}, Block {selectedReg?.block}, Lot {selectedReg?.lot}</strong>.
             </p>
-            
+
             <div style={{ maxHeight: '200px', overflowY: 'auto', margin: '14px 0', border: '1px solid #fef3c7', borderRadius: '8px', padding: '10px', backgroundColor: '#fffbeb' }}>
               <p style={{ margin: '0 0 8px 0', fontSize: '0.82rem', fontWeight: 600, color: '#92400e' }}>
                 Conflicting Applications:

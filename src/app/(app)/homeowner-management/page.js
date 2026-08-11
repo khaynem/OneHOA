@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import Link from 'next/link'
 import { HiOutlineIdentification, HiOutlineArchiveBox, HiOutlineArrowUturnLeft, HiOutlineNoSymbol, HiOutlineEye, HiOutlineUsers, HiOutlineArrowUpTray } from 'react-icons/hi2'
 import { apiClient, offlineApiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
@@ -11,6 +10,7 @@ import { buildHomeownerIdCardHtml } from '@/lib/homeownerIdCardTemplate'
 import { buildHomeownerPaymentReportHtml } from '@/lib/homeownerPaymentReportTemplate'
 import { buildHomeownerMasterlistHtml } from '@/lib/homeownerMasterlistTemplate'
 import JobTitleField from '@/components/job-title-field/job-title-field'
+import LegalModal from '@/components/legal-modal/legal-modal'
 import { occupantStatusFromMembership } from '@/lib/server/utils/stringHelpers'
 import styles from './homeowner-management.module.css'
 
@@ -440,6 +440,7 @@ function HomeownerManagementInner() {
   const [addStep, setAddStep] = useState(1)
   const [addForm, setAddForm] = useState(EMPTY_FORM)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [legalModal, setLegalModal] = useState(null)
 
   const [selectedHomeowner, setSelectedHomeowner] = useState(null)
   const [activeViewTab, setActiveViewTab] = useState('info')
@@ -2309,9 +2310,9 @@ function HomeownerManagementInner() {
                 <div className={styles.jitNotice}>
                   <p>
                     <strong>Data Privacy Notice:</strong> The collected personal data is stored securely and processed solely for record management purposes in compliance with the <strong>Data Privacy Act of 2012 (DPA 2012)</strong>.{' '}
-                    <Link href="/privacy-policy" className={styles.jitLink} target="_blank">
+                    <button type="button" className={styles.jitLink} onClick={() => setLegalModal('privacy')}>
                       Read our Privacy Policy
-                    </Link>.
+                    </button>.
                   </p>
                 </div>
 
@@ -3046,6 +3047,11 @@ function HomeownerManagementInner() {
         </div>
       )}
 
+      <LegalModal
+        isOpen={!!legalModal}
+        onClose={() => setLegalModal(null)}
+        initialTab={legalModal || 'privacy'}
+      />
     </>
   )
 }

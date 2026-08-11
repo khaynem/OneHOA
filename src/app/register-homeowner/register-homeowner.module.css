@@ -718,6 +718,12 @@
   color: #0070C4;
   text-decoration: underline;
   font-weight: 500;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .link:hover {

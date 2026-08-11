@@ -1440,6 +1440,11 @@
   font-weight: 500;
   transition: all 0.2s ease;
   text-decoration: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .footerLink:hover {

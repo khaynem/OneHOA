@@ -1404,6 +1404,12 @@
   text-decoration: underline;
   margin-left: 2px;
   display: inline-block;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .jitLink:hover {

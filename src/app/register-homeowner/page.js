@@ -6,6 +6,7 @@ import { FaArrowLeft, FaCheckCircle, FaCloudUploadAlt, FaIdCard, FaCamera, FaSpi
 import { apiClient } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
 import JobTitleField from '@/components/job-title-field/job-title-field'
+import LegalModal from '@/components/legal-modal/legal-modal'
 import styles from './register-homeowner.module.css'
 
 const CATEGORY_MAP = {
@@ -46,6 +47,7 @@ export default function RegisterHomeownerPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [legalModal, setLegalModal] = useState(null)
 
   // Email verification state
   const [emailInput, setEmailInput] = useState('')
@@ -1062,10 +1064,16 @@ export default function RegisterHomeownerPage() {
                       className={styles.checkbox}
                     />
                     <span>
-                      I have read and agree to the <Link href="/privacy-policy" target="_blank" className={styles.link}>Privacy Policy</Link> and <Link href="/terms-and-conditions" target="_blank" className={styles.link}>Terms & Conditions</Link>. <span className={styles.required}>*</span>
+                      I have read and agree to the <button type="button" className={styles.link} onClick={(e) => { e.preventDefault(); setLegalModal('privacy'); }}>Privacy Policy</button> and <button type="button" className={styles.link} onClick={(e) => { e.preventDefault(); setLegalModal('terms'); }}>Terms & Conditions</button>. <span className={styles.required}>*</span>
                     </span>
                   </label>
                 </div>
+
+                <LegalModal
+                  isOpen={!!legalModal}
+                  onClose={() => setLegalModal(null)}
+                  initialTab={legalModal || 'privacy'}
+                />
 
                 <button
                   type="submit"

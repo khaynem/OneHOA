@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 import { apiClient, ApiError } from '@/lib/apiClient'
 import { notify } from '@/lib/notify'
+import LegalModal from '@/components/legal-modal/legal-modal'
 import styles from './login.module.css'
 
 export default function LoginPage() {
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [legalModal, setLegalModal] = useState(null)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -109,14 +111,20 @@ export default function LoginPage() {
 
           <p className={styles.disclaimer}>
             By logging in, you agree to our{' '}
-            <Link href="/terms-and-conditions" className={styles.disclaimerLink}>
+            <button type="button" className={styles.disclaimerLink} onClick={() => setLegalModal('terms')}>
               Terms & Conditions
-            </Link>{' '}
+            </button>{' '}
             and acknowledge our{' '}
-            <Link href="/privacy-policy" className={styles.disclaimerLink}>
+            <button type="button" className={styles.disclaimerLink} onClick={() => setLegalModal('privacy')}>
               Privacy Policy
-            </Link>.
+            </button>.
           </p>
+
+          <LegalModal
+            isOpen={!!legalModal}
+            onClose={() => setLegalModal(null)}
+            initialTab={legalModal || 'privacy'}
+          />
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import styles from './landing.module.css'
 import { FaUsers, FaMoneyCheckAlt, FaCalendarAlt, FaClipboardList, FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaBell, FaBars, FaTimes } from 'react-icons/fa'
 import { apiClient } from '@/lib/apiClient'
+import LegalModal from '@/components/legal-modal/legal-modal'
 
 const formatAnnouncementDate = (value) => {
   if (!value) return '-'
@@ -36,6 +37,7 @@ export default function LandingPage() {
   const [announcements, setAnnouncements] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [legalModal, setLegalModal] = useState(null)
 
   const handleNavClick = (sectionId) => {
     setActive(sectionId)
@@ -384,12 +386,18 @@ export default function LandingPage() {
         <div className={styles.footerBottom}>
           <p className={styles.footerCopyright}>© 2026 Endurix. All rights reserved.</p>
           <div className={styles.legalLinks}>
-            <Link href="/terms-and-conditions" className={styles.footerLink}>Terms & Conditions</Link>
+            <button type="button" className={styles.footerLink} onClick={() => setLegalModal('terms')}>Terms & Conditions</button>
             <span className={styles.footerLinkSeparator}>•</span>
-            <Link href="/privacy-policy" className={styles.footerLink}>Privacy Policy</Link>
+            <button type="button" className={styles.footerLink} onClick={() => setLegalModal('privacy')}>Privacy Policy</button>
           </div>
         </div>
       </footer>
+
+      <LegalModal
+        isOpen={!!legalModal}
+        onClose={() => setLegalModal(null)}
+        initialTab={legalModal || 'privacy'}
+      />
     </div>
   )
 }

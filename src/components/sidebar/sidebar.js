@@ -30,7 +30,7 @@ export default function Sidebar({ isCollapsed = false, links = [], user }) {
 	}
 
 	const roleLabel = formatRole(user?.role)
-	const displayName = user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : roleLabel
+	const displayName = user?.email
 	const initial = roleLabel.charAt(0).toUpperCase() || 'U'
 
 	const handleConfirmLogout = async () => {

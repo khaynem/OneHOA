@@ -7,7 +7,7 @@ import { getCoveredPeriodsFromPayment, inferPaymentStatus } from "@/lib/server/p
 
 export const runtime = "nodejs";
 
-const MIN_TRACKING_PERIOD = 202502; // Constant system baseline: February 2025
+const MIN_TRACKING_PERIOD = 202601; // Constant system baseline: January 2026
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",

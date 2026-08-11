@@ -10,7 +10,7 @@ import { requireAuth } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
 
-const MIN_TRACKING_PERIOD = 202502;
+const MIN_TRACKING_PERIOD = 202601;
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"

@@ -524,7 +524,7 @@ export default function PaymentMonitoringPage() {
   }
 
   const resolveHomeownerEntryPeriod = (h) => {
-    const MIN_TRACKING_PERIOD = 202502
+    const MIN_TRACKING_PERIOD = 202601
     const MONTH_NAMES = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
@@ -549,7 +549,7 @@ export default function PaymentMonitoringPage() {
   }
 
   const availableUnpaidDuesOptions = useMemo(() => {
-    const MIN_TRACKING_PERIOD = 202502
+    const MIN_TRACKING_PERIOD = 202601
 
     if (!form.recordId) return []
 

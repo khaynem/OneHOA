@@ -295,7 +295,7 @@ export default function HomeownerPaymentsPage() {
                   <h2 className={styles.tileValue}>{formatPeso(stats.outstandingBalance || 0)}</h2>
                   <p className={styles.tileSub}>
                     {stats.pendingMonthsCount > 0
-                      ? `${stats.pendingMonthsCount} month${stats.pendingMonthsCount > 1 ? "s" : ""} unpaid (${formatPeso(stats.monthlyDues || 100)}/mo)`
+                      ? `${stats.pendingMonthsCount} month${stats.pendingMonthsCount > 1 ? "s" : ""} unpaid`
                       : "No outstanding dues balance"}
                   </p>
                 </div>
@@ -303,18 +303,18 @@ export default function HomeownerPaymentsPage() {
 
               <div
                 className={`${styles.statTile} ${stats.warningLevel === "high"
-                    ? styles.statTileRed
-                    : stats.warningLevel === "medium"
-                      ? styles.statTileAmber
-                      : styles.statTileEmerald
+                  ? styles.statTileRed
+                  : stats.warningLevel === "medium"
+                    ? styles.statTileAmber
+                    : styles.statTileEmerald
                   }`}
               >
                 <div
                   className={`${styles.tileIconBox} ${stats.warningLevel === "high"
-                      ? styles.iconBoxRed
-                      : stats.warningLevel === "medium"
-                        ? styles.iconBoxAmber
-                        : styles.iconBoxEmerald
+                    ? styles.iconBoxRed
+                    : stats.warningLevel === "medium"
+                      ? styles.iconBoxAmber
+                      : styles.iconBoxEmerald
                     }`}
                 >
                   {stats.warningLevel === "none" ? (

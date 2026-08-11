@@ -1888,6 +1888,7 @@ function HomeownerManagementInner() {
                   <th>Unit Number</th>
                   <th>Phone</th>
                   <th>Status</th>
+                  <th>Entry Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -1942,6 +1943,11 @@ function HomeownerManagementInner() {
                         >
                           {statusListToSingleOption(homeowner.status)}
                         </span>
+                      </td>
+                      <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
+                        {homeowner.entryDate
+                          ? [homeowner.entryMonth, homeowner.entryDate].filter(Boolean).join(', ')
+                          : '-'}
                       </td>
                       <td>
                         {isOfficer ? (

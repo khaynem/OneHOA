@@ -243,38 +243,6 @@ export default function HomeownerProfilePage() {
 
         {!isLoading && (
           <>
-            {/* Hero Profile Banner
-            <div className={styles.profileHeroCard}>
-              <div className={styles.heroLeft}>
-                {photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoUrl} alt={fullName} className={styles.heroAvatarImage} />
-                ) : (
-                  <div className={styles.heroAvatarInitials}>{initials}</div>
-                )}
-
-                <div className={styles.heroMainInfo}>
-                  <p className={styles.heroSubText}>
-                    <HiOutlineBuildingOffice className={styles.inlineIcon} />
-                    {formattedAddress} &bull; Fiesta Community Hanjin Village
-                  </p>
-
-                  <div className={styles.heroMetaRow}>
-                    {record.generated_id && (
-                      <span className={styles.metaTag}>
-                        <HiOutlineIdentification className={styles.inlineIcon} />
-                        Homeowner ID: #{record.generated_id}
-                      </span>
-                    )}
-                    <span className={styles.metaTag}>
-                      <HiOutlineEnvelope className={styles.inlineIcon} />
-                      {record.email || userAccount.email || "No email on record"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div> */}
-
             {/* Section 1: Homeowner's Own Full Details */}
             <section className={styles.sectionBlock}>
               <div className={styles.sectionHeadingRow}>
@@ -342,23 +310,11 @@ export default function HomeownerProfilePage() {
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Email Address</span>
-                      {isEditing ? (
-                        <input
-                          type="email"
-                          name="email"
-                          value={formValues.email}
-                          onChange={handleInputChange}
-                          className={styles.editInput}
-                          placeholder="Email Address"
-                          required
-                          disabled={isSaving}
-                        />
-                      ) : (
-                        <span className={styles.infoVal}>
-                          <HiOutlineEnvelope className={styles.smallIcon} />
-                          {record.email || userAccount.email || "-"}
-                        </span>
-                      )}
+                      <span className={styles.infoVal}>
+                        <HiOutlineEnvelope className={styles.smallIcon} />
+                        {record.email || userAccount.email || "-"}
+                      </span>
+
                     </li>
                     <li>
                       <span className={styles.infoLabel}>Phone / Mobile Number</span>

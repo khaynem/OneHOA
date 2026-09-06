@@ -628,6 +628,7 @@ export default function PendingRegistrationsPage() {
               Accepting this registration will approve <strong>{selectedReg?.first_name} {selectedReg?.last_name}</strong> and update the existing masterlist record. Please verify which application is accurate before confirming.
             </p>
 
+
             <div className={styles.modalActions}>
               <button
                 className={styles.modalCancel}

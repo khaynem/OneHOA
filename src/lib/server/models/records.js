@@ -43,6 +43,12 @@ const recordsSchema = new mongoose.Schema(
     entry_date: {
       type: Date,
     },
+    registration_date: {
+      type: Date,
+    },
+    approved_registration_date: {
+      type: Date,
+    },
     archived: {
       type: Boolean,
       default: false,

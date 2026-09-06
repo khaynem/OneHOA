@@ -32,7 +32,7 @@ export async function PATCH(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { action, decline_reason } = body || {};
+    const { action, decline_reason, approved_registration_date } = body || {};
 
     if (!["approve", "decline"].includes(action)) {
       return NextResponse.json(
@@ -170,6 +170,8 @@ export async function PATCH(request, { params }) {
       if (pending.work_status) finalRecord.work_status = pending.work_status;
       if (pending.entry_month) finalRecord.entry_month = pending.entry_month;
       if (pending.entry_date) finalRecord.entry_date = pending.entry_date;
+      if (pending.registration_date) finalRecord.registration_date = pending.registration_date;
+      finalRecord.approved_registration_date = approved_registration_date ? new Date(approved_registration_date) : new Date();
       if (pending.membership_status) {
         finalRecord.status = [pending.membership_status];
         finalRecord.occupant_status = occupantStatusFromMembership(pending.membership_status);
@@ -204,7 +206,7 @@ export async function PATCH(request, { params }) {
       }
 
       if (!generatedId) {
-        generatedId = `${block}${lot}${String(Date.now()).slice(-4)}`;
+        generatedId = `${blockStr}${lotStr}${String(Date.now()).slice(-4)}`;
       }
 
       const memStatus = pending.membership_status;
@@ -217,6 +219,8 @@ export async function PATCH(request, { params }) {
         work_status: pending.work_status,
         entry_month: pending.entry_month,
         entry_date: pending.entry_date,
+        registration_date: pending.registration_date,
+        approved_registration_date: approved_registration_date ? new Date(approved_registration_date) : new Date(),
         household_members: pending.household_members,
         email: pending.email,
         "address._id": addressId,
@@ -235,6 +239,7 @@ export async function PATCH(request, { params }) {
 
     pending.request_status = "approved";
     pending.status = "approved";
+    pending.approved_registration_date = approved_registration_date ? new Date(approved_registration_date) : new Date();
     await pending.save();
 
     try {

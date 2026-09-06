@@ -37,10 +37,17 @@ const DEFAULT_REGISTRATION_FIELDS = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"
     ],
+    required: false,
+    isActive: false,
+  },
+  { key: "entry_date", label: "Entry Year", type: "number", required: false, isActive: false },
+  {
+    key: "registration_date",
+    label: "Registration Date",
+    type: "date",
     required: true,
     isActive: true,
   },
-  { key: "entry_date", label: "Entry Year", type: "number", required: true, isActive: true },
   {
     key: "membership_status",
     label: "Membership Status",
@@ -68,6 +75,10 @@ const normalizeRegistrationFields = (fields = []) => {
     if (updated.key === "membership_status") {
       updated.options = MEMBERSHIP_STATUS_OPTIONS;
     }
+    if (updated.key === "entry_date" || updated.key === "entry_month") {
+      updated.isActive = false;
+      updated.required = false;
+    }
     return updated;
   })
 };
@@ -88,18 +99,27 @@ export async function GET() {
       ];
     }
 
-    if (!fields.find(f => f.key === "entry_month")) {
-      const entryMonthField = DEFAULT_REGISTRATION_FIELDS.find(f => f.key === "entry_month");
-      const entryYearIndex = fields.findIndex(f => f.key === "entry_date");
-      if (entryYearIndex !== -1) {
-        fields.splice(entryYearIndex, 0, entryMonthField);
-      } else {
-        fields.push(entryMonthField);
-      }
-    }
+    // entry_month and entry_date are no longer required or active by default.
 
     // Remove legacy occupant_status field if still present in stored settings
     fields = fields.filter(f => f.key !== "occupant_status");
+
+    // Inject registration_date if missing from stored settings
+    if (!fields.find(f => f.key === "registration_date")) {
+      const regDateField = DEFAULT_REGISTRATION_FIELDS.find(f => f.key === "registration_date") || {
+        key: "registration_date",
+        label: "Registration Date",
+        type: "date",
+        required: true,
+        isActive: true,
+      };
+      const householdIndex = fields.findIndex(f => f.key === "household_members");
+      if (householdIndex !== -1) {
+        fields.splice(householdIndex, 0, regDateField);
+      } else {
+        fields.push(regDateField);
+      }
+    }
 
     // Inject membership_status if missing from stored settings
     if (!fields.find(f => f.key === "membership_status")) {

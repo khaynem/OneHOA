@@ -18,6 +18,16 @@ const resolveHomeownerEntryPeriod = (record) => {
   let year = 2025;
   let month = 2;
 
+  if (record?.approved_registration_date) {
+    const d = new Date(record.approved_registration_date);
+    if (!Number.isNaN(d.getTime())) {
+      year = d.getFullYear();
+      month = d.getMonth() + 1;
+      const computed = year * 100 + month;
+      return Math.max(MIN_TRACKING_PERIOD, computed);
+    }
+  }
+
   if (record?.entry_date) {
     const d = new Date(record.entry_date);
     if (!Number.isNaN(d.getTime())) {
@@ -74,7 +84,7 @@ export async function GET(request) {
     }
 
     const records = await Record.find({})
-      .select("_id first_name last_name household_no entry_date entry_month occupant_status address._id")
+      .select("_id first_name last_name household_no entry_date entry_month approved_registration_date occupant_status address._id")
       .populate("address._id", "phase block lot")
       .sort({ last_name: 1, first_name: 1 })
       .lean();

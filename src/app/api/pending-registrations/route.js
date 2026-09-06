@@ -42,10 +42,17 @@ const DEFAULT_REGISTRATION_FIELDS = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"
     ],
+    required: false,
+    isActive: false,
+  },
+  { key: "entry_date", label: "Entry Year", type: "number", required: false, isActive: false },
+  {
+    key: "registration_date",
+    label: "Registration Date",
+    type: "date",
     required: true,
     isActive: true,
   },
-  { key: "entry_date", label: "Entry Year", type: "number", required: true, isActive: true },
   {
     key: "membership_status",
     label: "Membership Status",
@@ -69,6 +76,10 @@ const normalizeRegistrationFields = (fields = []) => {
     }
     if (updated.key === "work_status") {
       updated.options = WORK_STATUS_OPTIONS;
+    }
+    if (updated.key === "entry_date" || updated.key === "entry_month") {
+      updated.isActive = false;
+      updated.required = false;
     }
     return updated;
   })
@@ -167,6 +178,8 @@ export async function POST(request) {
             ];
             const monthIdx = MONTH_NAMES.indexOf(payload.entry_month) >= 0 ? MONTH_NAMES.indexOf(payload.entry_month) : 0;
             payload.entry_date = new Date(year, monthIdx, 1);
+          } else if (field.key === "registration_date") {
+            payload.registration_date = new Date(stringVal);
           } else if (field.key === "phone_number") {
             const digits = stringVal.replace(/\D/g, "");
             if (digits.length !== 11) {
@@ -187,10 +200,7 @@ export async function POST(request) {
       }
     }
 
-    // Explicitly check for entry_month in body if not caught by fields loop or if stored settings were missing it
-    if (!payload.entry_month && body.entry_month) {
-      payload.entry_month = String(body.entry_month).trim();
-    }
+    // entry_month is no longer required or processed.
 
     // Explicitly check for membership_status in body if not caught by fields loop or if stored settings were missing it
     if (!payload.membership_status && body.membership_status) {

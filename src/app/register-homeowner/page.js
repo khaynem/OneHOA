@@ -13,7 +13,7 @@ import { HiOutlineTrash } from 'react-icons/hi2'
 const CATEGORY_MAP = {
   "Personal Details": ["first_name", "middle_name", "last_name", "suffix", "email", "phone_number"],
   "Source of Income": ["job_title", "work_status"],
-  "Residency Details": ["phase", "block", "lot", "entry_month", "entry_date", "membership_status"],
+  "Residency Details": ["phase", "block", "lot", "registration_date", "membership_status"],
   "Household Members": ["household_members"]
 }
 
@@ -40,6 +40,14 @@ const NAME_FIELDS = new Set(['first_name', 'middle_name', 'last_name', 'suffix']
 
 const toProperCase = (str) =>
   str.replace(/\b\w/g, (char) => char.toUpperCase())
+
+const getTodayString = () => {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 export default function RegisterHomeownerPage() {
   const [fields, setFields] = useState([])
@@ -78,6 +86,7 @@ export default function RegisterHomeownerPage() {
     entry_date: '',
     membership_status: '',
     household_members: [],
+    registration_date: getTodayString(),
   })
 
   // File states
@@ -102,7 +111,7 @@ export default function RegisterHomeownerPage() {
         })
         let loadedFields = []
         if (response?.success && Array.isArray(response?.fields)) {
-          loadedFields = response.fields.filter(f => f.isActive)
+          loadedFields = response.fields.filter(f => f.isActive && f.key !== 'entry_date' && f.key !== 'entry_month')
         }
 
         const suffixExists = loadedFields.some(f => f.key === 'suffix')
@@ -120,26 +129,7 @@ export default function RegisterHomeownerPage() {
           )
         }
 
-        const entryMonthExists = loadedFields.some(f => f.key === 'entry_month')
-        if (!entryMonthExists) {
-          const entryYearIdx = loadedFields.findIndex(f => f.key === 'entry_date')
-          const entryMonthDef = {
-            key: 'entry_month',
-            label: 'Entry Month',
-            type: 'select',
-            options: [
-              'January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December'
-            ],
-            required: true,
-            isActive: true
-          }
-          if (entryYearIdx !== -1) {
-            loadedFields.splice(entryYearIdx, 0, entryMonthDef)
-          } else {
-            loadedFields.push(entryMonthDef)
-          }
-        }
+        // Entry Month and Entry Date are removed and not required for registration.
 
         const membershipStatusExists = loadedFields.some(f => f.key === 'membership_status')
         if (!membershipStatusExists) {
@@ -548,17 +538,7 @@ export default function RegisterHomeownerPage() {
           }
         }
 
-        if (field.key === 'entry_date') {
-          const year = Number(stringVal)
-          const currentYear = new Date().getFullYear()
-          if (Number.isNaN(year) || year < 1900 || year > currentYear) {
-            notify.error({
-              title: 'Invalid Entry Year',
-              description: `Entry year must be between 1900 and ${currentYear}.`
-            })
-            return
-          }
-        }
+        // Entry date validation removed as the field is no longer present.
       }
     }
 
@@ -700,6 +680,18 @@ export default function RegisterHomeownerPage() {
       )
     }
 
+    if (key === 'registration_date') {
+      return (
+        <input
+          type="date"
+          className={`${styles.input} ${styles.readOnlyInput}`}
+          value={formData[key]}
+          readOnly
+          required={isRequired}
+        />
+      )
+    }
+
     if (field.type === 'textarea') {
       return (
         <textarea
@@ -732,8 +724,6 @@ export default function RegisterHomeownerPage() {
                     ? 'example@gmail.com'
                     : key === 'phone_number'
                       ? 'e.g. 09xxxxxxxxx'
-                      : key === 'entry_date'
-                        ? 'e.g. 2026'
                         : `Enter ${field.label.toLowerCase()}`
         }
         onChange={(e) => {
@@ -741,12 +731,8 @@ export default function RegisterHomeownerPage() {
           const val = e.target.value
           if (field.type === 'number') {
             const digits = val.replace(/\D/g, '')
-            const maxLen = key === 'block' ? 2 : key === 'lot' ? 3 : key === 'entry_date' ? 4 : Infinity
+            const maxLen = key === 'block' ? 2 : key === 'lot' ? 3 : Infinity
             const truncated = digits.slice(0, maxLen)
-            if (key === 'entry_date' && truncated.length === 4) {
-              const currentYear = new Date().getFullYear()
-              if (Number(truncated) > currentYear) return
-            }
             handleInputChange(key, truncated)
           } else if (field.type === 'tel') {
             handleInputChange(key, val.replace(/\D/g, '').slice(0, 11))
@@ -1133,7 +1119,7 @@ export default function RegisterHomeownerPage() {
                 <div className={styles.modalDetailRow}><strong>Email:</strong> {formData.email}</div>
                 <div className={styles.modalDetailRow}><strong>Phone:</strong> {formData.phone_number}</div>
                 <div className={styles.modalDetailRow}><strong>Address:</strong> Phase {formData.phase}, Block {formData.block}, Lot {formData.lot}</div>
-                <div className={styles.modalDetailRow}><strong>Entry Date:</strong> {formData.entry_month ? `${formData.entry_month} ` : ''}{formData.entry_date}</div>
+                <div className={styles.modalDetailRow}><strong>Registration Date:</strong> {formData.registration_date}</div>
                 <div className={styles.modalDetailRow}><strong>Membership Status:</strong> {formData.membership_status}</div>
                 <div className={styles.modalDetailRow}><strong>Valid IDs Attached:</strong> {validIdFiles.length}</div>
               </div>

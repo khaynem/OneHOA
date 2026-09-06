@@ -532,6 +532,15 @@ export default function PaymentMonitoringPage() {
     let year = 2025
     let month = 2
 
+    if (h?.approved_registration_date) {
+      const d = new Date(h.approved_registration_date)
+      if (!Number.isNaN(d.getTime())) {
+        year = d.getFullYear()
+        month = d.getMonth() + 1
+        return Math.max(MIN_TRACKING_PERIOD, year * 100 + month)
+      }
+    }
+
     if (h?.entry_date) {
       const d = new Date(h.entry_date)
       if (!Number.isNaN(d.getTime())) {

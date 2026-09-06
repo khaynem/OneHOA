@@ -851,6 +851,23 @@
   box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.12);
 }
 
+.modalInput {
+  width: 100%;
+  border: 1px solid #d7dce2;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: poppins, sans-serif;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modalInput:focus {
+  border-color: #8cb6da;
+  box-shadow: 0 0 0 3px rgba(10, 104, 178, 0.12);
+}
+
 .modalActions {
   display: flex;
   justify-content: flex-end;

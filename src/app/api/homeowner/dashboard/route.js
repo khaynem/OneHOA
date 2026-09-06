@@ -20,6 +20,16 @@ function resolveHomeownerEntryPeriod(record) {
   let year = 2025;
   let month = 2;
 
+  if (record?.approved_registration_date) {
+    const d = new Date(record.approved_registration_date);
+    if (!Number.isNaN(d.getTime())) {
+      year = d.getFullYear();
+      month = d.getMonth() + 1;
+      const computed = year * 100 + month;
+      return Math.max(MIN_TRACKING_PERIOD, computed);
+    }
+  }
+
   if (record?.entry_date) {
     const d = new Date(record.entry_date);
     if (!Number.isNaN(d.getTime())) {

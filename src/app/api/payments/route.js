@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/server/db";
 import Payment from "@/lib/server/models/payments";
 import Record from "@/lib/server/models/records";
+import "@/lib/server/models/users";
 import { requireAuth, requireRole } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 import {
@@ -72,11 +73,17 @@ export async function POST(request) {
     }
 
     const record = await Record.findById(selectedRecordId).select(
-      "_id first_name last_name household_no occupant_status"
+      "_id first_name middle_name last_name generated_id household_no occupant_status"
     );
     if (!record) {
       return NextResponse.json({ message: "Record not found." }, { status: 404 });
     }
+
+    const middleInitial = record.middle_name
+      ? ` ${String(record.middle_name).trim().charAt(0).toUpperCase()}.`
+      : "";
+    const homeownerName =
+      `${record.first_name || ""}${middleInitial} ${record.last_name || ""}`.trim() || "homeowner";
 
     const normalizedOccupantStatus = String(record.occupant_status || "").trim().toLowerCase();
     if (EXCLUDED_OCCUPANT_STATUSES.has(normalizedOccupantStatus)) {
@@ -128,6 +135,8 @@ export async function POST(request) {
         payment_method: normalizedPaymentMethod,
         payment_details,
         recorded_by: user.id,
+        homeowner_name: homeownerName,
+        homeowner_generated_id: record.generated_id || "",
         "records._id": record._id,
       });
 
@@ -156,7 +165,6 @@ export async function POST(request) {
       }
     }
 
-    const homeownerName = `${record.first_name || ""} ${record.last_name || ""}`.trim() || "homeowner";
     const periodLabel = formatPeriodLabel(coveredPeriods);
 
     try {

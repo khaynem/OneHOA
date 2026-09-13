@@ -636,7 +636,7 @@ function HomeownerManagementInner() {
         1
       const trackerMonths = Math.max(monthsSinceStart, 1)
 
-      const [recordsResponse, trackerResponse] = await Promise.all([
+      const [recordsResult, trackerResult] = await Promise.allSettled([
         apiClient.get('/records', {
           query: {
             page: 1,
@@ -650,6 +650,17 @@ function HomeownerManagementInner() {
           }
         })
       ])
+
+      if (recordsResult.status === 'rejected') {
+        throw recordsResult.reason
+      }
+
+      const recordsResponse = recordsResult.value
+      const trackerResponse = trackerResult.status === 'fulfilled' ? trackerResult.value : null
+
+      if (trackerResult.status === 'rejected') {
+        console.warn('Payment tracker data failed to load:', trackerResult.reason)
+      }
 
       const records = Array.isArray(recordsResponse?.data) ? recordsResponse.data : []
       const trackerHomeowners = trackerResponse?.data?.homeowners || []
@@ -1263,7 +1274,7 @@ function HomeownerManagementInner() {
         1
       const trackerMonths = Math.max(monthsSinceStart, 1)
 
-      const [paymentsResponse, trackerResponse] = await Promise.all([
+      const [paymentsResult, trackerResult] = await Promise.allSettled([
         apiClient.get('/payments', {
           query: {
             record_id: homeownerId
@@ -1275,6 +1286,17 @@ function HomeownerManagementInner() {
           }
         })
       ])
+
+      if (paymentsResult.status === 'rejected') {
+        throw paymentsResult.reason
+      }
+
+      const paymentsResponse = paymentsResult.value
+      const trackerResponse = trackerResult.status === 'fulfilled' ? trackerResult.value : null
+
+      if (trackerResult.status === 'rejected') {
+        console.warn('Payment tracker data failed to load for detail:', trackerResult.reason)
+      }
 
       const payments = Array.isArray(paymentsResponse?.data) ? paymentsResponse.data : []
       const paymentHistory = payments

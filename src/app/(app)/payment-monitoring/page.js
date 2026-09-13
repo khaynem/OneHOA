@@ -377,8 +377,8 @@ export default function PaymentMonitoringPage() {
           }
 
           const homeownerName = linkedRecord
-            ? `${linkedRecord.first_name || ''} ${linkedRecord.last_name || ''}`.trim() || 'Unlinked Homeowner'
-            : 'Unlinked Homeowner'
+            ? `${linkedRecord.first_name || ''} ${linkedRecord.last_name || ''}`.trim() || payment.homeowner_name || 'Unlinked Homeowner'
+            : payment.homeowner_name || 'Unlinked Homeowner'
 
           return {
             id: String(payment._id),

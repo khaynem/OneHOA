@@ -5,6 +5,8 @@ import Payment from "@/lib/server/models/payments";
 import Activity from "@/lib/server/models/activities";
 import { requireAuth } from "@/lib/server/auth";
 import Picture from "@/lib/server/models/pictures";
+import "@/lib/server/models/address";
+import "@/lib/server/models/users";
 
 export const runtime = "nodejs";
 
@@ -197,9 +199,13 @@ export async function GET() {
         : "";
       const homeownerName = homeownerRecord
         ? `${homeownerRecord.first_name || ""}${middleInitial} ${homeownerRecord.last_name || ""}`.trim()
-        : "Unlinked Homeowner";
+        : payment.homeowner_name || "Unlinked Homeowner";
 
-      const idText = homeownerRecord?.generated_id ? `#${homeownerRecord.generated_id}` : "";
+      const idText = homeownerRecord?.generated_id
+        ? `#${homeownerRecord.generated_id}`
+        : payment.homeowner_generated_id
+        ? `#${payment.homeowner_generated_id}`
+        : "";
 
       const photoUrl = homeownerRecord?.pictures?._id?.path || "";
 

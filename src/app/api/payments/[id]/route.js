@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/server/db";
 import Payment from "@/lib/server/models/payments";
+import "@/lib/server/models/records";
+import "@/lib/server/models/users";
 import { requireAuth } from "@/lib/server/auth";
 
 export const runtime = "nodejs";

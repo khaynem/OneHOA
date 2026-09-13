@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import Payment from "@/lib/server/models/payments";
 import Record from "@/lib/server/models/records";
+import "@/lib/server/models/address";
+import "@/lib/server/models/pictures";
+import "@/lib/server/models/users";
 import { requireAuth } from "@/lib/server/auth";
 import { getCoveredPeriodsFromPayment, inferPaymentStatus } from "@/lib/server/paymentsHelpers";
 

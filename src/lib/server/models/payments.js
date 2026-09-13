@@ -74,6 +74,14 @@ const paymentsSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    homeowner_name: {
+      type: String,
+      trim: true,
+    },
+    homeowner_generated_id: {
+      type: String,
+      trim: true,
+    },
     "records._id": {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Record",

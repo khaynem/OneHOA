@@ -82,6 +82,7 @@ export async function POST(request) {
       const lastName = String(rawRow.last_name || "").trim();
       const firstName = String(rawRow.first_name || "").trim();
       const middleName = String(rawRow.middle_name || "").trim();
+      const suffix = String(rawRow.suffix || "").trim();
       const rawPhase = String(rawRow.phase || "").trim();
       const rawBlock = String(rawRow.block || "").trim();
       const rawLot = String(rawRow.lot || "").trim();
@@ -113,7 +114,7 @@ export async function POST(request) {
       if (missingFields.length > 0) {
         errors.push({
           row: rowNum,
-          name: `${firstName} ${lastName}`.trim() || `Row ${rowNum}`,
+          name: `${firstName} ${lastName}${suffix ? ` ${suffix}` : ""}`.trim() || `Row ${rowNum}`,
           message: `Missing or invalid required fields: ${missingFields.join(", ")}`,
         });
         continue;
@@ -153,6 +154,7 @@ export async function POST(request) {
           last_name: lastName,
           first_name: firstName,
           middle_name: middleName || undefined,
+          suffix: suffix || undefined,
           phone_number: phoneNumber || undefined,
           job_title: jobTitle || undefined,
           work_status: workStatus || undefined,

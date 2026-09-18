@@ -215,7 +215,7 @@ export default function HomeownerProfilePage() {
   const officers = data?.officers || []
 
   const fullName = `${record.first_name || userAccount.first_name || ""} ${record.middle_name ? record.middle_name + " " : ""
-    }${record.last_name || userAccount.last_name || ""}`.trim() || "Homeowner"
+    }${record.last_name || userAccount.last_name || ""}${record.suffix ? " " + record.suffix : ""}`.trim() || "Homeowner"
 
   const addressObj = record.address?._id || record.address || {}
   const phaseText = addressObj.phase ? `Phase ${addressObj.phase}` : ""
@@ -308,6 +308,12 @@ export default function HomeownerProfilePage() {
                       <span className={styles.infoLabel}>Last Name</span>
                       <span className={styles.infoVal}>{record.last_name || userAccount.last_name || "-"}</span>
                     </li>
+                    {record.suffix ? (
+                      <li>
+                        <span className={styles.infoLabel}>Suffix</span>
+                        <span className={styles.infoVal}>{record.suffix}</span>
+                      </li>
+                    ) : null}
                     <li>
                       <span className={styles.infoLabel}>Email Address</span>
                       <span className={styles.infoVal}>

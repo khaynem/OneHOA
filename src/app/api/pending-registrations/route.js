@@ -20,6 +20,7 @@ const DEFAULT_REGISTRATION_FIELDS = [
   { key: "first_name", label: "First Name", type: "text", required: true, isActive: true },
   { key: "middle_name", label: "Middle Name", type: "text", required: false, isActive: true },
   { key: "last_name", label: "Last Name", type: "text", required: true, isActive: true },
+  { key: "suffix", label: "Suffix", type: "text", required: false, isActive: true },
   { key: "email", label: "Email Address", type: "email", required: true, isActive: true },
   { key: "phone_number", label: "Phone Number (11 digits)", type: "tel", required: true, isActive: true },
   { key: "job_title", label: "Job Title", type: "text", required: true, isActive: true },
@@ -71,7 +72,7 @@ const normalizeRegistrationFields = (fields = []) => {
 
   return fields.map((field) => {
     let updated = { ...field };
-    if (updated.key === "middle_name" || updated.key === "occupant_status") {
+    if (updated.key === "middle_name" || updated.key === "suffix" || updated.key === "occupant_status") {
       updated.required = false;
     }
     if (updated.key === "work_status") {
@@ -191,7 +192,7 @@ export async function POST(request) {
             payload.phone_number = digits;
           } else if (field.type === "household_list") {
             payload[field.key] = val;
-          } else if (["first_name", "last_name", "middle_name", "job_title"].includes(field.key)) {
+          } else if (["first_name", "last_name", "middle_name", "suffix", "job_title"].includes(field.key)) {
             payload[field.key] = cleanAndProperCase(stringVal);
           } else {
             payload[field.key] = stringVal;
@@ -283,7 +284,7 @@ export async function POST(request) {
 
     // 5. Send confirmation email to applicant
     if (payload.email) {
-      const applicantName = [payload.first_name, payload.last_name].filter(Boolean).join(" ");
+      const applicantName = [payload.first_name, payload.middle_name, payload.last_name, payload.suffix].filter(Boolean).join(" ");
       sendRegistrationSubmittedEmail({
         toEmail: payload.email,
         fullName: applicantName,

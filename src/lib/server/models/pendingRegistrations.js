@@ -17,6 +17,11 @@ const pendingRegistrationSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    suffix: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     email: {
       type: String,
       trim: true,

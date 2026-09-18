@@ -15,6 +15,7 @@ const DEFAULT_REGISTRATION_FIELDS = [
   { key: "first_name", label: "First Name", type: "text", required: true, isActive: true },
   { key: "middle_name", label: "Middle Name", type: "text", required: false, isActive: true },
   { key: "last_name", label: "Last Name", type: "text", required: true, isActive: true },
+  { key: "suffix", label: "Suffix", type: "text", required: false, isActive: true },
   { key: "email", label: "Email Address", type: "email", required: true, isActive: true },
   { key: "phone_number", label: "Phone Number (11 digits)", type: "tel", required: true, isActive: true },
   { key: "job_title", label: "Job Title", type: "text", required: true, isActive: true },
@@ -66,7 +67,7 @@ const normalizeRegistrationFields = (fields = []) => {
 
   return fields.map((field) => {
     let updated = { ...field };
-    if (updated.key === "middle_name") {
+    if (updated.key === "middle_name" || updated.key === "suffix") {
       updated.required = false;
     }
     if (updated.key === "work_status") {

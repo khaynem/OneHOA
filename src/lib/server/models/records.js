@@ -16,6 +16,10 @@ const recordsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    suffix: {
+      type: String,
+      trim: true,
+    },
     email: {
       type: String,
       trim: true,

@@ -89,7 +89,7 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
 
   // ─── Helper to render a single homeowner row ───
   const renderRow = (h) => {
-    const fullName = `${h.firstName || ""} ${h.middleName ? h.middleName + " " : ""}${h.lastName || ""}`.trim() || "-";
+    const fullName = `${h.firstName || ""} ${h.middleName ? h.middleName + " " : ""}${h.lastName || ""}${h.suffix ? " " + h.suffix : ""}`.trim() || "-";
     const address = `Phase ${h.phase || "-"}, Blk ${h.block || "-"}, Lot ${h.lot || "-"}`;
     const contactInfo = [h.phone, h.email].filter(Boolean).join(" / ") || "-";
 

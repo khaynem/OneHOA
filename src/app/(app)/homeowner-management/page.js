@@ -73,6 +73,7 @@ const EMPTY_FORM = {
   firstName: '',
   middleName: '',
   lastName: '',
+  suffix: '',
   email: '',
   phone: '',
   jobDescription: '',
@@ -246,6 +247,7 @@ const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
   const firstName = String(record.first_name || '').trim()
   const middleName = String(record.middle_name || '').trim()
   const lastName = String(record.last_name || '').trim()
+  const suffix = String(record.suffix || '').trim()
   const generatedId = String(record.generated_id || '').trim()
   const householdMembersValue = Array.isArray(record.household_members) ? record.household_members : []
   const householdFallback =
@@ -257,6 +259,7 @@ const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
     firstName,
     middleName,
     lastName,
+    suffix,
     archived: Boolean(record.archived),
     archivedAt: record.archived_at ? String(record.archived_at) : '',
     unitNumber: `${address.phase}-${address.block}-${address.lot}`,
@@ -308,17 +311,30 @@ const formatPhone = (value) => {
   return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`
 }
 
-const formatDisplayName = (firstName, middleName, lastName, { middleInitialOnly = false } = {}) => {
+const formatDisplayName = (firstName, middleName, lastName, suffixOrOptions, options = {}) => {
   const first = String(firstName || '').trim()
   const middle = String(middleName || '').trim()
   const last = String(lastName || '').trim()
 
-  if (middleInitialOnly) {
-    const initial = middle ? `${middle.charAt(0).toUpperCase()}.` : ''
-    return [first, initial, last].filter(Boolean).join(' ').trim()
+  let suffix = ''
+  let opts = options
+  if (typeof suffixOrOptions === 'string') {
+    suffix = suffixOrOptions.trim()
+  } else if (typeof suffixOrOptions === 'object' && suffixOrOptions !== null) {
+    opts = suffixOrOptions
   }
 
-  return [first, middle, last].filter(Boolean).join(' ').trim()
+  const { middleInitialOnly = false } = opts || {}
+
+  let nameParts = []
+  if (middleInitialOnly) {
+    const initial = middle ? `${middle.charAt(0).toUpperCase()}.` : ''
+    nameParts = [first, initial, last, suffix].filter(Boolean)
+  } else {
+    nameParts = [first, middle, last, suffix].filter(Boolean)
+  }
+
+  return nameParts.join(' ').trim()
 }
 
 const buildAddressKey = (homeowner) => {
@@ -501,6 +517,7 @@ function HomeownerManagementInner() {
       if (['firstname', 'first'].includes(h)) return 'first_name'
       if (['lastname', 'last'].includes(h)) return 'last_name'
       if (['middlename', 'middle'].includes(h)) return 'middle_name'
+      if (['suffix', 'suffix_name', 'name_suffix', 'ext'].includes(h)) return 'suffix'
       if (['phone', 'contact', 'mobile'].includes(h)) return 'phone_number'
       if (['occupant', 'occupancy_status'].includes(h)) return 'occupant_status'
       if (['job', 'job_description', 'title'].includes(h)) return 'job_title'
@@ -796,6 +813,7 @@ function HomeownerManagementInner() {
     addForm.lastName.trim() &&
     !/\d/.test(addForm.firstName) &&
     !/\d/.test(addForm.lastName) &&
+    !/\d/.test(addForm.suffix) &&
     /^\d{11}$/.test(addForm.phone.trim()) &&
     addForm.jobDescription.trim()
 
@@ -820,6 +838,7 @@ function HomeownerManagementInner() {
           homeowner.firstName,
           homeowner.middleName,
           homeowner.lastName,
+          homeowner.suffix,
           { middleInitialOnly: false }
         ).toLowerCase()
         return fullName.includes(q) || homeowner.unitNumber.toLowerCase().includes(q)
@@ -1020,6 +1039,7 @@ function HomeownerManagementInner() {
         first_name: normalizeName(addForm.firstName).trim(),
         middle_name: normalizeName(addForm.middleName).trim(),
         last_name: normalizeName(addForm.lastName).trim(),
+        suffix: normalizeName(addForm.suffix).trim(),
         email: addForm.email.trim(),
         phone_number: addForm.phone.trim(),
         household_members: addForm.householdMembers,
@@ -1164,6 +1184,7 @@ function HomeownerManagementInner() {
       firstName: homeowner.firstName,
       middleName: homeowner.middleName,
       lastName: homeowner.lastName,
+      suffix: homeowner.suffix || '',
       unitNumber: homeowner.unitNumber,
       phone: homeowner.phone,
       email: homeowner.email,
@@ -1207,6 +1228,7 @@ function HomeownerManagementInner() {
             firstName: fullHomeowner.firstName,
             middleName: fullHomeowner.middleName,
             lastName: fullHomeowner.lastName,
+            suffix: fullHomeowner.suffix || '',
             unitNumber: fullHomeowner.unitNumber,
             phone: fullHomeowner.phone,
             email: fullHomeowner.email,
@@ -1412,6 +1434,7 @@ function HomeownerManagementInner() {
 
     const normalizedFirstName = normalizeName(editForm.firstName).trim()
     const normalizedLastName = normalizeName(editForm.lastName).trim()
+    const normalizedSuffix = normalizeName(editForm.suffix || '').trim()
     const normalizedPhase = String(editForm.phase || '').trim()
     const normalizedBlock = digitsOnly(editForm.block).slice(0, 3)
     const normalizedLot = digitsOnly(editForm.lot).slice(0, 3)
@@ -1423,6 +1446,7 @@ function HomeownerManagementInner() {
       !normalizedLastName ||
       /\d/.test(normalizedFirstName) ||
       /\d/.test(normalizedLastName) ||
+      /\d/.test(normalizedSuffix) ||
       !VALID_PHASES.includes(normalizedPhase) ||
       !/^\d{1,3}$/.test(normalizedBlock) ||
       !/^\d{1,3}$/.test(normalizedLot) ||
@@ -1459,6 +1483,7 @@ function HomeownerManagementInner() {
         payload.first_name = normalizedFirstName
         payload.middle_name = normalizeName(editForm.middleName).trim()
         payload.last_name = normalizedLastName
+        payload.suffix = normalizedSuffix
       }
 
       if (editForm.pictureId) {
@@ -1514,9 +1539,10 @@ function HomeownerManagementInner() {
       formatDisplayName(
         editForm?.firstName,
         editForm?.middleName,
-        editForm?.lastName
-      ) || formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
-      : formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName)
+        editForm?.lastName,
+        editForm?.suffix
+      ) || formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName, selectedHomeowner.suffix)
+      : formatDisplayName(selectedHomeowner.firstName, selectedHomeowner.middleName, selectedHomeowner.lastName, selectedHomeowner.suffix)
     : ''
 
   const generateAndPrintIdCard = (homeowner) => {
@@ -1950,7 +1976,7 @@ function HomeownerManagementInner() {
                             />
                           )}
                           <span>
-                            {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, {
+                            {formatDisplayName(homeowner.firstName, homeowner.middleName, homeowner.lastName, homeowner.suffix, {
                               middleInitialOnly: true
                             })}
                           </span>
@@ -2129,6 +2155,17 @@ function HomeownerManagementInner() {
                       className={styles.input}
                       value={addForm.lastName}
                       onChange={(event) => handleFormChange('lastName', normalizeName(event.target.value))}
+                    />
+
+                    <label className={styles.fieldLabel}>
+                      Suffix <span style={{ opacity: 0.7, fontStyle: 'italic', fontWeight: 'normal' }}>(Optional - e.g. Jr., Sr., III)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={addForm.suffix}
+                      onChange={(event) => handleFormChange('suffix', normalizeName(event.target.value))}
+                      placeholder="e.g. Jr., Sr., III"
                     />
                   </div>
                 </div>
@@ -2514,6 +2551,23 @@ function HomeownerManagementInner() {
                       />
                     ) : (
                       <p className={styles.detailValue}>{selectedHomeowner.lastName || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className={styles.detailLabel}>Suffix</p>
+                    {isEditingHomeowner ? (
+                      <input
+                        type="text"
+                        className={styles.input}
+                        value={editForm?.suffix || ''}
+                        onChange={(event) => handleEditChange('suffix', normalizeName(event.target.value))}
+                        placeholder="e.g. Jr., III"
+                        readOnly={isOfficer}
+                        disabled={isOfficer}
+                        style={isOfficer ? { backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' } : undefined}
+                      />
+                    ) : (
+                      <p className={styles.detailValue}>{selectedHomeowner.suffix || '-'}</p>
                     )}
                   </div>
                 </div>

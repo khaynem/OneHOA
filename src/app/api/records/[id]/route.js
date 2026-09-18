@@ -140,8 +140,9 @@ export async function PUT(request, { params }) {
       const isFirstNameChanged = payload.first_name !== undefined && payload.first_name !== existingRecord.first_name;
       const isMiddleNameChanged = payload.middle_name !== undefined && payload.middle_name !== existingRecord.middle_name;
       const isLastNameChanged = payload.last_name !== undefined && payload.last_name !== existingRecord.last_name;
+      const isSuffixChanged = payload.suffix !== undefined && payload.suffix !== existingRecord.suffix;
 
-      if (isFirstNameChanged || isMiddleNameChanged || isLastNameChanged) {
+      if (isFirstNameChanged || isMiddleNameChanged || isLastNameChanged || isSuffixChanged) {
         return NextResponse.json(
           { success: false, message: "Officers are not allowed to edit name fields." },
           { status: 403 }

@@ -5,10 +5,9 @@ const ALLOWED_FIELDS = [
   "last_name",
   "first_name",
   "middle_name",
+  "suffix",
   "email",
   "phone_number",
-  "job_title",
-  "email",
   "job_title",
   "work_status",
   "entry_month",
@@ -28,9 +27,9 @@ const FIELD_LABELS = {
   last_name: "Last Name",
   first_name: "First Name",
   middle_name: "Middle Name",
-  email: "Email",
-  phone_number: "Phone Number",
+  suffix: "Suffix",
   email: "Email Address",
+  phone_number: "Phone Number",
   job_title: "Job Title",
   work_status: "Work Status",
   entry_month: "Entry Month",
@@ -112,7 +111,8 @@ export function formatHomeownerName(record = {}) {
   const firstName = String(record.first_name || "").trim();
   const middleName = String(record.middle_name || "").trim();
   const lastName = String(record.last_name || "").trim();
-  const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ").trim();
+  const suffix = String(record.suffix || "").trim();
+  const fullName = [firstName, middleName, lastName, suffix].filter(Boolean).join(" ").trim();
   return fullName || "homeowner";
 }
 

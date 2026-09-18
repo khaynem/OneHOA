@@ -12,7 +12,7 @@ const escapeHtml = (value) =>
     .replace(/'/g, "&#39;");
 
 export const buildHomeownerPaymentReportHtml = ({ homeowner, monthlyDues, generatedAt, generatedBy }) => {
-  const name = `${homeowner.firstName || ""} ${homeowner.lastName || ""}`.trim() || "Homeowner";
+  const name = `${homeowner.firstName || ""} ${homeowner.middleName ? homeowner.middleName + " " : ""}${homeowner.lastName || ""}${homeowner.suffix ? " " + homeowner.suffix : ""}`.trim() || "Homeowner";
   
   const address = homeowner.phase || homeowner.block || homeowner.lot
     ? `Phase ${homeowner.phase || '-'}, Block ${homeowner.block || '-'}, Lot ${homeowner.lot || '-'}, Hanjin Village, Brgy. Nagbunga, Castillejos, Zambales`

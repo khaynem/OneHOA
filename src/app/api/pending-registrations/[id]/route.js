@@ -57,7 +57,7 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    const fullName = [pending.first_name, pending.middle_name, pending.last_name].filter(Boolean).join(" ");
+    const fullName = [pending.first_name, pending.middle_name, pending.last_name, pending.suffix].filter(Boolean).join(" ");
 
     if (action === "decline") {
       pending.request_status = "declined";
@@ -164,6 +164,7 @@ export async function PATCH(request, { params }) {
       if (pending.first_name) finalRecord.first_name = pending.first_name;
       if (pending.last_name) finalRecord.last_name = pending.last_name;
       if (pending.middle_name !== undefined) finalRecord.middle_name = pending.middle_name;
+      if (pending.suffix !== undefined) finalRecord.suffix = pending.suffix;
       if (pending.email) finalRecord.email = pending.email;
       if (pending.phone_number) finalRecord.phone_number = pending.phone_number;
       if (pending.job_title) finalRecord.job_title = pending.job_title;
@@ -214,6 +215,7 @@ export async function PATCH(request, { params }) {
         last_name: pending.last_name,
         first_name: pending.first_name,
         middle_name: pending.middle_name,
+        suffix: pending.suffix,
         phone_number: pending.phone_number,
         job_title: pending.job_title,
         work_status: pending.work_status,

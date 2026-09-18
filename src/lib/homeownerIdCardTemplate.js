@@ -29,7 +29,9 @@ const buildNameStyle = (lastName = '', firstName = '') => {
 export const buildHomeownerIdCardHtml = (homeowner = {}, baseUrl = '') => {
   const lastName = (homeowner.lastName || '').trim()
   const firstName = (homeowner.firstName || '').trim()
-  const formattedLastName = lastName ? `${lastName},` : ''
+  const suffix = (homeowner.suffix || '').trim()
+  const fullLastName = lastName ? `${lastName}${suffix ? ' ' + suffix : ''}` : ''
+  const formattedLastName = fullLastName ? `${fullLastName},` : ''
   const formattedFirstName = firstName
   
   const unitText = `Phase ${homeowner.phase || '-'}, Block ${homeowner.block || '-'}, Lot ${homeowner.lot || '-'}`
@@ -44,7 +46,7 @@ export const buildHomeownerIdCardHtml = (homeowner = {}, baseUrl = '') => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ID Card - ${escapeHtml(lastName || firstName ? `${lastName}, ${firstName}` : 'HOMEOWNER')}</title>
+  <title>ID Card - ${escapeHtml(fullLastName || firstName ? `${fullLastName}, ${firstName}` : 'HOMEOWNER')}</title>
   <style>
     :root {
       --page-width: 210mm;
@@ -189,12 +191,12 @@ export const buildHomeownerIdCardHtml = (homeowner = {}, baseUrl = '') => {
     <section class="card front">
       <img src="${escapeHtml(frontBg)}" alt="" class="bgImage" />
       <div class="fieldId">ID: <span class="fieldIdValue">${escapeHtml(residentId)}</span></div>
-      <div class="fieldName" style="${buildNameStyle(lastName, firstName)}">
+      <div class="fieldName" style="${buildNameStyle(fullLastName, firstName)}">
         <div class="lastName">${escapeHtml(formattedLastName)}</div>
         <div class="firstName">${escapeHtml(formattedFirstName)}</div>
       </div>
       <div class="fieldUnit">${escapeHtml(unitText)}</div>
-      ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(lastName || firstName ? `${lastName}, ${firstName}` : 'HOMEOWNER')}" class="photo" />` : '<div class="photoPlaceholder">Photo</div>'}
+      ${photoUrl ? `<img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(fullLastName || firstName ? `${fullLastName}, ${firstName}` : 'HOMEOWNER')}" class="photo" />` : '<div class="photoPlaceholder">Photo</div>'}
     </section>
 
     <section class="card back">

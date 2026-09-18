@@ -3037,7 +3037,9 @@ function HomeownerManagementInner() {
                           <th>Row</th>
                           <th>Status</th>
                           <th>Last Name</th>
+                          <th>Middle Name</th>
                           <th>First Name</th>
+                          <th>Suffix</th>
                           <th>Phase</th>
                           <th>Block</th>
                           <th>Lot</th>
@@ -3061,7 +3063,9 @@ function HomeownerManagementInner() {
                               )}
                             </td>
                             <td>{row.last_name || '-'}</td>
+                            <td>{row.middle_name || '-'}</td>
                             <td>{row.first_name || '-'}</td>
+                            <td>{row.suffix || '-'}</td>
                             <td>{row.phase || '-'}</td>
                             <td>{row.block || '-'}</td>
                             <td>{row.lot || '-'}</td>

@@ -6,6 +6,141 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+// ─── Deduplicate homeowners by name + address ───
+export const deduplicateHomeowners = (homeowners) => {
+  const seen = new Set();
+  return homeowners.filter((h) => {
+    const lastName = (h.lastName || h.last_name || "").trim().toLowerCase();
+    const firstName = (h.firstName || h.first_name || "").trim().toLowerCase();
+    const middleName = (h.middleName || h.middle_name || "").trim().toLowerCase();
+    const phase = String(h.phase || "").trim();
+    const block = String(h.block || "").trim();
+    const lot = String(h.lot || "").trim();
+
+    const nameKey = `${lastName}|${firstName}|${middleName}`;
+    const addrKey = `${phase}|${block}|${lot}`;
+    const key = `${nameKey}@${addrKey}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+};
+
+// ─── Sort homeowners by phase → block → lot (numerically) ───
+export const sortHomeownersByAddress = (homeowners) => {
+  return [...homeowners].sort((a, b) => {
+    const phaseA = parseInt(a.phase, 10) || 0;
+    const phaseB = parseInt(b.phase, 10) || 0;
+    if (phaseA !== phaseB) return phaseA - phaseB;
+
+    const blockA = parseInt(a.block, 10) || 0;
+    const blockB = parseInt(b.block, 10) || 0;
+    if (blockA !== blockB) return blockA - blockB;
+
+    const lotA = parseInt(a.lot, 10) || 0;
+    const lotB = parseInt(b.lot, 10) || 0;
+    return lotA - lotB;
+  });
+};
+
+// ─── CSV / Excel export ───
+export const buildHomeownerMasterlistCsv = ({ homeowners }) => {
+  const deduped = deduplicateHomeowners(homeowners);
+  const sorted = sortHomeownersByAddress(deduped);
+
+  const headers = [
+    "No.",
+    "Full Name",
+    "Resident ID#",
+    "Address (Phase Block Lot)",
+    "Membership Status",
+    "Phone Number",
+    "Email",
+    "Entry Year",
+    "Job Title",
+    "Work Status",
+    "Household Member Count",
+  ];
+
+  const escapeCsv = (v) => {
+    const s = String(v ?? "");
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
+  const rows = sorted.map((h, idx) => {
+    const lastName   = (h.lastName   || "").trim();
+    const firstName  = (h.firstName  || "").trim();
+    const middleName = (h.middleName || "").trim();
+    const suffix     = (h.suffix     || "").trim();
+
+    let fullName = lastName ? `${lastName},` : "";
+    if (firstName)  fullName += ` ${firstName}`;
+    if (middleName) fullName += ` ${middleName}`;
+    if (suffix)     fullName += ` ${suffix}`;
+    fullName = fullName.trim();
+
+    const address = `Phase ${h.phase || "-"} Blk ${h.block || "-"} Lot ${h.lot || "-"}`;
+
+    const rawMem = Array.isArray(h.status) ? (h.status[0] || "") : String(h.status || "");
+    const membership = rawMem.trim().toUpperCase() || "HANJIN WORKER";
+
+    let entryYearLabel = "-";
+    if (h.entryDate) {
+      const rawYear = String(h.entryDate).trim().slice(0, 4);
+      const parsedYear = parseInt(rawYear, 10);
+      if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear <= 2100) {
+        entryYearLabel = String(parsedYear);
+      } else if (rawYear && rawYear !== "-") {
+        entryYearLabel = rawYear;
+      }
+    }
+
+    const householdCount = Array.isArray(h.householdMembers)
+      ? h.householdMembers.length
+      : (Array.isArray(h.household_members) ? h.household_members.length : 0);
+
+    const jobTitle = (h.jobTitle && h.jobTitle !== "-")
+      ? h.jobTitle
+      : ((h.jobDescription && h.jobDescription !== "-")
+          ? h.jobDescription
+          : ((h.job_title && h.job_title !== "-") ? h.job_title : "-"));
+
+    const workStatus = (h.workStatus && h.workStatus !== "-")
+      ? h.workStatus
+      : ((h.work_status && h.work_status !== "-") ? h.work_status : "-");
+
+    // Prefix IDs and phone with ' so Excel preserves leading zeros (treats as text)
+    const residentIdCsv = (h.residentId || h.displayId || "-") !== "-"
+      ? `'${h.residentId || h.displayId}`
+      : "-";
+    const phoneCsv = h.phone && h.phone !== "-"
+      ? `'${h.phone}`
+      : (h.phone || "-");
+
+    return [
+      idx + 1,
+      fullName || "-",
+      residentIdCsv,
+      address,
+      membership,
+      phoneCsv,
+      h.email || "-",
+      entryYearLabel,
+      jobTitle,
+      workStatus,
+      householdCount,
+    ].map(escapeCsv).join(",");
+  });
+
+  return [headers.map(escapeCsv).join(","), ...rows].join("\r\n");
+};
+
 export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt, generatedBy }) => {
   const generatedLabel = generatedAt
     ? new Date(generatedAt).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })
@@ -48,36 +183,21 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
 
   const appliedFiltersText = filterParts.join(" | ");
 
-  // ─── Group homeowners by phase, sort alphabetically by lastName ───
-  const compareNames = (a, b) => {
-    const aLast = (a.lastName || "").toLowerCase();
-    const bLast = (b.lastName || "").toLowerCase();
-    if (aLast < bLast) return -1;
-    if (aLast > bLast) return 1;
-    // fallback to first name when last names are equal
-    const aFirst = (a.firstName || "").toLowerCase();
-    const bFirst = (b.firstName || "").toLowerCase();
-    if (aFirst < bFirst) return -1;
-    if (aFirst > bFirst) return 1;
-    return 0;
-  };
+  // ─── Sort and group homeowners by phase → block → lot ───
+  const deduped = deduplicateHomeowners(homeowners);
+  const sorted = sortHomeownersByAddress(deduped);
 
-  const phaseGroups = {};
   const UNASSIGNED_KEY = "__unassigned__";
+  const phaseGroups = {};
 
-  homeowners.forEach((h) => {
+  sorted.forEach((h) => {
     const phase = (h.phase || "").trim();
     const key = phase || UNASSIGNED_KEY;
-    if (!phaseGroups[key]) {
-      phaseGroups[key] = [];
-    }
+    if (!phaseGroups[key]) phaseGroups[key] = [];
     phaseGroups[key].push(h);
   });
 
-  // Sort each group alphabetically by lastName
-  Object.values(phaseGroups).forEach((group) => group.sort(compareNames));
-
-  // Sort phase keys numerically, unassigned goes last
+  // Phase keys in sorted order (already in address order, just need key list)
   const phaseKeys = Object.keys(phaseGroups).sort((a, b) => {
     if (a === UNASSIGNED_KEY) return 1;
     if (b === UNASSIGNED_KEY) return -1;
@@ -87,48 +207,76 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
     return a.localeCompare(b);
   });
 
+  // Global running counter for No. column (1-indexed)
+  let globalRowIndex = 1;
+
   // ─── Helper to render a single homeowner row ───
   const renderRow = (h) => {
-    const fullName = `${h.firstName || ""} ${h.middleName ? h.middleName + " " : ""}${h.lastName || ""}${h.suffix ? " " + h.suffix : ""}`.trim() || "-";
-    const address = `Phase ${h.phase || "-"}, Blk ${h.block || "-"}, Lot ${h.lot || "-"}`;
-    const contactInfo = [h.phone, h.email].filter(Boolean).join(" / ") || "-";
+    const no = globalRowIndex++;
 
-    // Membership badge classes
+    // Full name: Lastname, Firstname Middlename Suffix
+    const lastName   = (h.lastName   || "").trim();
+    const firstName  = (h.firstName  || "").trim();
+    const middleName = (h.middleName || "").trim();
+    const suffix     = (h.suffix     || "").trim();
+    let fullName = lastName ? `${lastName},` : "";
+    if (firstName)  fullName += ` ${firstName}`;
+    if (middleName) fullName += ` ${middleName}`;
+    if (suffix)     fullName += ` ${suffix}`;
+    fullName = fullName.trim() || "-";
+
+    const address = `Phase ${h.phase || "-"} Blk ${h.block || "-"} Lot ${h.lot || "-"}`;
+
+    // Membership badge
     const rawMem = Array.isArray(h.status) ? (h.status[0] || "") : String(h.status || "");
     const memStatus = String(rawMem).trim().toUpperCase();
+    const memLabel = memStatus || "HANJIN WORKER";
     let memBadgeClass = "badge-member";
-    let memLabel = memStatus || "HANJIN WORKER";
-
     if (memStatus === "RENTER" || memStatus === "CARETAKER" || memStatus === "OTHER") {
       memBadgeClass = "badge-nonmember";
+    } else if (memStatus === "COMMERCIAL") {
+      memBadgeClass = "badge-commercial";
     }
 
-    // Occupant status badge classes
-    const occStatus = String(h.occupantStatus || "owner").toLowerCase();
-    let occBadgeClass = "badge-owner";
-    let occLabel = h.occupantStatus || "Owner";
-    if (occStatus.includes("relative")) {
-      occBadgeClass = "badge-relative";
-    } else if (occStatus.includes("renter")) {
-      occBadgeClass = "badge-renter";
-    } else if (occStatus.includes("caretaker")) {
-      occBadgeClass = "badge-caretaker";
+    // Entry Year: 4-digit Year only
+    let entryYearLabel = "-";
+    if (h.entryDate) {
+      const rawYear = String(h.entryDate).trim().slice(0, 4);
+      const parsedYear = parseInt(rawYear, 10);
+      if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear <= 2100) {
+        entryYearLabel = String(parsedYear);
+      } else if (rawYear && rawYear !== "-") {
+        entryYearLabel = rawYear;
+      }
     }
 
-    const displayJob = h.jobDescription 
-      ? `${escapeHtml(h.jobDescription)}${h.workStatus ? ` <span style="color: #64748b; font-size: 10px;">(${escapeHtml(h.workStatus)})</span>` : ""}`
-      : (h.workStatus ? escapeHtml(h.workStatus) : "-");
+    const jobTitle = (h.jobTitle && h.jobTitle !== "-")
+      ? h.jobTitle
+      : ((h.jobDescription && h.jobDescription !== "-")
+          ? h.jobDescription
+          : ((h.job_title && h.job_title !== "-") ? h.job_title : "-"));
+
+    const workStatus = (h.workStatus && h.workStatus !== "-")
+      ? h.workStatus
+      : ((h.work_status && h.work_status !== "-") ? h.work_status : "-");
+
+    const householdCount = Array.isArray(h.householdMembers)
+      ? h.householdMembers.length
+      : (Array.isArray(h.household_members) ? h.household_members.length : 0);
 
     return `
       <tr>
-        <td style="font-weight: 600; font-family: monospace;">${escapeHtml(h.displayId || h.residentId || "-")}</td>
-        <td style="font-weight: 500;">${escapeHtml(fullName)}</td>
+        <td style="text-align:center; color:#64748b; font-weight:500;">${no}</td>
+        <td style="font-weight:600;">${escapeHtml(fullName)}</td>
+        <td style="font-family:monospace; font-weight:600; color:#0a68b2;">${escapeHtml(h.residentId || h.displayId || "-")}</td>
         <td>${escapeHtml(address)}</td>
-        <td>${escapeHtml(contactInfo)}</td>
-        <td><span class="status-badge ${occBadgeClass}">${escapeHtml(occLabel)}</span></td>
         <td><span class="status-badge ${memBadgeClass}">${escapeHtml(memLabel)}</span></td>
-        <td>${escapeHtml(h.entryDate ? h.entryDate.slice(0, 4) : "-")}</td>
-        <td>${displayJob}</td>
+        <td>${escapeHtml(h.phone || "-")}</td>
+        <td style="font-size:10px;">${escapeHtml(h.email || "-")}</td>
+        <td style="text-align:center; white-space:nowrap;">${escapeHtml(entryYearLabel)}</td>
+        <td>${escapeHtml(jobTitle)}</td>
+        <td>${escapeHtml(workStatus)}</td>
+        <td style="text-align:center; font-weight:600;">${householdCount}</td>
       </tr>
     `;
   };
@@ -150,14 +298,17 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       <table>
         <thead>
           <tr>
-            <th>Resident ID</th>
-            <th>Name</th>
+            <th style="width:36px; text-align:center;">No.</th>
+            <th>Full Name</th>
+            <th>Resident ID#</th>
             <th>Address (Ph-Blk-Lot)</th>
-            <th>Contact Info</th>
-            <th>Occupant Status</th>
-            <th>Membership</th>
-            <th>Entry Year</th>
-            <th>Occupation</th>
+            <th>Membership Status</th>
+            <th>Phone Number</th>
+            <th>Email</th>
+            <th style="text-align:center;">Entry Year</th>
+            <th>Job Title</th>
+            <th>Work Status</th>
+            <th style="text-align:center;">HH Members</th>
           </tr>
         </thead>
         <tbody>
@@ -178,7 +329,8 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
     * { box-sizing: border-box; }
     body {
       font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 30px;
+      margin: 0;
+      padding: 18px 26px;
       color: #0f172a;
       line-height: 1.4;
       background: #ffffff;
@@ -189,8 +341,8 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       display: flex;
       align-items: center;
       border-bottom: 2px solid #0f172a;
-      padding-bottom: 14px;
-      margin-bottom: 20px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
     }
     .logo {
       height: 48px;
@@ -198,11 +350,9 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       object-fit: contain;
       margin-right: 12px;
     }
-    .header-text {
-      flex: 1;
-    }
+    .header-text { flex: 1; }
     .org-name {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: #0f172a;
       text-transform: uppercase;
@@ -217,10 +367,10 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
     
     /* Report Title */
     .report-title {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
       color: #0f172a;
-      margin: 0 0 16px 0;
+      margin: 0 0 10px 0;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       border-bottom: 1px solid #e2e8f0;
@@ -228,38 +378,9 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       text-align: center;
     }
     
-    /* Filter Info Section */
-    .filter-section {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      font-size: 13px;
-    }
-    .filter-row {
-      display: flex;
-      margin-bottom: 6px;
-    }
-    .filter-row:last-child {
-      margin-bottom: 0;
-    }
-    .filter-label {
-      font-weight: 600;
-      color: #475569;
-      width: 140px;
-      flex-shrink: 0;
-    }
-    .filter-value {
-      color: #0f172a;
-      font-weight: 500;
-    }
-    
     /* Phase Section Headers */
     .phase-section {
-      margin-bottom: 28px;
-      page-break-inside: avoid;
-      break-inside: avoid;
+      margin-bottom: 18px;
     }
     .phase-header {
       display: flex;
@@ -267,12 +388,13 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       justify-content: space-between;
       background: linear-gradient(135deg, #0a68b2, #095b9b);
       color: #ffffff;
-      padding: 10px 16px;
+      padding: 8px 14px;
       border-radius: 6px 6px 0 0;
-      margin-bottom: 0;
+      break-after: avoid;
+      page-break-after: avoid;
     }
     .phase-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -289,104 +411,88 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
       border-collapse: collapse;
       margin-top: 0;
     }
+    thead {
+      display: table-header-group;
+    }
     th {
       background: #f1f5f9;
       color: #0f172a;
       font-weight: 700;
-      font-size: 10px;
+      font-size: 9px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 7px 10px;
+      padding: 6px 8px;
       text-align: left;
       border-bottom: 2px solid #cbd5e1;
       white-space: nowrap;
     }
+    tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
     td {
-      padding: 7px 10px;
-      font-size: 11px;
+      padding: 5px 8px;
+      font-size: 10px;
       color: #334155;
       border-bottom: 1px solid #e2e8f0;
       word-break: break-word;
     }
-    tr:nth-child(even) td {
-      background: #f8fafc;
-    }
+    tr:nth-child(even) td { background: #f8fafc; }
     
     /* Status Badges */
     .status-badge {
       display: inline-block;
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 700;
       padding: 2px 5px;
       border-radius: 4px;
       text-transform: uppercase;
       white-space: nowrap;
     }
-    .badge-member {
-      color: #166534;
-      background: #dcfce7;
-    }
-    .badge-nonmember {
-      color: #854d0e;
-      background: #fef9c3;
-    }
-    .badge-na {
-      color: #475569;
-      background: #f1f5f9;
-    }
-    
-    .badge-owner {
-      color: #1e3a8a;
-      background: #dbeafe;
-    }
-    .badge-relative {
-      color: #581c87;
-      background: #f3e8ff;
-    }
-    .badge-renter {
-      color: #0369a1;
-      background: #e0f2fe;
-    }
-    .badge-caretaker {
-      color: #701a75;
-      background: #fdf2f8;
-    }
+    .badge-member   { color: #166534; background: #dcfce7; }
+    .badge-commercial { color: #92400e; background: #fef3c7; }
+    .badge-nonmember { color: #854d0e; background: #fef9c3; }
+    .badge-na       { color: #475569; background: #f1f5f9; }
     
     /* Footer */
     .footer {
-      margin-top: 40px;
-      padding-top: 12px;
+      margin-top: 24px;
+      padding-top: 10px;
       border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      font-size: 11px;
+      font-size: 10px;
       color: #64748b;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .footer-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
     }
     .footer-meta div {
-      margin-bottom: 2px;
+      color: #334155;
     }
-    .footer-note {
-      font-style: italic;
-      text-align: right;
+    .footer-meta strong {
+      color: #0f172a;
+      margin-right: 4px;
     }
+    .footer-note { font-style: italic; text-align: right; }
     
     @media print {
-      body { margin: 10px; }
-      @page {
-        size: landscape;
-        margin: 10mm;
-      }
-      .phase-header { background: #0a68b2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { margin: 0; padding: 8px 12px; }
+      @page { size: landscape; margin: 8mm; }
+      .phase-header { background: #0a68b2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; break-after: avoid; page-break-after: avoid; }
+      thead { display: table-header-group; }
       th { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .filter-section { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-member { background: #dcfce7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-nonmember { background: #fef9c3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-na { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-owner { background: #dbeafe !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-relative { background: #f3e8ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-renter { background: #e0f2fe !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .badge-caretaker { background: #fdf2f8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      tr { break-inside: avoid; page-break-inside: avoid; }
+      .badge-member     { background: #dcfce7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .badge-commercial { background: #fef3c7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .badge-nonmember  { background: #fef9c3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .badge-na         { background: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .footer { break-inside: avoid; page-break-inside: avoid; }
     }
   </style>
 </head>
@@ -403,19 +509,7 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
 
   <h1 class="report-title">Homeowner Masterlist Report</h1>
 
-  <!-- Filters / Report Summary -->
-  <div class="filter-section">
-    <div class="filter-row">
-      <div class="filter-label">Total Records:</div>
-      <div class="filter-value">${homeowners.length} Homeowners</div>
-    </div>
-    <div class="filter-row">
-      <div class="filter-label">Applied Filters:</div>
-      <div class="filter-value">${escapeHtml(appliedFiltersText)}</div>
-    </div>
-  </div>
-
-  ${homeowners.length === 0 
+  ${deduped.length === 0 
     ? '<div style="text-align: center; color: #64748b; padding: 40px 0; font-size: 14px;">No homeowner records found matching the current filters.</div>'
     : phaseSectionsHtml
   }
@@ -423,8 +517,10 @@ export const buildHomeownerMasterlistHtml = ({ homeowners, filters, generatedAt,
   <!-- Footer Area -->
   <div class="footer">
     <div class="footer-meta">
-      <div><strong>Date Generated:</strong> ${escapeHtml(generatedLabel)}</div>
+      <div><strong>Total Records:</strong> ${deduped.length} Homeowners</div>
+      <div><strong>Applied Filters:</strong> ${escapeHtml(appliedFiltersText)}</div>
       <div><strong>Generated by:</strong> ${escapeHtml(generatedBy || 'Authorized Officer')}</div>
+      <div><strong>Date Generated:</strong> ${escapeHtml(generatedLabel)}</div>
     </div>
     <div class="footer-note">
       *This masterlist is generated from OneHOA Homeowner Records.

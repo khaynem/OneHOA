@@ -165,10 +165,24 @@ export async function POST(request) {
           "address._id": addressId,
         });
 
-        payload.generated_id = generatedId;
+        // Check if an existing record already exists for this person at this address
+        const escapedFirst = firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escapedLast = lastName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const existingRecord = await Record.findOne({
+          "address._id": addressId,
+          first_name: { $regex: new RegExp(`^${escapedFirst}$`, "i") },
+          last_name: { $regex: new RegExp(`^${escapedLast}$`, "i") },
+        });
 
-        const recordDoc = await Record.create(payload);
-        createdRecords.push(recordDoc);
+        if (existingRecord) {
+          // Update existing record rather than creating a duplicate row
+          await Record.findByIdAndUpdate(existingRecord._id, payload);
+          createdRecords.push(existingRecord);
+        } else {
+          payload.generated_id = generatedId;
+          const recordDoc = await Record.create(payload);
+          createdRecords.push(recordDoc);
+        }
       } catch (rowError) {
         errors.push({
           row: rowNum,

@@ -53,6 +53,7 @@ export default function HomeownerProfilePage() {
     household_members: []
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     async function loadProfile() {
@@ -139,6 +140,13 @@ export default function HomeownerProfilePage() {
   }
 
   const addHouseholdMember = () => {
+    const hasIncomplete = formValues.household_members.some(
+      (m) => !m.name?.trim() || !m.relationship?.trim()
+    )
+    if (hasIncomplete) {
+      notify.warning("Please fill in both name and relationship for the present row first.")
+      return
+    }
     setFormValues(prev => ({
       ...prev,
       household_members: [...prev.household_members, { name: "", relationship: "" }]
@@ -166,9 +174,11 @@ export default function HomeownerProfilePage() {
       return
     }
 
-    const emptyMember = formValues.household_members.find(m => !m.name.trim());
+    const emptyMember = formValues.household_members.find(
+      (m) => !m.name?.trim() || !m.relationship?.trim()
+    )
     if (emptyMember) {
-      notify.error("All household members must have a name.")
+      notify.error("All household member rows must have both a name and a relationship.")
       return
     }
 
@@ -223,10 +233,19 @@ export default function HomeownerProfilePage() {
   const lotText = addressObj.lot ? `Lot ${addressObj.lot}` : ""
   const formattedAddress = [phaseText, blockText, lotText].filter(Boolean).join(", ") || "Fiesta Community Hanjin Village"
 
-  const photoUrl = record.pictures?._id?.path || record.photoUrl || null
+  const photoUrl =
+    record.pictures?._id?.path ||
+    record.pictures?.path ||
+    record.photoUrl ||
+    record.photo ||
+    userAccount?.photoUrl ||
+    null
   const initials = getInitials(record.first_name || userAccount.first_name, record.last_name || userAccount.last_name)
 
   const householdMembers = Array.isArray(record.household_members) ? record.household_members : []
+  const isAddRowDisabled = formValues.household_members.some(
+    (m) => !m.name?.trim() || !m.relationship?.trim()
+  )
 
   return (
     <div className={styles.container}>
@@ -248,7 +267,16 @@ export default function HomeownerProfilePage() {
               <div className={styles.sectionHeadingRow}>
                 <div className={styles.headingLeft}>
                   <div className={styles.headingIconBox}>
-                    <HiOutlineUser className={styles.headingIcon} />
+                    {photoUrl && !imgError ? (
+                      <img
+                        src={photoUrl}
+                        alt={fullName || "Homeowner Profile"}
+                        className={styles.headingAvatarImg}
+                        onError={() => setImgError(true)}
+                      />
+                    ) : (
+                      <HiOutlineUser className={styles.headingIcon} />
+                    )}
                   </div>
                   <div>
                     <h2 className={styles.sectionTitle}>My Homeowner Registration Record</h2>
@@ -426,75 +454,107 @@ export default function HomeownerProfilePage() {
                 </h3>
 
                 {isEditing ? (
-                  <div className={styles.householdEditList}>
-                    {formValues.household_members.map((member, idx) => (
-                      <div key={idx} className={styles.householdEditRow}>
-                        <div className={styles.householdEditInputGroup}>
-                          <span className={styles.householdEditLabel}>Full Name</span>
-                          <input
-                            type="text"
-                            value={member.name || ""}
-                            onChange={(e) => handleHouseholdChange(idx, "name", e.target.value)}
-                            className={styles.editInput}
-                            placeholder="Name of member"
-                            required
-                            disabled={isSaving}
-                          />
-                        </div>
-                        <div className={styles.householdEditInputGroup}>
-                          <span className={styles.householdEditLabel}>Relationship</span>
-                          <input
-                            type="text"
-                            value={member.relationship || ""}
-                            onChange={(e) => handleHouseholdChange(idx, "relationship", e.target.value)}
-                            className={styles.editInput}
-                            placeholder="Relationship (e.g., Spouse, Child)"
-                            required
-                            disabled={isSaving}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeHouseholdMember(idx)}
-                          className={styles.removeMemberBtn}
-                          title="Remove Member"
-                          disabled={isSaving}
-                        >
-                          X
-                        </button>
-                      </div>
-                    ))}
-                    {formValues.household_members.length === 0 && (
-                      <p className={styles.emptySubText}>No additional household members listed in record.</p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={addHouseholdMember}
-                      className={styles.addMemberBtn}
-                      disabled={isSaving}
-                    >
-                      <HiOutlinePlus /> Add Member
-                    </button>
+                  <div className={styles.householdEditContainer}>
+                    <div className={styles.spreadsheetWrap}>
+                      <table className={styles.spreadsheetTable}>
+                        <thead>
+                          <tr>
+                            <th className={styles.colIndex}>#</th>
+                            <th className={styles.colName}>Full Name *</th>
+                            <th className={styles.colRel}>Relationship *</th>
+                            <th className={styles.colAction}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {formValues.household_members.map((member, idx) => (
+                            <tr key={idx}>
+                              <td className={styles.rowNumberCell}>{idx + 1}</td>
+                              <td className={styles.cellInputTd}>
+                                <input
+                                  type="text"
+                                  value={member.name || ""}
+                                  onChange={(e) => handleHouseholdChange(idx, "name", e.target.value)}
+                                  className={styles.sheetInput}
+                                  placeholder="Enter member's full name"
+                                  required
+                                  disabled={isSaving}
+                                />
+                              </td>
+                              <td className={styles.cellInputTd}>
+                                <input
+                                  type="text"
+                                  value={member.relationship || ""}
+                                  onChange={(e) => handleHouseholdChange(idx, "relationship", e.target.value)}
+                                  className={styles.sheetInput}
+                                  placeholder="e.g., Spouse, Child, Parent"
+                                  required
+                                  disabled={isSaving}
+                                />
+                              </td>
+                              <td className={styles.actionCell}>
+                                <button
+                                  type="button"
+                                  onClick={() => removeHouseholdMember(idx)}
+                                  className={styles.sheetDeleteBtn}
+                                  title="Delete row"
+                                  disabled={isSaving}
+                                >
+                                  <HiOutlineTrash /> Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {formValues.household_members.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className={styles.emptySheetCell}>
+                                No household members added yet. Click &ldquo;+ Add Row&rdquo; below to insert a member.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className={styles.tableFooterRow}>
+                      <button
+                        type="button"
+                        onClick={addHouseholdMember}
+                        className={styles.addMemberBtn}
+                        disabled={isSaving || isAddRowDisabled}
+                        title={
+                          isAddRowDisabled
+                            ? "Please fill in the current row before adding another."
+                            : "Add new member row"
+                        }
+                      >
+                        <HiOutlinePlus /> Add Row
+                      </button>
+                      {isAddRowDisabled && (
+                        <span className={styles.incompleteWarning}>
+                          Please fill in both Name and Relationship of the present row before adding a new row.
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   householdMembers.length === 0 ? (
                     <p className={styles.emptySubText}>No additional household members listed in record.</p>
                   ) : (
-                    <div className={styles.membersTableWrap}>
-                      <table className={styles.membersTable}>
+                    <div className={styles.spreadsheetWrap}>
+                      <table className={styles.spreadsheetTable}>
                         <thead>
                           <tr>
-                            <th>#</th>
-                            <th>Full Name</th>
-                            <th>Relationship</th>
+                            <th className={styles.colIndex}>#</th>
+                            <th className={styles.colName}>Full Name</th>
+                            <th className={styles.colRel}>Relationship</th>
                           </tr>
                         </thead>
                         <tbody>
                           {householdMembers.map((member, idx) => (
                             <tr key={idx}>
-                              <td>{idx + 1}</td>
-                              <td className={styles.memberName}>{member.name || "-"}</td>
-                              <td>
+                              <td className={styles.rowNumberCell}>{idx + 1}</td>
+                              <td className={styles.viewNameCell}>{member.name || "-"}</td>
+                              <td className={styles.viewRelCell}>
                                 <span className={styles.relBadge}>{member.relationship || "Member"}</span>
                               </td>
                             </tr>

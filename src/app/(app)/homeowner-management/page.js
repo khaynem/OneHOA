@@ -288,7 +288,8 @@ const mapRecordToHomeowner = (record = {}, paymentSummary = null) => {
     unpaidPeriods: [],
     totalPaid: 0,
     upcomingPayment: { month: '-' },
-    createdAt: record.createdAt || record.updatedAt || null
+    createdAt: record.createdAt || record.updatedAt || null,
+    approvedRegistrationDate: record.approved_registration_date || null
   }
 }
 
@@ -2732,6 +2733,14 @@ function HomeownerManagementInner() {
                 <div>
                   <p className={styles.detailLabel}>Occupant Status</p>
                   <p className={styles.detailValue}>{editForm?.occupantStatus || selectedHomeowner.occupantStatus}</p>
+                </div>
+                <div>
+                  <p className={styles.detailLabel}>Approved Registration Date</p>
+                  <p className={styles.detailValue}>
+                    {selectedHomeowner.approvedRegistrationDate
+                      ? new Date(selectedHomeowner.approvedRegistrationDate).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+                      : '-'}
+                  </p>
                 </div>
                 <div>
                   {isEditingHomeowner ? (

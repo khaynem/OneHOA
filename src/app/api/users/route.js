@@ -70,6 +70,8 @@ export async function GET(request) {
 
     if (role && ALLOWED_ROLES.includes(role)) {
       filter.role = role;
+    } else {
+      filter.role = { $in: ALLOWED_ROLES };
     }
 
     if (status && ALLOWED_STATUSES.includes(status)) {

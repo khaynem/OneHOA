@@ -75,7 +75,11 @@ export default function AccountManagementClient() {
       setIsLoading(true)
       const response = await apiClient.get('/users')
       const records = Array.isArray(response?.data) ? response.data : []
-      setUsers(records.map(mapApiUserToUi))
+      setUsers(
+        records
+          .map(mapApiUserToUi)
+          .filter((user) => user.role !== 'homeowner')
+      )
     } catch (error) {
       notify.error(error.message || 'Unable to load user accounts.')
       setUsers([])
@@ -92,6 +96,9 @@ export default function AccountManagementClient() {
     const query = searchText.trim().toLowerCase()
 
     return users.filter((user) => {
+      if (user.role === 'homeowner') {
+        return false
+      }
       const fullName = `${user.firstName} ${user.lastName}`.toLowerCase()
       const matchesQuery = !query || fullName.includes(query) || user.email.toLowerCase().includes(query)
       const matchesRole = roleFilter === 'all' || user.role === roleFilter

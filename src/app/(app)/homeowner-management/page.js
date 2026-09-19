@@ -81,7 +81,7 @@ const EMPTY_FORM = {
   phase: '',
   block: '',
   lot: '',
-  entryMonth: 'January',
+  entryMonth: '',
   entryDate: '',
   occupantStatus: '',
   householdMembers: [],
@@ -1052,7 +1052,7 @@ function HomeownerManagementInner() {
         job_title: addForm.jobDescription.trim(),
         work_status: addForm.workStatus.trim(),
         entry_month: addForm.entryMonth,
-        entry_date: toEntryDateValue(addForm.entryDate, addForm.entryMonth),
+        entry_date: addForm.entryDate,
         occupant_status: addForm.occupantStatus.trim(),
         address: {
           phase: Number(addForm.phase),
@@ -1472,7 +1472,7 @@ function HomeownerManagementInner() {
         email: editForm.email,
         phone_number: String(editForm.phone || '').replace(/\D/g, '').slice(0, 11),
         entry_month: editForm.entryMonth || 'January',
-        entry_date: toEntryDateValue(normalizedEntryYear, editForm.entryMonth || 'January'),
+        entry_date: editForm.entryDate,
         occupant_status: editForm.occupantStatus,
         household_members: editForm.householdMembers,
         job_title: editForm.jobDescription,
@@ -1974,7 +1974,7 @@ function HomeownerManagementInner() {
                   <th>Unit Number</th>
                   <th>Phone</th>
                   <th>Status</th>
-                  <th>Entry Date</th>
+                  <th>Entry Year</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -2031,9 +2031,7 @@ function HomeownerManagementInner() {
                         </span>
                       </td>
                       <td className={styles.clickableCell} onClick={() => openViewModal(homeowner)}>
-                        {homeowner.entryDate
-                          ? [homeowner.entryMonth, homeowner.entryDate].filter(Boolean).join(', ')
-                          : '-'}
+                        {homeowner.entryDate || '-'}
                       </td>
                       <td>
                         {isOfficer ? (

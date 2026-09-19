@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { cookies, headers } from "next/headers";
 import User from "./models/users";
+import Record from "./models/records";
 import { connectToDatabase } from "./db";
 
 const TOKEN_COOKIE_NAME = "auth_token";
@@ -84,11 +85,34 @@ export async function requireAuth() {
   }
 
   await connectToDatabase();
-  const user = await User.findById(decoded.userId).select("_id email first_name last_name role");
+  const user = await User.findById(decoded.userId).select("_id email first_name last_name role status");
   if (!user) {
     const error = new Error("Unauthorized");
     error.status = 401;
     throw error;
+  }
+
+  // Block inactive users from accessing any protected resources
+  if (user.status === "inactive") {
+    const error = new Error("Account is inactive. Please contact an administrator.");
+    error.status = 403;
+    throw error;
+  }
+
+  // Block homeowners whose record has been archived
+  if (user.role === "homeowner") {
+    const userEmail = String(user.email || "").trim().toLowerCase();
+    if (userEmail) {
+      const homeownerRecord = await Record.findOne({
+        email: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`, "i") },
+      }).select("archived").lean();
+
+      if (homeownerRecord && homeownerRecord.archived) {
+        const error = new Error("Your account has been disabled. Please contact an administrator.");
+        error.status = 403;
+        throw error;
+      }
+    }
   }
 
   return {

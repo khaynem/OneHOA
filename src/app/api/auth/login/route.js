@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import User from "@/lib/server/models/users";
+import Record from "@/lib/server/models/records";
 import { buildCookieOptions, createToken, normalizeEmail } from "@/lib/server/auth";
 import { writeAuditLog } from "@/lib/server/audit";
 
@@ -44,6 +45,23 @@ export async function POST(request) {
     const passwordMatches = await user.comparePassword(password);
     if (!passwordMatches) {
       return NextResponse.json({ message: "Invalid email or password" }, { status: 401 });
+    }
+
+    // Block login for homeowners whose record has been archived
+    if (user.role === "homeowner") {
+      const userEmail = String(user.email || "").trim().toLowerCase();
+      const homeownerRecord = userEmail
+        ? await Record.findOne({
+            email: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`, "i") },
+          }).select("archived").lean()
+        : null;
+
+      if (homeownerRecord && homeownerRecord.archived) {
+        return NextResponse.json(
+          { message: "Your account has been disabled. Please contact an administrator." },
+          { status: 403 }
+        );
+      }
     }
 
     const token = createToken({ userId: user._id.toString(), role: user.role, email: user.email });

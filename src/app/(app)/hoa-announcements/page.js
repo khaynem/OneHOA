@@ -43,7 +43,7 @@ const readFileAsDataUrl = (file) =>
   })
 
 const formatReporter = (user) => {
-  if (!user) {
+  if (!user || typeof user !== 'object') {
     return ''
   }
 

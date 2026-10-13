@@ -160,7 +160,6 @@ export async function GET() {
       .populate("pictures._id")
       .populate("users._id", "first_name last_name email role")
       .populate("updated_by._id", "first_name last_name email role")
-      .populate("updated_by", "first_name last_name email role")
       .sort({ updatedAt: -1, createdAt: -1, date: -1 })
       .limit(10)
       .lean();

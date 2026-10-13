@@ -18,14 +18,14 @@ export async function GET() {
       .populate("pictures._id")
       .populate("users._id", "first_name last_name email role")
       .populate("updated_by._id", "first_name last_name email role")
-      .populate("updated_by", "first_name last_name email role")
       .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
 
     return NextResponse.json({ success: true, data: activities }, { status: 200 });
   } catch (error) {
+    console.error("Activities GET error:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to fetch activities." },
+      { success: false, message: error.message || "Failed to fetch activities." },
       { status: 500 }
     );
   }
@@ -69,8 +69,7 @@ export async function POST(request) {
     const populated = await Activity.findById(created._id)
       .populate("pictures._id")
       .populate("users._id", "first_name last_name email role")
-      .populate("updated_by._id", "first_name last_name email role")
-      .populate("updated_by", "first_name last_name email role");
+      .populate("updated_by._id", "first_name last_name email role");
 
     try {
       await writeAuditLog({

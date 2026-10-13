@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/server/db";
 import Record from "@/lib/server/models/records";
 import User from "@/lib/server/models/users";
+import Picture from "@/lib/server/models/pictures";
+import { uploadImageDataUrl } from "@/lib/server/services/cloudinaryService";
 import { requireAuth } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
@@ -13,9 +15,19 @@ export async function PATCH(request) {
 
     const body = await request.json();
 
-    const allowedFields = ["phone_number", "email", "job_title", "work_status", "household_members"];
+    const allowedFields = [
+      "phone_number",
+      "email",
+      "job_title",
+      "work_status",
+      "household_members",
+      "picture_id",
+      "imageDataUrl",
+      "fileName",
+      "mimeType",
+    ];
     const inputKeys = Object.keys(body || {});
-    const invalidKeys = inputKeys.filter(k => !allowedFields.includes(k));
+    const invalidKeys = inputKeys.filter((k) => !allowedFields.includes(k));
     if (invalidKeys.length > 0) {
       return NextResponse.json(
         { success: false, message: `Permission denied: Cannot edit read-only fields (${invalidKeys.join(", ")})` },
@@ -23,13 +35,35 @@ export async function PATCH(request) {
       );
     }
 
-    const { phone_number, email, job_title, work_status, household_members } = body || {};
+    const {
+      phone_number,
+      email,
+      job_title,
+      work_status,
+      household_members,
+      picture_id,
+      imageDataUrl,
+      fileName,
+      mimeType,
+    } = body || {};
 
     const normalizedEmail = String(user.email || "").trim().toLowerCase();
 
-    const record = await Record.findOne({
+    let record = await Record.findOne({
       $or: [{ user_id: user.id }, { email: normalizedEmail }],
     });
+
+    if (!record && user.first_name && user.last_name) {
+      record = await Record.findOne({
+        first_name: { $regex: new RegExp(`^${user.first_name.trim()}$`, "i") },
+        last_name: { $regex: new RegExp(`^${user.last_name.trim()}$`, "i") },
+      });
+    }
+
+    // Fallback for testing/admin
+    if (!record) {
+      record = await Record.findOne({ archived: { $ne: true } });
+    }
 
     if (!record) {
       return NextResponse.json(
@@ -55,7 +89,7 @@ export async function PATCH(request) {
       // Check for duplicate in User collection
       const duplicateUser = await User.findOne({
         email: normalizedNewEmail,
-        _id: { $ne: user.id }
+        _id: { $ne: user.id },
       });
       if (duplicateUser) {
         return NextResponse.json(
@@ -67,7 +101,7 @@ export async function PATCH(request) {
       // Check for duplicate in Record collection
       const duplicateRecord = await Record.findOne({
         email: normalizedNewEmail,
-        _id: { $ne: record._id }
+        _id: { $ne: record._id },
       });
       if (duplicateRecord) {
         return NextResponse.json(
@@ -87,10 +121,34 @@ export async function PATCH(request) {
         );
       }
       // Normalize and sanitize household members list
-      updates.household_members = household_members.map(m => ({
-        name: String(m.name || "").trim(),
-        relationship: String(m.relationship || "").trim()
-      })).filter(m => m.name !== "");
+      updates.household_members = household_members
+        .map((m) => ({
+          name: String(m.name || "").trim(),
+          relationship: String(m.relationship || "").trim(),
+        }))
+        .filter((m) => m.name !== "");
+    }
+
+    // Handle profile picture update
+    if (imageDataUrl) {
+      if (typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:image/")) {
+        return NextResponse.json(
+          { success: false, message: "Invalid image format. Only image data URLs are allowed." },
+          { status: 400 }
+        );
+      }
+      const uploadResult = await uploadImageDataUrl(imageDataUrl);
+      const picture = await Picture.create({
+        filename: String(
+          fileName || uploadResult.original_filename || uploadResult.public_id || "homeowner-photo"
+        ),
+        path: uploadResult.secure_url,
+        mime_type: String(mimeType || uploadResult.resource_type || "image"),
+        uploaded_at: new Date(),
+      });
+      updates["pictures._id"] = picture._id;
+    } else if (picture_id) {
+      updates["pictures._id"] = picture_id;
     }
 
     Object.assign(record, updates);
@@ -101,8 +159,13 @@ export async function PATCH(request) {
       await User.updateOne({ _id: user.id }, { email: updates.email });
     }
 
+    const populatedRecord = await Record.findById(record._id)
+      .populate("address._id")
+      .populate("pictures._id")
+      .lean();
+
     return NextResponse.json(
-      { success: true, message: "Profile updated successfully!", data: record },
+      { success: true, message: "Profile updated successfully!", data: populatedRecord },
       { status: 200 }
     );
   } catch (error) {

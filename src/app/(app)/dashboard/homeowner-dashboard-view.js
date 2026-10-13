@@ -259,9 +259,18 @@ export default function HomeownerDashboardView({ currentUser }) {
 
           <div className={styles.announcementsVerticalList}>
             {recentAnnouncements.map((item) => {
-              const authorName = item["users._id"]
-                ? `${item["users._id"].first_name || ""} ${item["users._id"].last_name || ""}`.trim() || "HOA Board"
+              const userObj = item["users._id"] || item.users?._id || item.users
+              const updatedByObj = item["updated_by._id"] || item.updated_by?._id || item.updated_by
+              const authorName = userObj
+                ? `${userObj.first_name || ""} ${userObj.last_name || ""}`.trim() || userObj.email || "HOA Board"
                 : "HOA Officer"
+              const updatedByName = updatedByObj
+                ? `${updatedByObj.first_name || ""} ${updatedByObj.last_name || ""}`.trim() || updatedByObj.email || ""
+                : ""
+              const isUpdated = Boolean(
+                updatedByName ||
+                (item.updatedAt && item.createdAt && new Date(item.updatedAt).getTime() - new Date(item.createdAt).getTime() > 1000)
+              )
 
               return (
                 <article key={item._id} className={styles.announcementRowCard}>
@@ -273,7 +282,8 @@ export default function HomeownerDashboardView({ currentUser }) {
                       </span>
                       <span className={styles.dateBadge}>
                         <HiOutlineCalendar className={styles.metaIcon} />
-                        {formatDateTime(item.date || item.createdAt)}
+                        {formatDateTime(item.createdAt || item.date)}
+                        {isUpdated && item.updatedAt ? ` (Updated: ${formatDateTime(item.updatedAt)})` : ""}
                       </span>
                     </div>
 
@@ -314,7 +324,10 @@ export default function HomeownerDashboardView({ currentUser }) {
                   <span className={styles.authorBadge}>Official HOA Announcement</span>
                   <h2 className={styles.modalTitle}>{selectedAnnouncement.title}</h2>
                   <p className={styles.modalMeta}>
-                    Posted on {formatDateTime(selectedAnnouncement.date || selectedAnnouncement.createdAt)}
+                    Posted on {formatDateTime(selectedAnnouncement.createdAt || selectedAnnouncement.date)}
+                    {selectedAnnouncement.updatedAt && (
+                      <> • Updated on {formatDateTime(selectedAnnouncement.updatedAt)}</>
+                    )}
                   </p>
                 </div>
                 <button

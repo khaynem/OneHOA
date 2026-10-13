@@ -74,12 +74,19 @@ export async function PUT(request, { params }) {
       payload["pictures._id"] = pictureId || null;
     }
 
+    if (user && user.id && mongoose.Types.ObjectId.isValid(user.id)) {
+      payload["updated_by._id"] = user.id;
+      payload.updated_by = user.id;
+    }
+
     const updated = await Activity.findByIdAndUpdate(activityId, payload, {
       new: true,
       runValidators: true,
     })
       .populate("pictures._id")
-      .populate("users._id", "email role");
+      .populate("users._id", "first_name last_name email role")
+      .populate("updated_by._id", "first_name last_name email role")
+      .populate("updated_by", "first_name last_name email role");
 
     if (!updated) {
       return NextResponse.json({ success: false, message: "Activity not found." }, { status: 404 });

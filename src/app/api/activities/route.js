@@ -17,7 +17,9 @@ export async function GET() {
     const activities = await Activity.find()
       .populate("pictures._id")
       .populate("users._id", "first_name last_name email role")
-      .sort({ createdAt: -1 })
+      .populate("updated_by._id", "first_name last_name email role")
+      .populate("updated_by", "first_name last_name email role")
+      .sort({ updatedAt: -1, createdAt: -1 })
       .lean();
 
     return NextResponse.json({ success: true, data: activities }, { status: 200 });
@@ -66,7 +68,9 @@ export async function POST(request) {
     const created = await Activity.create(payload);
     const populated = await Activity.findById(created._id)
       .populate("pictures._id")
-      .populate("users._id", "first_name last_name email role");
+      .populate("users._id", "first_name last_name email role")
+      .populate("updated_by._id", "first_name last_name email role")
+      .populate("updated_by", "first_name last_name email role");
 
     try {
       await writeAuditLog({

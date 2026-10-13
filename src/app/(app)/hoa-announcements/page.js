@@ -58,18 +58,32 @@ const formatReporter = (user) => {
   return String(user.email || '').trim()
 }
 
-const mapAnnouncement = (announcement = {}) => ({
-  id: String(announcement._id || ''),
-  title: String(announcement.title || '-'),
-  details: String(announcement.content || ''),
-  reporter: formatReporter(announcement.users?._id),
-  location: '',
-  postedDate: announcement.createdAt || announcement.date || null,
-  eventDate: announcement.date || null,
-  images: announcement.pictures?._id?.path ? [String(announcement.pictures._id.path)] : [],
-  pictureId: announcement.pictures?._id?._id ? String(announcement.pictures._id._id) : '',
-  archived: Boolean(announcement.archived)
-})
+const mapAnnouncement = (announcement = {}) => {
+  const updatedByUser = announcement.updated_by?._id || announcement.updated_by || announcement['updated_by._id']
+  const postedByUser = announcement.users?._id || announcement.users || announcement['users._id']
+  const postedDate = announcement.createdAt || announcement.date || null
+  const updatedDate = announcement.updatedAt || null
+  const isUpdated = Boolean(
+    updatedByUser ||
+    (updatedDate && postedDate && new Date(updatedDate).getTime() - new Date(postedDate).getTime() > 1000)
+  )
+
+  return {
+    id: String(announcement._id || ''),
+    title: String(announcement.title || '-'),
+    details: String(announcement.content || ''),
+    reporter: formatReporter(postedByUser),
+    updatedBy: formatReporter(updatedByUser),
+    location: '',
+    postedDate,
+    updatedDate,
+    isUpdated,
+    eventDate: announcement.date || null,
+    images: announcement.pictures?._id?.path ? [String(announcement.pictures._id.path)] : [],
+    pictureId: announcement.pictures?._id?._id ? String(announcement.pictures._id._id) : '',
+    archived: Boolean(announcement.archived)
+  }
+}
 
 export default function HOAAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([])
@@ -87,11 +101,17 @@ export default function HOAAnnouncementsPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
+  const getEffectiveDate = (item) => {
+    const updatedTime = item?.updatedDate ? new Date(item.updatedDate).getTime() : 0
+    const postedTime = item?.postedDate ? new Date(item.postedDate).getTime() : 0
+    return Math.max(updatedTime, postedTime)
+  }
+
   const sortedAnnouncements = useMemo(
     () =>
       [...announcements]
         .filter((announcement) => !announcement.archived)
-        .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
+        .sort((a, b) => getEffectiveDate(b) - getEffectiveDate(a)),
     [announcements]
   )
 
@@ -99,7 +119,7 @@ export default function HOAAnnouncementsPage() {
     () =>
       [...announcements]
         .filter((announcement) => announcement.archived)
-        .sort((a, b) => new Date(b.postedDate || 0).getTime() - new Date(a.postedDate || 0).getTime()),
+        .sort((a, b) => getEffectiveDate(b) - getEffectiveDate(a)),
     [announcements]
   )
 
@@ -480,16 +500,31 @@ export default function HOAAnnouncementsPage() {
                   onClick={() => openAnnouncementModal(announcement)}
                 >
                   <div className={styles.activityTopRow}>
-                    <h3 className={styles.activityTitle}>{announcement.title}</h3>
+                    <h3 className={styles.activityTitle}>
+                      {announcement.title}
+                      {announcement.isUpdated && (
+                        <span className={styles.editedBadge}>Updated</span>
+                      )}
+                    </h3>
                   </div>
 
                   <p className={styles.activityDetails}>{announcement.details}</p>
                   <p className={styles.activityMetaLine}>
                     <span className={styles.metaLabel}>Date Posted:</span> {formatDate(announcement.postedDate)}
                   </p>
+                  {announcement.isUpdated && announcement.updatedDate && (
+                    <p className={styles.activityMetaLine}>
+                      <span className={styles.metaLabel}>Date Updated:</span> {formatDate(announcement.updatedDate)}
+                    </p>
+                  )}
                   <p className={styles.activityMetaLine}>
                     <span className={styles.metaLabel}>Posted By:</span> {announcement.reporter || '-'}
                   </p>
+                  {announcement.isUpdated && announcement.updatedBy && (
+                    <p className={styles.activityMetaLine}>
+                      <span className={styles.metaLabel}>Updated By:</span> {announcement.updatedBy}
+                    </p>
+                  )}
                 </button>
               ))
             )}
@@ -588,7 +623,12 @@ export default function HOAAnnouncementsPage() {
             <div className={styles.modalHeader}>
               <div>
                 <h2 className={styles.modalTitle}>{isEditingAnnouncement ? 'Edit Announcement' : selectedAnnouncement.title}</h2>
-                <p className={styles.modalLead}>Posted: {formatDate(selectedAnnouncement.postedDate)}</p>
+                <p className={styles.modalLead}>
+                  Posted: {formatDate(selectedAnnouncement.postedDate)}
+                  {selectedAnnouncement.isUpdated && selectedAnnouncement.updatedDate && (
+                    <> • Updated: {formatDate(selectedAnnouncement.updatedDate)}</>
+                  )}
+                </p>
               </div>
 
               <button type="button" className={styles.closeButton} onClick={closeAnnouncementModal} aria-label="Close">
@@ -651,7 +691,27 @@ export default function HOAAnnouncementsPage() {
               <>
                 <div className={styles.detailsCard}>
                   <p className={styles.detailsText}>{selectedAnnouncement.details}</p>
-                  <p className={styles.metaText}>Event Date: {formatDate(selectedAnnouncement.eventDate)}</p>
+                  {selectedAnnouncement.eventDate ? (
+                    <p className={styles.metaText}>
+                      <span className={styles.metaLabel}>Event Date:</span> {formatDate(selectedAnnouncement.eventDate)}
+                    </p>
+                  ) : null}
+                  <p className={styles.metaText}>
+                    <span className={styles.metaLabel}>Date Posted:</span> {formatDate(selectedAnnouncement.postedDate)}
+                  </p>
+                  {selectedAnnouncement.isUpdated && selectedAnnouncement.updatedDate && (
+                    <p className={styles.metaText}>
+                      <span className={styles.metaLabel}>Date Updated:</span> {formatDate(selectedAnnouncement.updatedDate)}
+                    </p>
+                  )}
+                  <p className={styles.metaText}>
+                    <span className={styles.metaLabel}>Posted By:</span> {selectedAnnouncement.reporter || '-'}
+                  </p>
+                  {selectedAnnouncement.isUpdated && selectedAnnouncement.updatedBy && (
+                    <p className={styles.metaText}>
+                      <span className={styles.metaLabel}>Updated By:</span> {selectedAnnouncement.updatedBy}
+                    </p>
+                  )}
                   {selectedAnnouncement.images.length > 0 ? (
                     <img
                       src={selectedAnnouncement.images[0]}
@@ -701,14 +761,29 @@ export default function HOAAnnouncementsPage() {
                 pagedArchivedAnnouncements.map((announcement) => (
                   <div key={announcement.id} className={styles.archivedItem}>
                     <div>
-                      <h3 className={styles.activityTitle}>{announcement.title}</h3>
+                      <h3 className={styles.activityTitle}>
+                        {announcement.title}
+                        {announcement.isUpdated && (
+                          <span className={styles.editedBadge}>Updated</span>
+                        )}
+                      </h3>
                       <p className={styles.activityDetails}>{announcement.details}</p>
                       <p className={styles.activityMetaLine}>
                         <span className={styles.metaLabel}>Date Posted:</span> {formatDate(announcement.postedDate)}
                       </p>
+                      {announcement.isUpdated && announcement.updatedDate && (
+                        <p className={styles.activityMetaLine}>
+                          <span className={styles.metaLabel}>Date Updated:</span> {formatDate(announcement.updatedDate)}
+                        </p>
+                      )}
                       <p className={styles.activityMetaLine}>
                         <span className={styles.metaLabel}>Posted By:</span> {announcement.reporter || '-'}
                       </p>
+                      {announcement.isUpdated && announcement.updatedBy && (
+                        <p className={styles.activityMetaLine}>
+                          <span className={styles.metaLabel}>Updated By:</span> {announcement.updatedBy}
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"

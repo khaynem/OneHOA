@@ -69,7 +69,7 @@ export default function LandingPage() {
               id: item._id,
               title: item.title,
               content: item.content,
-              date: item.date || item.createdAt,
+              date: item.updatedAt || item.createdAt || item.date,
               reporter
             }
           })

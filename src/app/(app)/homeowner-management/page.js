@@ -81,14 +81,15 @@ const EMPTY_FORM = {
   phase: '',
   block: '',
   lot: '',
-  entryMonth: '',
+  entryMonth: 'January',
   entryDate: '',
-  occupantStatus: '',
+  occupantStatus: 'Owner',
   householdMembers: [],
-  status: '',
+  status: 'HANJIN WORKER',
   imageName: '',
   pictureId: '',
-  imageUrl: ''
+  imageUrl: '',
+  agreedToPrivacy: false
 }
 
 const VALID_PHASES = ['1', '2', '3']
@@ -823,6 +824,10 @@ function HomeownerManagementInner() {
     /^\d{11}$/.test(addForm.phone.trim()) &&
     addForm.jobDescription.trim()
 
+  const isHouseholdValid =
+    !addForm.householdMembers.length ||
+    addForm.householdMembers.every((m) => m.name?.trim() && m.relationship?.trim())
+
   const currentYear = new Date().getFullYear()
   const isOfficer = String(currentUser?.role || '').trim().toLowerCase() === 'officer'
   const isStepTwoValid =
@@ -831,7 +836,8 @@ function HomeownerManagementInner() {
     /^\d{1,3}$/.test(addForm.lot.trim()) &&
     /^\d{4}$/.test(addForm.entryDate.trim()) &&
     Number(addForm.entryDate.trim()) <= currentYear &&
-    addForm.occupantStatus.trim()
+    isHouseholdValid &&
+    Boolean(addForm.agreedToPrivacy)
 
   const filteredHomeowners = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -1032,6 +1038,13 @@ function HomeownerManagementInner() {
     if (isSaving) return
     const currentYear = new Date().getFullYear()
     if (!isStepTwoValid || Number(addForm.entryDate.trim()) > currentYear) {
+      if (!addForm.agreedToPrivacy) {
+        notify.error({
+          title: 'Data Privacy Consent Required',
+          description: 'Please agree to the Data Privacy Notice before registering.'
+        })
+        return
+      }
       notify.error({
         title: 'Invalid Address/Entry Details',
         description: `Phase must be 1-3, block and lot must be 1 to 3 digits, and entry year must be 4 digits and not exceed ${currentYear}.`
@@ -1041,6 +1054,8 @@ function HomeownerManagementInner() {
 
     try {
       setIsSaving(true)
+      const selectedStatus = addForm.status || 'HANJIN WORKER'
+      const derivedOccupant = occupantStatusFromMembership(selectedStatus) || 'Owner'
       const payload = {
         first_name: normalizeName(addForm.firstName).trim(),
         middle_name: normalizeName(addForm.middleName).trim(),
@@ -1048,18 +1063,18 @@ function HomeownerManagementInner() {
         suffix: normalizeName(addForm.suffix).trim(),
         email: addForm.email.trim(),
         phone_number: addForm.phone.trim(),
-        household_members: addForm.householdMembers,
+        household_members: addForm.householdMembers.filter(m => m.name?.trim()),
         job_title: addForm.jobDescription.trim(),
         work_status: addForm.workStatus.trim(),
-        entry_month: addForm.entryMonth,
-        entry_date: addForm.entryDate,
-        occupant_status: addForm.occupantStatus.trim(),
+        entry_month: addForm.entryMonth || 'January',
+        entry_date: addForm.entryDate.trim(),
+        occupant_status: derivedOccupant,
         address: {
           phase: Number(addForm.phase),
           block: Number(addForm.block),
           lot: Number(addForm.lot)
         },
-        status: normalizeStatusList(addForm.status)
+        status: normalizeStatusList(selectedStatus)
       }
 
       if (addForm.pictureId) {
@@ -2395,26 +2410,21 @@ function HomeownerManagementInner() {
                   </div>
                 </div>
 
-                <div className={styles.twoColGrid}>
-                  <div>
-                    <label className={styles.fieldLabel}>Occupant Status (Mapped)</label>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      value={addForm.occupantStatus || 'Owner'}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                </div>
-
                 <div className={styles.jitNotice}>
-                  <p>
-                    <strong>Data Privacy Notice:</strong> The collected personal data is stored securely and processed solely for record management purposes in compliance with the <strong>Data Privacy Act of 2012 (DPA 2012)</strong>.{' '}
-                    <button type="button" className={styles.jitLink} onClick={() => setLegalModal('privacy')}>
-                      Read our Privacy Policy
-                    </button>.
-                  </p>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(addForm.agreedToPrivacy)}
+                      onChange={(e) => handleFormChange('agreedToPrivacy', e.target.checked)}
+                      style={{ marginTop: '0.2rem', width: '16px', height: '16px', accentColor: '#0a68b2', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <span>
+                      <strong>Data Privacy Notice:</strong> The collected personal data is stored securely and processed solely for record management purposes in compliance with the <strong>Data Privacy Act of 2012 (DPA 2012)</strong>.{' '}
+                      <button type="button" className={styles.jitLink} onClick={() => setLegalModal('privacy')}>
+                        Read our Privacy Policy
+                      </button>.
+                    </span>
+                  </label>
                 </div>
 
                 <div className={styles.modalActions}>

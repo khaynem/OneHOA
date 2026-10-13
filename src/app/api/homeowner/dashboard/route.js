@@ -159,7 +159,9 @@ export async function GET() {
     const announcements = await Activity.find({ archived: { $ne: true } })
       .populate("pictures._id")
       .populate("users._id", "first_name last_name email role")
-      .sort({ date: -1, createdAt: -1 })
+      .populate("updated_by._id", "first_name last_name email role")
+      .populate("updated_by", "first_name last_name email role")
+      .sort({ updatedAt: -1, createdAt: -1, date: -1 })
       .limit(10)
       .lean();
 

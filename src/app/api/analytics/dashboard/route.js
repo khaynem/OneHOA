@@ -133,7 +133,7 @@ export async function GET() {
           })
           .sort({ createdAt: -1 })
           .limit(5),
-        Activity.find().sort({ createdAt: -1 }).limit(5),
+        Activity.find().sort({ updatedAt: -1, createdAt: -1 }).limit(5),
       ]);
 
     const homeowners = homeownersRaw.filter((homeowner) => isOwnerOccupant(homeowner.occupant_status));

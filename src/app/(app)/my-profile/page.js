@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   HiOutlineUser,
   HiOutlineIdentification,
@@ -18,6 +18,10 @@ import {
   HiOutlinePlus,
   HiOutlineXMark,
   HiOutlineCheck,
+  HiOutlineCamera,
+  HiOutlineArrowUpTray,
+  HiOutlineArrowPath,
+  HiOutlinePhoto,
 } from "react-icons/hi2"
 import { ApiError, apiClient } from "@/lib/apiClient"
 import { notify } from "@/lib/notify"
@@ -54,6 +58,12 @@ export default function HomeownerProfilePage() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [imgError, setImgError] = useState(false)
+
+  // Profile picture upload / preview state
+  const [pendingPhotoUrl, setPendingPhotoUrl] = useState(null)
+  const [pendingPhotoData, setPendingPhotoData] = useState(null) // { imageDataUrl, fileName, mimeType }
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     async function loadProfile() {
@@ -100,11 +110,20 @@ export default function HomeownerProfilePage() {
           : []
       })
     }
+    setPendingPhotoUrl(null)
+    setPendingPhotoData(null)
+    setImgError(false)
     setIsEditing(true)
   }
 
   const handleCancelEdit = () => {
     setIsEditing(false)
+    setPendingPhotoUrl(null)
+    setPendingPhotoData(null)
+    setImgError(false)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
     if (data?.record) {
       const rec = data.record;
       setFormValues({
@@ -116,6 +135,79 @@ export default function HomeownerProfilePage() {
           ? JSON.parse(JSON.stringify(rec.household_members))
           : []
       })
+    }
+  }
+
+  const handleFileSelect = (file) => {
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      notify.error("Invalid file format. Please upload an image (JPG, PNG, WEBP).")
+      return
+    }
+
+    // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
+      notify.warning("The selected image is larger than 5MB. Please choose a smaller image.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result
+      setPendingPhotoUrl(dataUrl)
+      setPendingPhotoData({
+        imageDataUrl: dataUrl,
+        fileName: file.name,
+        mimeType: file.type,
+      })
+      setImgError(false)
+      notify.info("Photo loaded for preview! Click 'Save Changes' to update your profile.")
+    }
+    reader.onerror = () => {
+      notify.error("Failed to read image file.")
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleFileSelect(file)
+    }
+  }
+
+  const handleRemovePendingPhoto = (e) => {
+    if (e) e.stopPropagation()
+    setPendingPhotoUrl(null)
+    setPendingPhotoData(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+    notify.info("Reverted to original profile picture.")
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isEditing || isSaving) return
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    if (!isEditing || isSaving) return
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      handleFileSelect(file)
     }
   }
 
@@ -184,12 +276,27 @@ export default function HomeownerProfilePage() {
 
     try {
       setIsSaving(true)
-      const res = await apiClient.patch("/homeowner/my-profile/update", formValues)
+      const payload = {
+        ...formValues,
+      }
+
+      if (pendingPhotoData) {
+        payload.imageDataUrl = pendingPhotoData.imageDataUrl
+        payload.fileName = pendingPhotoData.fileName
+        payload.mimeType = pendingPhotoData.mimeType
+      }
+
+      const res = await apiClient.patch("/homeowner/my-profile/update", payload)
       if (res?.success) {
         notify.success("Profile updated successfully!")
         setIsEditing(false)
+        setPendingPhotoUrl(null)
+        setPendingPhotoData(null)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
 
-        const updated = await apiClient.get("/homeowner/my-profile")
+        const updated = await apiClient.get("/homeowner/my-profile", { forceRefresh: true })
         setData(updated || null)
         if (updated?.record) {
           const rec = updated.record;
@@ -233,13 +340,16 @@ export default function HomeownerProfilePage() {
   const lotText = addressObj.lot ? `Lot ${addressObj.lot}` : ""
   const formattedAddress = [phaseText, blockText, lotText].filter(Boolean).join(", ") || "Fiesta Community Hanjin Village"
 
-  const photoUrl =
+  const savedPhotoUrl =
     record.pictures?._id?.path ||
     record.pictures?.path ||
     record.photoUrl ||
     record.photo ||
     userAccount?.photoUrl ||
     null
+
+  // Display pending preview photo if selected during edit, otherwise saved photo
+  const currentDisplayPhoto = pendingPhotoUrl || savedPhotoUrl
   const initials = getInitials(record.first_name || userAccount.first_name, record.last_name || userAccount.last_name)
 
   const householdMembers = Array.isArray(record.household_members) ? record.household_members : []
@@ -265,22 +375,149 @@ export default function HomeownerProfilePage() {
             {/* Section 1: Homeowner's Own Full Details */}
             <section className={styles.sectionBlock}>
               <div className={styles.sectionHeadingRow}>
-                <div className={styles.headingLeft}>
-                  <div className={styles.headingIconBox}>
-                    {photoUrl && !imgError ? (
-                      <img
-                        src={photoUrl}
-                        alt={fullName || "Homeowner Profile"}
-                        className={styles.headingAvatarImg}
-                        onError={() => setImgError(true)}
-                      />
-                    ) : (
-                      <HiOutlineUser className={styles.headingIcon} />
+                <div className={styles.profileShowcase}>
+                  {/* Square Profile Picture with Slightly Rounded Corners */}
+                  <div className={styles.avatarWrapper}>
+                    <div
+                      className={`${styles.squareAvatarBox} ${
+                        isEditing ? styles.squareAvatarBoxEditable : ""
+                      } ${isDragging ? styles.squareAvatarBoxDragging : ""}`}
+                      onClick={() => {
+                        if (isEditing && !isSaving && fileInputRef.current) {
+                          fileInputRef.current.click()
+                        }
+                      }}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      role={isEditing ? "button" : undefined}
+                      tabIndex={isEditing ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (isEditing && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault()
+                          fileInputRef.current?.click()
+                        }
+                      }}
+                      title={isEditing ? "Click or drop an image to upload/change photo" : fullName}
+                    >
+                      {currentDisplayPhoto && !imgError ? (
+                        <img
+                          src={currentDisplayPhoto}
+                          alt={fullName || "Homeowner Profile"}
+                          className={styles.squareAvatarImg}
+                          onError={() => setImgError(true)}
+                        />
+                      ) : (
+                        <div className={styles.squareAvatarFallback}>
+                          <span className={styles.fallbackInitials}>{initials}</span>
+                          <HiOutlineUser className={styles.fallbackIcon} />
+                        </div>
+                      )}
+
+                      {/* Edit state overlay on hover/focus */}
+                      {isEditing && (
+                        <div className={styles.avatarOverlay}>
+                          <HiOutlineCamera className={styles.overlayCameraIcon} />
+                          <span className={styles.overlayText}>
+                            {pendingPhotoUrl ? "Change Photo" : "Upload Photo"}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Pending preview indicator badge */}
+                      {isEditing && pendingPhotoUrl && (
+                        <div className={styles.avatarPreviewTag}>
+                          <HiOutlinePhoto className={styles.previewTagIcon} />
+                          <span>New Preview</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hidden File Input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/jpg"
+                      onChange={handleFileInputChange}
+                      className={styles.hiddenFileInput}
+                      disabled={isSaving || !isEditing}
+                    />
+
+                    {/* Edit mode upload controls & guide */}
+                    {isEditing && (
+                      <div className={styles.avatarEditControls}>
+                        <div className={styles.avatarBtnRow}>
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isSaving}
+                            className={styles.uploadPhotoBtn}
+                            title="Choose image file"
+                          >
+                            <HiOutlineArrowUpTray className={styles.btnSubIcon} />
+                            {pendingPhotoUrl ? "Choose Different Photo" : "Upload Photo"}
+                          </button>
+
+                          {pendingPhotoUrl && (
+                            <button
+                              type="button"
+                              onClick={handleRemovePendingPhoto}
+                              disabled={isSaving}
+                              className={styles.revertPhotoBtn}
+                              title="Revert to original photo"
+                            >
+                              <HiOutlineArrowPath className={styles.btnSubIcon} />
+                              Revert
+                            </button>
+                          )}
+                        </div>
+
+                        <p className={styles.photoHelperText}>
+                          Square format (1:1), JPG/PNG/WEBP, max 5MB. Click or drag &amp; drop to preview.
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <div>
-                    <h2 className={styles.sectionTitle}>My Homeowner Registration Record</h2>
-                    <p className={styles.sectionSub}>Full details submitted during registration and stored in official HOA records.</p>
+
+                  {/* Profile Identity Details */}
+                  <div className={styles.profileIdentityDetails}>
+                    <div className={styles.nameBadgeRow}>
+                      <h2 className={styles.homeownerName}>{fullName}</h2>
+                      <span className={styles.verifiedBadge}>
+                        <HiOutlineCheckBadge className={styles.badgeIcon} />
+                        Official HOA Record
+                      </span>
+                    </div>
+
+                    <p className={styles.addressLine}>
+                      <HiOutlineBuildingOffice className={styles.inlineIcon} />
+                      {formattedAddress}
+                    </p>
+
+                    <div className={styles.metaChipsRow}>
+                      {record.generated_id && (
+                        <span className={styles.metaChip}>
+                          <HiOutlineIdentification className={styles.chipIcon} />
+                          ID: #{record.generated_id}
+                        </span>
+                      )}
+                      {record.occupant_status && (
+                        <span className={styles.metaChipHighlight}>
+                          {record.occupant_status}
+                        </span>
+                      )}
+                      <span className={styles.metaChip}>
+                        <HiOutlineCalendar className={styles.chipIcon} />
+                        Registered: {formatDateTime(record.entry_date || record.createdAt)}
+                      </span>
+                    </div>
+
+                    {isEditing && (
+                      <div className={styles.editingBannerNotice}>
+                        <HiOutlinePencilSquare className={styles.noticeIcon} />
+                        <span>Editing Profile: You can assess and update your profile picture and contact details below.</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -645,8 +645,10 @@ export default function RegisterHomeownerPage() {
                 className={styles.removeBtn}
                 onClick={() => removeHouseholdMember(index)}
                 title="Remove Member"
+                aria-label="Remove Member"
               >
-                ✕
+                <HiOutlineTrash className={styles.removeBtnIcon} />
+                <span className={styles.removeBtnText}>Remove Member</span>
               </button>
             </div>
           ))}
@@ -825,21 +827,29 @@ export default function RegisterHomeownerPage() {
             <div className={styles.stepBar}>
               <div className={`${styles.stepItem} ${!isEmailVerified ? styles.stepItemActive : styles.stepItemCompleted}`}>
                 <span className={styles.stepNumber}>{isEmailVerified ? <FaCheck /> : '1'}</span>
-                <span>Step 1: Email Verification</span>
+                <div className={styles.stepTextWrapper}>
+                  <span className={styles.stepStep}>Step 1</span>
+                  <span className={styles.stepTitle}>Email Verification</span>
+                </div>
               </div>
               <div className={`${styles.stepDivider} ${isEmailVerified ? styles.stepDividerActive : ''}`} />
               <div className={`${styles.stepItem} ${isEmailVerified ? styles.stepItemActive : ''}`}>
                 <span className={styles.stepNumber}>2</span>
-                <span>Step 2: Homeowner Details</span>
+                <div className={styles.stepTextWrapper}>
+                  <span className={styles.stepStep}>Step 2</span>
+                  <span className={styles.stepTitle}>Homeowner Details</span>
+                </div>
               </div>
             </div>
 
             {/* Step 1: Verification Card */}
             <div className={styles.verificationSection}>
               <div className={styles.verificationHeader}>
-                <FaEnvelope /> Step 1: Email Verification
+                <div className={styles.verificationTitleGroup}>
+                  <FaEnvelope /> Step 1: Email Verification
+                </div>
                 {isEmailVerified && (
-                  <span className={styles.verifiedBadge} style={{ marginLeft: 'auto' }}>
+                  <span className={styles.verifiedBadge}>
                     <FaCheck /> Verified
                   </span>
                 )}
@@ -966,16 +976,17 @@ export default function RegisterHomeownerPage() {
                       <label className={styles.label}>
                         Documents for Validation <span className={styles.required}>*</span>
                       </label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div className={styles.idUploadContainer}>
+                        <div className={styles.idPreviewsList}>
                           {validIdPreviews.map((preview, index) => (
-                            <div key={index} style={{ position: 'relative', width: '120px', height: '120px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                              <img src={preview} alt={`Valid ID ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div key={index} className={styles.idPreviewCard}>
+                              <img src={preview} alt={`Valid ID ${index + 1}`} className={styles.idPreviewImage} />
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleRemoveValidId(index); }}
-                                style={{ position: 'absolute', top: '4px', right: '4px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                className={styles.idRemoveBtn}
                                 title="Remove image"
+                                aria-label="Remove image"
                               >
                                 ✕
                               </button>
@@ -983,21 +994,21 @@ export default function RegisterHomeownerPage() {
                           ))}
                           {validIdPreviews.length < 4 && (
                             <div
-                              className={styles.idUploadZone}
-                              style={{ width: validIdPreviews.length > 0 ? '120px' : '100%', height: validIdPreviews.length > 0 ? '120px' : 'auto', margin: 0 }}
+                              className={`${styles.idUploadZone} ${validIdPreviews.length > 0 ? styles.idUploadZoneCompact : ''}`}
                               onClick={() => validIdInputRef.current?.click()}
                             >
-                              <div className={styles.uploadPlaceholder} style={{ padding: validIdPreviews.length > 0 ? '0.5rem' : '2rem' }}>
-                                <FaIdCard className={styles.idIcon} style={{ fontSize: validIdPreviews.length > 0 ? '1.5rem' : '2rem' }} />
-                                {validIdPreviews.length === 0 && (
+                              <div className={styles.uploadPlaceholder} style={{ padding: validIdPreviews.length > 0 ? '0.5rem' : undefined }}>
+                                <FaIdCard className={styles.idIcon} style={{ fontSize: validIdPreviews.length > 0 ? '1.5rem' : undefined }} />
+                                {validIdPreviews.length === 0 ? (
                                   <>
-                                    <span>Click or Drag to Upload Valid IDs</span>
+                                    <span>Tap or Drag to Upload Valid IDs</span>
                                     <p className={styles.hintText}>Upload up to 4 images (Passport, Driver&apos;s License, etc.)</p>
-                                    <p className={styles.hintText}>Accepted File formats are .jpg, .jpeg, .png, or .webp</p>
+                                    <p className={styles.hintText}>Accepted File formats: .jpg, .jpeg, .png, or .webp</p>
                                     <p className={styles.hintText}>Max file size is 5 MB per image.</p>
                                   </>
+                                ) : (
+                                  <span style={{ fontSize: '0.8rem' }}>Add More</span>
                                 )}
-                                {validIdPreviews.length > 0 && <span style={{ fontSize: '0.8rem' }}>Add More</span>}
                               </div>
                               {isValidIdUploading && (
                                 <div className={styles.uploadOverlay}>
@@ -1095,10 +1106,10 @@ export default function RegisterHomeownerPage() {
                 </button>
               </form>
             ) : (
-              <div style={{ textAlign: 'center', padding: '2.5rem 1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
-                <FaLock style={{ fontSize: '2rem', color: '#003B75', marginBottom: '0.75rem' }} />
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#003B75', fontSize: '1.2rem', fontWeight: '700' }}>Registration Form Locked</h3>
-                <p style={{ margin: 0, fontSize: '0.94rem' }}>Please verify your email address in <strong>Step 1</strong> above to unlock the registration details form.</p>
+              <div className={styles.lockedContainer}>
+                <FaLock className={styles.lockedIcon} />
+                <h3 className={styles.lockedTitle}>Registration Form Locked</h3>
+                <p className={styles.lockedText}>Please verify your email address in <strong>Step 1</strong> above to unlock the registration details form.</p>
               </div>
             )}
           </div>
@@ -1112,16 +1123,16 @@ export default function RegisterHomeownerPage() {
               <p className={styles.modalText}>Please review your information before submitting:</p>
 
               <div className={styles.modalDetails}>
-                <div className={styles.modalDetailRow}><strong>First Name:</strong> {formData.first_name}</div>
-                <div className={styles.modalDetailRow}><strong>Middle Name:</strong> {formData.middle_name || ''}</div>
-                <div className={styles.modalDetailRow}><strong>Last Name:</strong> {formData.last_name}</div>
-                {formData.suffix && <div className={styles.modalDetailRow}><strong>Suffix:</strong> {formData.suffix}</div>}
-                <div className={styles.modalDetailRow}><strong>Email:</strong> {formData.email}</div>
-                <div className={styles.modalDetailRow}><strong>Phone:</strong> {formData.phone_number}</div>
-                <div className={styles.modalDetailRow}><strong>Address:</strong> Phase {formData.phase}, Block {formData.block}, Lot {formData.lot}</div>
-                <div className={styles.modalDetailRow}><strong>Registration Date:</strong> {formData.registration_date}</div>
-                <div className={styles.modalDetailRow}><strong>Membership Status:</strong> {formData.membership_status}</div>
-                <div className={styles.modalDetailRow}><strong>Valid IDs Attached:</strong> {validIdFiles.length}</div>
+                <div className={styles.modalDetailRow}><strong>First Name:</strong> <span>{formData.first_name}</span></div>
+                <div className={styles.modalDetailRow}><strong>Middle Name:</strong> <span>{formData.middle_name || 'N/A'}</span></div>
+                <div className={styles.modalDetailRow}><strong>Last Name:</strong> <span>{formData.last_name}</span></div>
+                {formData.suffix && <div className={styles.modalDetailRow}><strong>Suffix:</strong> <span>{formData.suffix}</span></div>}
+                <div className={styles.modalDetailRow}><strong>Email:</strong> <span>{formData.email}</span></div>
+                <div className={styles.modalDetailRow}><strong>Phone:</strong> <span>{formData.phone_number}</span></div>
+                <div className={styles.modalDetailRow}><strong>Address:</strong> <span>Phase {formData.phase}, Block {formData.block}, Lot {formData.lot}</span></div>
+                <div className={styles.modalDetailRow}><strong>Registration Date:</strong> <span>{formData.registration_date}</span></div>
+                <div className={styles.modalDetailRow}><strong>Membership Status:</strong> <span>{formData.membership_status}</span></div>
+                <div className={styles.modalDetailRow}><strong>Valid IDs Attached:</strong> <span>{validIdFiles.length || validIdPictureIds.length}</span></div>
               </div>
 
               <div className={styles.modalActions}>

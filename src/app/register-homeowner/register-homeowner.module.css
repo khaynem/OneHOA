@@ -482,17 +482,29 @@
   color: #ef4444;
   border: none;
   border-radius: 6px;
-  width: 40px;
   height: 40px;
-  display: flex;
+  padding: 0 0.85rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   cursor: pointer;
   transition: background 0.15s ease;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .removeBtn:hover {
   background: #fecaca;
+}
+
+.removeBtnIcon {
+  font-size: 1.15rem;
+}
+
+.removeBtnText {
+  display: inline;
 }
 
 .addBtn {
@@ -669,34 +681,7 @@
   font-size: 2.2rem;
 }
 
-@media (max-width: 768px) {
-  .formContainer {
-    padding: 2rem 1.5rem;
-  }
 
-  .fieldsGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .photoSection {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .idUploadZone {
-    width: 100%;
-  }
-
-  .householdRow {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .removeBtn {
-    width: 100%;
-    margin-top: 0.5rem;
-  }
-}
 
 .checkboxLabel {
   display: flex;
@@ -984,4 +969,562 @@
   border-radius: 8px;
   font-size: 0.88rem;
   color: #92400e;
+}
+
+.stepTextWrapper {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.stepStep {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.stepTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.verificationTitleGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.idUploadContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.idPreviewsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.idPreviewCard {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.idPreviewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.idRemoveBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease, background 0.15s ease;
+  z-index: 2;
+}
+
+.idRemoveBtn:hover {
+  background: #dc2626;
+  transform: scale(1.08);
+}
+
+.idUploadZoneCompact {
+  width: 120px;
+  height: 120px;
+  min-height: 120px;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.lockedContainer {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.lockedIcon {
+  font-size: 2.2rem;
+  color: #003B75;
+  margin-bottom: 0.75rem;
+}
+
+.lockedTitle {
+  margin: 0 0 0.5rem 0;
+  color: #003B75;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.lockedText {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  max-width: 500px;
+}
+
+/* ========================================================
+   RESPONSIVE DESIGN BREAKPOINTS
+   ======================================================== */
+
+@media (max-width: 900px) {
+  .formInner {
+    padding: 2.2rem 2rem;
+  }
+
+  .header {
+    padding: 0.8rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 1.5rem 1rem 2rem;
+  }
+
+  .formInner {
+    padding: 2rem 1.5rem;
+  }
+
+  .fieldsGrid {
+    grid-template-columns: 1fr;
+    gap: 1.1rem;
+  }
+
+  .photoSection {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+
+  .photoUploadGroup {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profileUploadZone {
+    align-self: center;
+  }
+
+  .idUploadZone {
+    width: 100%;
+  }
+
+  .householdRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .householdRow .formGroup {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .removeBtn {
+    width: 100%;
+    margin-top: 0.25rem;
+  }
+
+  /* Prevent automatic mobile browser zoom (e.g., iOS Safari) on input focus */
+  .input,
+  .select,
+  .textarea {
+    font-size: 16px;
+    padding: 0.7rem 0.85rem;
+  }
+
+  /* Decorative floating shapes optimization for mobile */
+  .square1,
+  .square2,
+  .square3 {
+    display: none;
+  }
+
+  .glowYellow {
+    width: 260px;
+    height: 260px;
+    filter: blur(60px);
+    top: -50px;
+    right: -50px;
+  }
+
+  .glowBlue {
+    width: 260px;
+    height: 260px;
+    filter: blur(70px);
+    bottom: -60px;
+    left: -60px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 0.7rem 1rem;
+  }
+
+  .logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brandText {
+    font-size: 1.1rem;
+  }
+
+  .backLink {
+    font-size: 0.88rem;
+    gap: 0.35rem;
+  }
+
+  .main {
+    padding: 1rem 0.5rem 1.5rem;
+  }
+
+  .formContainer {
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 59, 117, 0.1);
+  }
+
+  .formInner {
+    padding: 1.5rem 1rem;
+  }
+
+  .formHeader {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    padding-top: 0.5rem;
+  }
+
+  .title {
+    font-size: clamp(1.35rem, 5vw, 1.7rem);
+    margin-bottom: 0.4rem;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+
+  /* Step Bar Mobile Styling */
+  .stepBar {
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stepItem {
+    gap: 0.45rem;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .stepNumber {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    font-size: 0.8rem;
+  }
+
+  .stepStep {
+    font-size: 0.65rem;
+  }
+
+  .stepTitle {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stepDivider {
+    width: auto;
+    flex: 0 1 24px;
+    min-width: 10px;
+    margin: 0 2px;
+  }
+
+  /* Verification Card Mobile Styling */
+  .verificationSection {
+    padding: 1.2rem 1rem;
+    margin-bottom: 1.25rem;
+    border-radius: 12px;
+  }
+
+  .verificationHeader {
+    font-size: 1.05rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: space-between;
+  }
+
+  .verifiedBadge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+  }
+
+  .verificationDesc {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+  }
+
+  .verificationRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .verificationRow .formGroup {
+    width: 100%;
+  }
+
+  .verifyActionBtn {
+    width: 100%;
+    height: 44px;
+    font-size: 0.95rem;
+    border-radius: 8px;
+    justify-content: center;
+  }
+
+  .devCodeBox {
+    font-size: 0.8rem;
+    padding: 0.65rem 0.8rem;
+    word-break: break-all;
+  }
+
+  /* Form Sections & Fields */
+  .formSection {
+    padding: 1.15rem 0.95rem;
+    border-radius: 10px;
+  }
+
+  .sectionTitle {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form {
+    gap: 1.25rem;
+  }
+
+  .checkboxLabel {
+    font-size: 0.88rem;
+    gap: 0.65rem;
+    line-height: 1.45;
+  }
+
+  .checkbox {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    margin-top: 1px;
+  }
+
+  .submitBtn {
+    width: 100%;
+    font-size: 1rem;
+    padding: 0.85rem 1.25rem;
+    min-height: 48px;
+    border-radius: 8px;
+    justify-content: center;
+  }
+
+  /* Locked Container */
+  .lockedContainer {
+    padding: 1.75rem 1rem;
+  }
+
+  .lockedIcon {
+    font-size: 1.8rem;
+  }
+
+  .lockedTitle {
+    font-size: 1.1rem;
+  }
+
+  .lockedText {
+    font-size: 0.86rem;
+  }
+
+  /* Modal Mobile Responsiveness */
+  .modalOverlay {
+    padding: 0.75rem;
+  }
+
+  .modalContent {
+    padding: 1.35rem 1.1rem;
+    border-radius: 14px;
+    max-height: calc(100vh - 1.5rem);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .modalTitle {
+    font-size: 1.35rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .modalText {
+    font-size: 0.88rem;
+    margin-bottom: 1rem;
+  }
+
+  .modalDetails {
+    padding: 0.85rem;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.88rem;
+  }
+
+  .modalDetailRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    border-bottom: 1px solid #eef2f6;
+    padding-bottom: 0.4rem;
+  }
+
+  .modalDetailRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .modalDetailRow strong {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
+
+  .modalDetailRow span {
+    word-break: break-all;
+    color: #1e293b;
+    font-weight: 500;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+    gap: 0.6rem;
+    width: 100%;
+  }
+
+  .modalActions .btn {
+    width: 100%;
+    height: 44px;
+    font-size: 0.95rem;
+  }
+
+  /* Success Card Mobile */
+  .successCard {
+    margin: 1.5rem 0.5rem;
+    padding: 2rem 1.15rem;
+    border-radius: 14px;
+    gap: 1.2rem;
+  }
+
+  .successIcon {
+    font-size: 3rem;
+  }
+
+  .successTitle {
+    font-size: 1.45rem;
+  }
+
+  .successText {
+    font-size: 0.9rem;
+  }
+
+  .successInfo {
+    padding: 1rem;
+    font-size: 0.85rem;
+  }
+
+  .homeBtn {
+    width: 100%;
+    text-align: center;
+    padding: 0.85rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .main {
+    padding: 0.75rem 0.35rem 1.25rem;
+  }
+
+  .formInner {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .title {
+    font-size: 1.3rem;
+  }
+
+  .stepItem {
+    gap: 0.35rem;
+  }
+
+  .stepNumber {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    font-size: 0.75rem;
+  }
+
+  .stepStep {
+    font-size: 0.6rem;
+  }
+
+  .stepTitle {
+    font-size: 0.75rem;
+  }
+
+  .idPreviewCard {
+    width: 95px;
+    height: 95px;
+  }
+
+  .idUploadZoneCompact {
+    width: 95px;
+    height: 95px;
+    min-height: 95px;
+  }
 }

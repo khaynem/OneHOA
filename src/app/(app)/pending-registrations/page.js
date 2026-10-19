@@ -206,6 +206,8 @@ export default function PendingRegistrationsPage() {
     }
   }
 
+  const isActionModalOpen = showApproveModal || showDeclineModal || showDuplicateWarningModal
+
   return (
     <>
       <div className={styles.backgroundContainer} aria-hidden="true">
@@ -344,7 +346,7 @@ export default function PendingRegistrationsPage() {
             </div>
           </div>
 
-          <div className={`${styles.detailsSection} ${selectedReg ? styles.detailsActive : ''}`}>
+          <div className={`${styles.detailsSection} ${selectedReg ? styles.detailsActive : ''} ${isActionModalOpen ? styles.detailsSuppressedOnMobile : ''}`}>
             {selectedReg ? (
               <div className={styles.detailsCard}>
                 <div className={styles.detailsHeader}>

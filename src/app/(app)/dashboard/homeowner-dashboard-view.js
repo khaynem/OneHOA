@@ -147,11 +147,15 @@ export default function HomeownerDashboardView({ currentUser }) {
             <p className={styles.bannerSubtitle}>
               Here is your personal monthly dues payment summary and the official HOA community announcement board.
             </p>
-            <div className={styles.bannerDate}>
-              <HiOutlineCalendar aria-hidden="true" />
-              <span>{formattedDate}</span>
+            <div className={styles.bannerMetaRow}>
+              <div className={styles.bannerDate}>
+                <HiOutlineCalendar aria-hidden="true" className={styles.bannerDateIcon} />
+                <span>{formattedDate}</span>
+              </div>
               {record.generated_id && (
-                <span className={styles.idBadge}>ID: #{record.generated_id}</span>
+                <span className={styles.idBadge}>
+                  <span className={styles.idBadgePrefix}>ID:</span> #{record.generated_id}
+                </span>
               )}
             </div>
           </div>

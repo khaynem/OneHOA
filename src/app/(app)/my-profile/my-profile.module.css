@@ -1237,14 +1237,164 @@
   transform: none;
 }
 
+.mobileHouseholdList {
+  display: none;
+}
+
+.mobileMemberCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.mobileCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.mobileMemberBadge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+
+.mobileFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mobileFieldLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.requiredStar {
+  color: #ef4444;
+}
+
+.mobileViewCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobileViewTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobileViewNameLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.mobileViewNameVal {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
 @media (max-width: 640px) {
-  .editInput,
-  .editSelect {
-    max-width: 100%;
+  .spreadsheetWrap {
+    display: none;
+  }
+
+  .mobileHouseholdList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .householdBox {
+    padding: 16px 14px;
+    border-radius: 14px;
+  }
+
+  .addMemberBtn {
+    width: 100%;
+    min-height: 44px;
   }
 
   .tableFooterRow {
     flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .incompleteWarning {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .editInput,
+  .editSelect {
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .sheetInput {
+    font-size: 16px;
+    padding: 9px 12px;
+  }
+
+  .infoList li {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 6px;
+  }
+
+  .infoVal {
+    text-align: left;
+    word-break: break-all;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 0 40px;
+  }
+
+  .sectionBlock {
+    padding: 16px 12px;
+    border-radius: 14px;
+  }
+
+  .detailCard {
+    padding: 16px 12px;
+    border-radius: 14px;
+  }
+
+  .householdBox {
+    padding: 14px 10px;
+    border-radius: 12px;
+  }
+
+  .mobileMemberCard,
+  .mobileViewCard {
+    padding: 12px 12px;
   }
 }

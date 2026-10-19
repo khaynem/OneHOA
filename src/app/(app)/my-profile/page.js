@@ -692,6 +692,7 @@ export default function HomeownerProfilePage() {
 
                 {isEditing ? (
                   <div className={styles.householdEditContainer}>
+                    {/* Desktop table view */}
                     <div className={styles.spreadsheetWrap}>
                       <table className={styles.spreadsheetTable}>
                         <thead>
@@ -752,6 +753,59 @@ export default function HomeownerProfilePage() {
                       </table>
                     </div>
 
+                    {/* Mobile Card List View for Editing */}
+                    <div className={styles.mobileHouseholdList}>
+                      {formValues.household_members.map((member, idx) => (
+                        <div key={idx} className={styles.mobileMemberCard}>
+                          <div className={styles.mobileCardHeader}>
+                            <span className={styles.mobileMemberBadge}>Member #{idx + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeHouseholdMember(idx)}
+                              className={styles.sheetDeleteBtn}
+                              title="Delete member"
+                              disabled={isSaving}
+                            >
+                              <HiOutlineTrash /> Delete
+                            </button>
+                          </div>
+                          <div className={styles.mobileFieldGroup}>
+                            <label className={styles.mobileFieldLabel}>
+                              Full Name <span className={styles.requiredStar}>*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={member.name || ""}
+                              onChange={(e) => handleHouseholdChange(idx, "name", e.target.value)}
+                              className={styles.sheetInput}
+                              placeholder="Enter member's full name"
+                              required
+                              disabled={isSaving}
+                            />
+                          </div>
+                          <div className={styles.mobileFieldGroup}>
+                            <label className={styles.mobileFieldLabel}>
+                              Relationship <span className={styles.requiredStar}>*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={member.relationship || ""}
+                              onChange={(e) => handleHouseholdChange(idx, "relationship", e.target.value)}
+                              className={styles.sheetInput}
+                              placeholder="e.g., Spouse, Child, Parent"
+                              required
+                              disabled={isSaving}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      {formValues.household_members.length === 0 && (
+                        <div className={styles.emptySheetCell}>
+                          No household members added yet. Click &ldquo;+ Add Row&rdquo; below to insert a member.
+                        </div>
+                      )}
+                    </div>
+
                     <div className={styles.tableFooterRow}>
                       <button
                         type="button"
@@ -777,28 +831,45 @@ export default function HomeownerProfilePage() {
                   householdMembers.length === 0 ? (
                     <p className={styles.emptySubText}>No additional household members listed in record.</p>
                   ) : (
-                    <div className={styles.spreadsheetWrap}>
-                      <table className={styles.spreadsheetTable}>
-                        <thead>
-                          <tr>
-                            <th className={styles.colIndex}>#</th>
-                            <th className={styles.colName}>Full Name</th>
-                            <th className={styles.colRel}>Relationship</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {householdMembers.map((member, idx) => (
-                            <tr key={idx}>
-                              <td className={styles.rowNumberCell}>{idx + 1}</td>
-                              <td className={styles.viewNameCell}>{member.name || "-"}</td>
-                              <td className={styles.viewRelCell}>
-                                <span className={styles.relBadge}>{member.relationship || "Member"}</span>
-                              </td>
+                    <>
+                      {/* Desktop View Table */}
+                      <div className={styles.spreadsheetWrap}>
+                        <table className={styles.spreadsheetTable}>
+                          <thead>
+                            <tr>
+                              <th className={styles.colIndex}>#</th>
+                              <th className={styles.colName}>Full Name</th>
+                              <th className={styles.colRel}>Relationship</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {householdMembers.map((member, idx) => (
+                              <tr key={idx}>
+                                <td className={styles.rowNumberCell}>{idx + 1}</td>
+                                <td className={styles.viewNameCell}>{member.name || "-"}</td>
+                                <td className={styles.viewRelCell}>
+                                  <span className={styles.relBadge}>{member.relationship || "Member"}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile View Card List */}
+                      <div className={styles.mobileHouseholdList}>
+                        {householdMembers.map((member, idx) => (
+                          <div key={idx} className={styles.mobileViewCard}>
+                            <div className={styles.mobileViewTop}>
+                              <span className={styles.mobileMemberBadge}>#{idx + 1}</span>
+                              <span className={styles.relBadge}>{member.relationship || "Member"}</span>
+                            </div>
+                            <div className={styles.mobileViewNameLabel}>Full Name:</div>
+                            <div className={styles.mobileViewNameVal}>{member.name || "-"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )
                 )}
               </div>

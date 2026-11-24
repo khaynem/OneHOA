@@ -5,6 +5,7 @@ import Record from "@/lib/server/models/records";
 import Address from "@/lib/server/models/address";
 import EmailVerification from "@/lib/server/models/emailVerification";
 import Setting from "@/lib/server/models/settings";
+import User from "@/lib/server/models/users";
 import "@/lib/server/models/pictures";
 import { requireAuth, requireRole, normalizeEmail } from "@/lib/server/auth";
 import { sendRegistrationSubmittedEmail } from "@/lib/server/services/emailService";
@@ -240,65 +241,133 @@ export async function POST(request) {
     }
     payload.picture_id = pictureId;
 
-    // 3.5 Silent Masterlist Background Matching
-    if (payload.phase && payload.block && payload.lot && payload.first_name && payload.last_name) {
-      try {
-        const address = await Address.findOne({
-          phase: payload.phase,
-          block: payload.block,
-          lot: payload.lot,
-        }).select("_id").lean();
+      // 3.5 Silent Masterlist Background Matching and Immediate Masterlist Record Update
+      if (payload.first_name && payload.last_name) {
+        try {
+          let matchedRecord = null;
+          let addressDoc = null;
 
-        if (address) {
-          const candidateRecords = await Record.find({ "address._id": address._id }).lean();
-          const cleanedFirst = cleanNameForMatching(payload.first_name);
-          const cleanedLast = cleanNameForMatching(payload.last_name);
+            if (payload.phase !== undefined && payload.block !== undefined && payload.lot !== undefined) {
+              addressDoc = await Address.findOne({
+                phase: payload.phase,
+                block: payload.block,
+                lot: payload.lot,
+              });
 
-          const matched = candidateRecords.find((rec) => {
-            const recFirst = cleanNameForMatching(rec.first_name);
-            const recLast = cleanNameForMatching(rec.last_name);
-            return recFirst === cleanedFirst && recLast === cleanedLast;
-          });
+                if (!addressDoc) {
+                  addressDoc = await Address.create({
+                    phase: payload.phase,
+                    block: payload.block,
+                    lot: payload.lot,
+                  });
+                }
+              }
 
-          if (matched) {
-            payload.matched_record_id = matched._id;
-            payload.is_masterlist_match = true;
+        const cleanedFirst = cleanNameForMatching(payload.first_name);
+              const cleanedLast = cleanNameForMatching(payload.last_name);
+
+              // 1. Check by address match first
+              if (addressDoc) {
+                const candidateRecords = await Record.find({ "address._id": addressDoc._id });
+                matchedRecord = candidateRecords.find((rec) => {
+                  const recFirst = cleanNameForMatching(rec.first_name);
+                  const recLast = cleanNameForMatching(rec.last_name);
+                  return recFirst === cleanedFirst && recLast === cleanedLast;
+                });
+              }
+
+                // 2. Check by email match if email is provided and not yet matched
+                if (!matchedRecord && payload.email) {
+                  const normalizedEmail = String(payload.email).trim().toLowerCase();
+                  matchedRecord = await Record.findOne({
+                    email: { $regex: new RegExp(`^${normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+                  });
+                }
+
+                // 3. Check by full name fallback across all records
+                if (!matchedRecord) {
+                  const candidateRecords = await Record.find({});
+                  matchedRecord = candidateRecords.find((rec) => {
+                    const recFirst = cleanNameForMatching(rec.first_name);
+                    const recLast = cleanNameForMatching(rec.last_name);
+                    return recFirst === cleanedFirst && recLast === cleanedLast;
+                  });
+                }
+
+                if (matchedRecord) {
+                  payload.matched_record_id = matchedRecord._id;
+                  payload.is_masterlist_match = true;
+
+                  // Update existing masterlist record with all new inputs from the registration form
+                  const recordUpdate = {};
+                  if (payload.first_name) recordUpdate.first_name = payload.first_name;
+                  if (payload.middle_name !== undefined) recordUpdate.middle_name = payload.middle_name;
+                  if (payload.last_name) recordUpdate.last_name = payload.last_name;
+                  if (payload.suffix !== undefined) recordUpdate.suffix = payload.suffix;
+                  if (payload.email) recordUpdate.email = payload.email;
+                  if (payload.phone_number) recordUpdate.phone_number = payload.phone_number;
+                  if (payload.job_title) recordUpdate.job_title = payload.job_title;
+                  if (payload.work_status) recordUpdate.work_status = payload.work_status;
+                  if (payload.registration_date) recordUpdate.registration_date = payload.registration_date;
+                  if (payload.membership_status) {
+                    recordUpdate.status = [payload.membership_status];
+                    recordUpdate.occupant_status = occupantStatusFromMembership(payload.membership_status);
+                  }
+                  if (Array.isArray(payload.household_members)) {
+                    recordUpdate.household_members = payload.household_members;
+                  }
+                  if (payload.picture_id) {
+                    recordUpdate["pictures._id"] = payload.picture_id;
+                    recordUpdate.picture_id = payload.picture_id;
+                  }
+                  if (addressDoc) {
+                    recordUpdate["address._id"] = addressDoc._id;
+                  }
+
+                  // Link user_id if a user account already exists with this email
+                  if (payload.email) {
+                    const existingUser = await User.findOne({ email: String(payload.email).trim().toLowerCase() }).select("_id");
+                    if (existingUser) {
+                      recordUpdate.user_id = existingUser._id;
+                    }
+                  }
+
+                  await Record.updateOne({ _id: matchedRecord._id }, { $set: recordUpdate });
+                }
+              } catch (matchErr) {
+                console.error("[Registration] Error during background masterlist matching and updating:", matchErr);
+              }
+            }
+
+            // 3.6 Automatically derive occupant_status from membership_status
+            if (payload.membership_status) {
+              payload.occupant_status = occupantStatusFromMembership(payload.membership_status);
+            }
+
+            // 3.7 Set registration request workflow status
+            payload.request_status = "pending";
+            payload.status = "pending";
+
+            // 4. Create Pending Registration Record
+            const newReg = await PendingRegistration.create(payload);
+
+            // 5. Send confirmation email to applicant
+            if (payload.email) {
+              const applicantName = [payload.first_name, payload.middle_name, payload.last_name, payload.suffix].filter(Boolean).join(" ");
+              sendRegistrationSubmittedEmail({
+                toEmail: payload.email,
+                fullName: applicantName,
+              }).catch((err) => {
+                console.error("Failed to send submission email asynchronously:", err);
+              });
+            }
+
+            return NextResponse.json({ success: true, data: newReg }, { status: 201 });
+          } catch (error) {
+            console.error("Guest registration failed:", error);
+            return NextResponse.json(
+              { success: false, message: error.message || "Failed to submit registration request." },
+              { status: 500 }
+            );
           }
         }
-      } catch (matchErr) {
-        console.error("[Registration] Error during background masterlist matching:", matchErr);
-      }
-    }
-
-    // 3.6 Automatically derive occupant_status from membership_status
-    if (payload.membership_status) {
-      payload.occupant_status = occupantStatusFromMembership(payload.membership_status);
-    }
-
-    // 3.7 Set registration request workflow status
-    payload.request_status = "pending";
-    payload.status = "pending";
-
-    // 4. Create Pending Registration Record
-    const newReg = await PendingRegistration.create(payload);
-
-    // 5. Send confirmation email to applicant
-    if (payload.email) {
-      const applicantName = [payload.first_name, payload.middle_name, payload.last_name, payload.suffix].filter(Boolean).join(" ");
-      sendRegistrationSubmittedEmail({
-        toEmail: payload.email,
-        fullName: applicantName,
-      }).catch((err) => {
-        console.error("Failed to send submission email asynchronously:", err);
-      });
-    }
-
-    return NextResponse.json({ success: true, data: newReg }, { status: 201 });
-  } catch (error) {
-    console.error("Guest registration failed:", error);
-    return NextResponse.json(
-      { success: false, message: error.message || "Failed to submit registration request." },
-      { status: 500 }
-    );
-  }
-}

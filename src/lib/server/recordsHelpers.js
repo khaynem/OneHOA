@@ -19,6 +19,8 @@ const ALLOWED_FIELDS = [
   "household_members",
   "address._id",
   "pictures._id",
+  "picture_id",
+  "user_id",
   "status",
   "generated_id",
 ];

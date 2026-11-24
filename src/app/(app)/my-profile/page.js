@@ -342,6 +342,7 @@ export default function HomeownerProfilePage() {
 
   const savedPhotoUrl =
     record.pictures?._id?.path ||
+    record.picture_id?.path ||
     record.pictures?.path ||
     record.photoUrl ||
     record.photo ||

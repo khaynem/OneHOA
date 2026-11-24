@@ -76,11 +76,19 @@ const recordsSchema = new mongoose.Schema(
       ],
       default: []
     },
+    user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     "address._id": {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Address",
     },
     "pictures._id": {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Picture",
+    },
+    picture_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Picture",
     },

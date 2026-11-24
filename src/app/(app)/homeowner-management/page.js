@@ -234,11 +234,18 @@ const readFileAsDataUrl = (file) =>
 const getPictureFields = (record = {}) => {
   const fromNested = record.pictures?._id
   const fromDotNotation = record['pictures._id']
-  const picture = fromNested && typeof fromNested === 'object' ? fromNested : fromDotNotation
+  const fromDirectId = record.picture_id
+  const picture =
+    (fromNested && typeof fromNested === 'object' ? fromNested : null) ||
+    (fromDotNotation && typeof fromDotNotation === 'object' ? fromDotNotation : null) ||
+    (fromDirectId && typeof fromDirectId === 'object' ? fromDirectId : null) ||
+    fromNested ||
+    fromDotNotation ||
+    fromDirectId
 
   return {
-    pictureId: picture?._id ? String(picture._id) : '',
-    photoUrl: String(picture?.path || '')
+    pictureId: picture?._id ? String(picture._id) : (typeof picture === 'string' ? picture : ''),
+    photoUrl: String(picture?.path || (typeof picture === 'string' && (picture.startsWith('http') || picture.startsWith('/')) ? picture : ''))
   }
 }
 

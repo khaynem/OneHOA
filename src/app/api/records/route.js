@@ -91,11 +91,11 @@ export async function GET(request) {
 
     if (summary) {
       recordsQuery
-        .select("first_name last_name middle_name suffix email phone_number address._id pictures._id occupant_status status archived generated_id entry_date entry_month registration_date approved_registration_date job_title work_status work_address household_members household_no createdAt updatedAt")
+        .select("first_name last_name middle_name suffix email phone_number address._id pictures._id picture_id occupant_status status archived generated_id entry_date entry_month registration_date approved_registration_date job_title work_status work_address household_members household_no createdAt updatedAt")
         .populate("address._id", "phase block lot");
-      recordsQuery.populate("pictures._id", "path");
+      recordsQuery.populate("pictures._id", "path").populate("picture_id", "path");
     } else {
-      recordsQuery.populate("address._id").populate("pictures._id");
+      recordsQuery.populate("address._id").populate("pictures._id").populate("picture_id");
     }
 
     const [items, total] = await Promise.all([recordsQuery, Record.countDocuments(filter)]);

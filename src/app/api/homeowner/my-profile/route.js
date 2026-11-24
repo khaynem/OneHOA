@@ -17,12 +17,21 @@ export async function GET() {
 
     // Find homeowner record matching current logged in user
     let record = null;
-    if (normalizedEmail) {
+    if (user.id) {
+      record = await Record.findOne({ user_id: user.id })
+        .populate("address._id")
+        .populate("pictures._id")
+        .populate("picture_id")
+        .lean();
+    }
+
+    if (!record && normalizedEmail) {
       record = await Record.findOne({
         email: { $regex: new RegExp(`^${normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
       })
         .populate("address._id")
         .populate("pictures._id")
+        .populate("picture_id")
         .lean();
     }
 
@@ -33,6 +42,7 @@ export async function GET() {
       })
         .populate("address._id")
         .populate("pictures._id")
+        .populate("picture_id")
         .lean();
     }
 
@@ -41,6 +51,7 @@ export async function GET() {
       record = await Record.findOne({ archived: { $ne: true } })
         .populate("address._id")
         .populate("pictures._id")
+        .populate("picture_id")
         .lean();
     }
 
@@ -74,8 +85,8 @@ export async function GET() {
             off.role === "president"
               ? "HOA President"
               : off.role === "admin"
-              ? "System Administrator"
-              : "HOA Officer",
+                ? "System Administrator"
+                : "HOA Officer",
           status: off.status,
         })),
       },

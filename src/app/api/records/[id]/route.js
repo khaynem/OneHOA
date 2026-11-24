@@ -76,7 +76,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ success: false, message: "Invalid record ID." }, { status: 400 });
     }
 
-    const record = await Record.findById(id).populate("address._id").populate("pictures._id");
+    const record = await Record.findById(id).populate("address._id").populate("pictures._id").populate("picture_id");
     if (!record) {
       return NextResponse.json({ success: false, message: "Record not found." }, { status: 404 });
     }
